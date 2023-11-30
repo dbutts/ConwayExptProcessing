@@ -1,0 +1,682 @@
+function data = PackageHartleyData_v9( exptdata, metadata_struct, stimFilePath, bevils_computer )
+
+%% TODO:
+% fix labeling of Hartley plots that are saved - currently uses wrong probeIDs
+
+if nargin < 4
+	bevils_computer = 0;
+end
+if (nargin < 3) || isempty(stimFilePath)
+	if bevils_computer:
+		stimFilePath = 'C:\SpkSort2023\Cloudstims_calib_01_2022\';
+	else
+		stimFilePath = '/Users/dbutts/Data/Conway/Cloudstims_calib_01_2022/';
+	end
+end
+
+useofflinesorting = metadata_struct.use_offline_sorting;
+nSU = metadata_struct.nSU;
+nMU = metadata_struct.nMU;
+
+%% params
+if useofflinesorting==1  
+	nChans=nSU+nMU;
+else
+nChans=256; %targchans=1:24;
+end
+
+targ_ETstimtype=7; % 7 for CC, 1 for 1D
+targ_stimtype=6;
+
+skipLP=0;
+skipET=1;
+
+plot_intermediate=0;
+
+if any([strfind(metadata_struct.exptname,'220203'), strfind(metadata_struct.exptname,'220205'), strfind(metadata_struct.exptname,'220207')])
+	trlbins=160; dt=.024; repframes=3;
+else
+	trlbins=240; dt=.016; repframes=2;
+end
+fixvarcutoff=6;
+blink_thresh = 60;
+cur_BlockID=1;         
+% %%
+% for cc=1:nChans;
+% numSpks(cc)=sum(cell2mat(exptdata(:,11+3*(cc-1))));
+% end
+% targchans=find(numSpks>2000);
+targchans
+% %%
+% if useofflinesorting==1
+% targchans=1:nChans;
+% end
+%% for testing purposes
+%/{
+for tt=1:length(exptdata)
+	%   test(tt)=exptdata{tt, 1}.DualstimPrimaryuseRGBCloud; 
+	test(tt)=exptdata{tt, 1}.DualstimSecondaryUseCloud; 
+	%test(tt)=exptdata{tt, 1}.m_aiStimulusArea; 
+	%test(tt)=exptdata{tt, 1}.m_aiStimulusRect(1);
+	%    test(tt)=exptdata{tt, 1}.m_aiStimulusRect(2);
+end
+[unique(test), 0, mode(test) length(find(test==mode(test)))]
+%}
+%% get target indices
+
+for switch_stimtype=0:8
+
+	targ_trials = [];
+	for tt = 1:length(exptdata)
+		%    if strcmp(exptdata{tt, 1}.m_strTrialType, 'Dense Noise');
+		if strcmp(exptdata{tt, 1}.m_strTrialType, 'Dual Stim') && ...
+				exptdata{tt, 1}.m_bMonkeyFixated==1 && ...
+				exptdata{tt, 1}.DualstimPrimaryuseRGBCloud==switch_stimtype &&  ...
+				exptdata{tt, 1}.DualstimSecondaryUseCloud==targ_ETstimtype;%  &&...
+				%exptdata{tt, 1}.m_aiStimulusRect(1)==975;
+			targ_trials=[targ_trials,tt];
+		end
+	end
+
+	switch switch_stimtype
+		case 0; curstimstype='GT';  exptdata_GT=exptdata(targ_trials,:);
+			%save([strExperimentPath,filesep,'exptdata4modeling' curstimstype '.mat'],'exptdata_GT','-v7.3')
+		case 3; curstimstype='HL';  exptdata_HartleyLum=exptdata(targ_trials,:);
+			%save([strExperimentPath,filesep,'exptdata4modeling' curstimstype '.mat'],'exptdata_HartleyLum','-v7.3')
+		case 6; curstimstype='HC';  exptdata_HartleyCol=exptdata(targ_trials,:);
+			%save([strExperimentPath,filesep,'exptdata4modeling' curstimstype '.mat'],'exptdata_HartleyCol','-v7.3')
+		case 8; curstimstype='CC';    exptdata_ColCloud=exptdata(targ_trials,:);
+			%save([strExperimentPath,filesep,'exptdata4modeling' curstimstype '.mat'],'exptdata_ColCloud','-v7.3')
+	end
+end
+
+%%
+%{
+for tt=1:length(exptdata)
+figure(1);
+plot(exptdata{tt, 1}.m_afEyeXPositionScreenCoordinates-(exptdata{tt, 1}.m_pt2iFixationSpot(1))); hold on
+plot(exptdata{tt, 1}.m_afEyeYPositionScreenCoordinates-(exptdata{tt, 1}.m_pt2iFixationSpot(2))); hold off
+
+title(num2str(exptdata{tt, 1}.m_bMonkeyFixated));
+%exptdata{4353, 1}.m_afEyeXPositionScreenCoordinates  
+
+figure(2);
+plot(exptdata{tt, 5}');
+
+pause
+end
+%}
+
+
+%% Load Hartleys
+load('/media/felix/Internal_1/Data/BevilColor/hartleys_60.mat')
+hartleys=hartleys60_DKL;
+hartleys_metas=hartleys60_meta;
+hartleys_metas(769:end,4)=3;
+
+load([ExperimentFolder metadata_struct.exptname '.mat'], 'g_astrctAllParadigms')
+DualstimETbars = int8(squeeze((g_astrctAllParadigms{1, 1}.DualstimETbars-128)/127)');
+
+%%
+switch targ_stimtype
+	case 3; curstimstype='HL';  exptdata_mod=exptdata_HartleyLum;
+	case 6; curstimstype='HC';  exptdata_mod=exptdata_HartleyCol;
+	case 7; curstimstype='LC';    exptdata_mod=exptdata_LumCloud;
+	case 8; curstimstype='CC';    exptdata_mod=exptdata_ColCloud;
+end
+switch targ_ETstimtype
+	case 1; curETstimtype='1D';
+	case 7; curETstimtype='CC';
+end
+
+%%
+ntrls = size(exptdata_mod,1);
+NT=trlbins*ntrls;
+
+trlsecs = 4;
+
+if ET_Eyelink==3
+	numETtraces=2;
+	ET_trace_raw_1khz=zeros(ntrls*trlsecs*1000,3);
+else
+	numETtraces=size(exptdata_mod{end, 7}.ET_trace,1);
+	ET_trace_raw_1khz=zeros(ntrls*trlsecs*1000,numETtraces);
+end
+ET_ad_up=[];
+
+if any([strfind(metadata_struct.exptname,'220203'), strfind(metadata_struct.exptname,'220205'), strfind(metadata_struct.exptname,'220207')])
+	edges=linspace(0,2.67,trlbins); edges_hist=linspace(0,2.67,trlbins+1);
+else
+	edges=linspace(0,trlsecs,trlbins); edges_hist=linspace(0,trlsecs,trlbins+1);
+end
+
+stim = int8(zeros(NT,60,60,3)); stimtype=zeros(NT,1);  
+
+if ~skipET
+	if targ_ETstimtype==1
+		stimET=int8(zeros(NT,60)); stimtypeET=zeros(NT,1); stimETori=zeros(NT,1); 
+	else
+		stimET=int8(zeros(NT,60,60,3)); stimtypeET=zeros(NT,1); 
+	end
+end
+
+trialstart_plx=zeros(ntrls,1);
+
+hartleystim_metas=zeros(NT,4); 
+binned_SU1=int8(zeros(NT,nChans)); binned_MUA=[]; ET_trace=zeros(NT,2); ET_trace_raw=zeros(NT,2);
+%binned_SU2=int8(zeros(NT,nChans)); binned_SU3=int8(zeros(NT,nChans)); %binned_SU4=zeros(NT,nChans); 
+bad_inds_fix=[1:10]; bad_inds_sac = []; sacc_inds=[];
+Block_onsetinds=1; Block_offsetinds=[]; Block_onsetinds_blink=1; Block_offsetinds_blink=[];
+BlockID=[]; TrialID=[]; useLeye=zeros(NT,1); useReye=zeros(NT,1);
+spk_times_all=cell([nSU+nMU,1]);
+
+cloud_scale=zeros(NT,1); 
+cloud_binary=zeros(NT,1);     
+
+cd(stimFilePath)
+cur_scale=g_astrctAllParadigms{1, 1}.DualstimScale.Buffer(find(g_astrctAllParadigms{1, 1}.DualstimScale.TimeStamp<exptdata_mod{1,2},1,'last'));
+load(sprintf(['Cloudstims_Chrom_size60_scale%d_%02d.mat'], cur_scale, cur_BlockID));
+%load(sprintf([stimFilePath 'Cloudstims_Chrom_size60_scale%d_%02d.mat'], cur_scale, cur_BlockID)) 
+DensenoiseChromcloud_DKlspace=int8(127*(DensenoiseChromcloud_DKlspace));
+
+%%
+for tt=1:ntrls
+	cur_trlinds=[1:trlbins]+trlbins*(tt-1);
+	pixelscaf=round(exptdata_mod{tt, 1}.m_aiStimulusArea/60);
+
+	trialstart_plx(tt) = exptdata_mod{tt, 1}.PlexonOnsetTime;
+
+	if ~isfield(exptdata_mod{tt,1}, 'usebinary')
+		exptdata_mod{tt, 1}.usebinary=0;
+	end
+
+	if targ_stimtype==8
+		if exptdata_mod{tt,1}.BlockID~=cur_BlockID;
+			cur_BlockID = exptdata_mod{tt,1}.BlockID;
+			cur_scale=g_astrctAllParadigms{1, 1}.DualstimScale.Buffer(find(g_astrctAllParadigms{1, 1}.DualstimScale.TimeStamp<exptdata_mod{tt,2},1,'last'));
+			if exptdata_mod{tt, 1}.usebinary  
+				load(sprintf(['Cloudstims_BinaryChrom_size60_scale%d_SPscale6_%02d.mat'], cur_scale, cur_BlockID));            
+			else
+				load(sprintf(['Cloudstims_Chrom_size60_scale%d_%02d.mat'], cur_scale, cur_BlockID));
+			end
+			DensenoiseChromcloud_DKlspace=int8(127*(DensenoiseChromcloud_DKlspace));
+		end
+		cur_TrialID = exptdata_mod{tt,1}.TrialID;
+		BlockID(cur_trlinds)=cur_BlockID;
+		TrialID(cur_trlinds)=cur_TrialID;
+
+		cloud_scale(cur_trlinds) = cur_scale;
+		cloud_binary(cur_trlinds) = exptdata_mod{tt, 1}.usebinary; 
+	end
+
+    if ~isfield(exptdata_mod{tt,1}, 'UseLeye')
+        exptdata_mod{tt, 1}.UseLeye=1;
+        exptdata_mod{tt, 1}.UseReye=1;
+    end
+    useLeye(cur_trlinds)=exptdata_mod{tt,1}.UseLeye;
+    useReye(cur_trlinds)=exptdata_mod{tt,1}.UseReye;
+
+%/{ 
+% comment out to only get ET info    
+
+		for channel=1:nChans
+			if ~isempty(exptdata_mod{tt,10+3*(channel-1)})
+				try
+					cur_spks=exptdata_mod{tt,10+3*(channel-1)}.unit1;
+					cur_spks(cur_spks<0)=[]; cur_spks(cur_spks>trlsecs)=[];
+					binned_SU1(cur_trlinds,channel)=histcounts(exptdata_mod{tt,10+3*(channel-1)}.unit1,edges_hist);
+					spk_times_all{channel}=[spk_times_all{channel}; cur_spks+(trlsecs*(tt-1))];
+				catch
+					cur_spks=exptdata_mod{tt,10+3*(channel-1)};
+					cur_spks(cur_spks<0)=[]; cur_spks(cur_spks>trlsecs)=[];
+					binned_SU1(cur_trlinds,channel)=histcounts(exptdata_mod{tt,10+3*(channel-1)},edges_hist);
+					spk_times_all{channel,1}=[spk_times_all{channel,1}; cur_spks+(trlsecs*(tt-1))];
+				end
+			end   
+		end
+
+%}
+%%
+		cur_trial_ET_trace_full=[]; cur_trial_ET_trace=[];
+		cur_trial_ETsamples=[0:.001:3.999];
+		cur_trial_ET_trace_full(:,1)=(exptdata_mod{tt, 7}.ET_trace(1,:)' )*(g_strctEyeCalib.GainX.Buffer(end)./1000);
+		cur_trial_ET_trace_full(:,2)=(exptdata_mod{tt, 7}.ET_trace(2,:)' )*(g_strctEyeCalib.GainY.Buffer(end)./1000);
+
+		if numETtraces>2
+			cur_trial_ET_trace_full(:,3)=(exptdata_mod{tt, 7}.ET_trace(3,:)' )*(g_strctEyeCalib.GainX.Buffer(end)./1000);
+			cur_trial_ET_trace_full(:,4)=(exptdata_mod{tt, 7}.ET_trace(4,:)' )*(g_strctEyeCalib.GainY.Buffer(end)./1000);
+		end
+
+% % if needing to median-adjust:
+%     cur_trial_ET_trace_full(:,1)=(exptdata_mod{tt, 7}.ET_trace(1,:)' - median(exptdata_mod{tt, 7}.ET_trace(1,:)'))*(g_strctEyeCalib.GainX.Buffer(end)./1000);
+%     cur_trial_ET_trace_full(:,2)=(exptdata_mod{tt, 7}.ET_trace(2,:)' - median(exptdata_mod{tt, 7}.ET_trace(2,:)'))*(g_strctEyeCalib.GainY.Buffer(end)./1000);    
+
+% % if needing to interpolate time positions
+%         cur_trial_ET_trace(:,1)=interp1(cur_trial_ETsamples,cur_trial_ET_trace_full(:,1),edges,'linear');
+%         cur_trial_ET_trace(:,2)=interp1(cur_trial_ETsamples,cur_trial_ET_trace_full(:,2),edges,'linear');
+
+%%
+
+		if ET_Eyelink==1
+			eye_smooth = [15, 3, 3]; sgolay_deg = [2,2,2];
+			sac_thresh = 9; %3.5; %threshold eye speed % default 6 for 0314
+			peri_thresh = 3; %threshold eye speed for defining saccade boundary inds % default 2.5 for 0314
+		else
+			eye_smooth = [181, 3, 5]; sgolay_deg = [3,2,4];
+			sac_thresh = 2.5; %3.5; %threshold eye speed
+			peri_thresh = 1.2; %threshold eye speed for defining saccade boundary inds
+		end
+		if plot_intermediate==1
+			plot_flag=3;
+		else
+			plot_flag=0; 
+		end
+
+		[~, ~, ~, saccade_times, sac_start_times, sac_stop_times] = detect_saccades_bevfel(...
+			cur_trial_ET_trace_full', cur_trial_ETsamples, 3, eye_smooth, sgolay_deg, sac_thresh, peri_thresh, plot_flag);
+		if plot_intermediate==1
+			pause
+		end
+
+		%% do same processing of ET data as done for saccade detection
+		if ET_Eyelink ==3
+			ET_trace_raw_1khz([1:4000]+4000*(tt-1),1:2)=cur_trial_ET_trace_full;
+			ET_trace_raw_1khz([1:4000]+4000*(tt-1),3) = exptdata_mod{tt, 7}.ET_trace(3,:)';
+
+			cur_trial_ETsamples_kofiko = exptdata_mod{tt, 1}.m_afEyePositiontimes - exptdata_mod{tt, 1}.m_afEyePositiontimes(1);
+			cur_trial_ET_trace(1,:)=interp1(cur_trial_ETsamples_kofiko, exptdata_mod{tt, 1}.m_afEyeXPositionScreenCoordinates' - exptdata_mod{tt, 1}.m_pt2iFixationSpot(1), linspace(0,4,240))';
+			cur_trial_ET_trace(2,:)=interp1(cur_trial_ETsamples_kofiko, exptdata_mod{tt, 1}.m_afEyeYPositionScreenCoordinates' - exptdata_mod{tt, 1}.m_pt2iFixationSpot(2), linspace(0,4,240))';    
+
+		else
+			ET_trace_raw_1khz([1:4000]+4000*(tt-1),:)=cur_trial_ET_trace_full;
+			ET_ad_up(1,:) = smooth(cur_trial_ET_trace_full(:,1)', eye_smooth(1), 'sgolay', sgolay_deg(1));
+			ET_ad_up(2,:) = smooth(cur_trial_ET_trace_full(:,2)', eye_smooth(1), 'sgolay', sgolay_deg(1));
+
+			et_params.eye_fs = 60; %ET_adfreq;
+			ET_times_up = cur_trial_ETsamples(1):(1/et_params.eye_fs):cur_trial_ETsamples(end);
+			cur_trial_ET_trace(1,:) = interp1(cur_trial_ETsamples, ET_ad_up(1,:), ET_times_up, 'spline');
+			cur_trial_ET_trace(2,:) = interp1(cur_trial_ETsamples, ET_ad_up(2,:), ET_times_up, 'spline'); 
+
+			eye_smooth2 = 3;
+			cur_trial_ET_trace(1,:) = smooth(cur_trial_ET_trace(1,:), eye_smooth(2), 'sgolay', sgolay_deg(2));
+			cur_trial_ET_trace(2,:) = smooth(cur_trial_ET_trace(2,:), eye_smooth(2), 'sgolay', sgolay_deg(2));
+		end
+
+		%%
+		cur_sac_start_inds=[]; cur_sac_stop_inds=[];
+		for sacs=1:length(saccade_times);
+			cur_sac_start_inds(sacs)=find(edges>sac_start_times(sacs),1,'first');
+			if isempty(find(edges>sac_stop_times(sacs),1,'first'))
+				cur_sac_stop_inds(sacs)=length(edges);
+			else
+				cur_sac_stop_inds(sacs)=find(edges>sac_stop_times(sacs),1,'first');
+			end
+		end
+
+%     ET_trace_raw(cur_trlinds,1)=cur_trial_ET_trace_full(:,1);
+%     ET_trace_raw(cur_trlinds,2)=cur_trial_ET_trace_full(:,2);
+%    ET_trace(cur_trlinds,1)=smooth(ET_trace_raw(cur_trlinds,1),5);
+%    ET_trace(cur_trlinds,2)=smooth(ET_trace_raw(cur_trlinds,2),5);
+
+%    ET_trace_raw(cur_trlinds,1) = interp1(cur_trial_ETsamples, cur_trial_ET_trace_full(:,1), ET_times_up, 'spline');
+%    ET_trace_raw(cur_trlinds,2) = interp1(cur_trial_ETsamples, cur_trial_ET_trace_full(:,2), ET_times_up, 'spline'); 
+		ET_trace(cur_trlinds,1)=cur_trial_ET_trace(1,:)';
+		ET_trace(cur_trlinds,2)=cur_trial_ET_trace(2,:)';
+
+		sacc_inds=[sacc_inds; cur_trlinds([cur_sac_start_inds' cur_sac_stop_inds'])];
+		bad_inds_sac=[bad_inds_sac, cur_trlinds(cur_sac_start_inds(sacs)):cur_trlinds(cur_sac_stop_inds(sacs))];
+
+    %{
+tt=3;
+figure;
+subplot(2,1,1); plot(exptdata_ColCloud{tt, 7}.ET_trace'); title('Plexon ET traces')
+subplot(2,1,2); plot(exptdata_ColCloud{tt, 1}.ETthisTrialRawEyeData); title('Kofiko ET traces'); axis tight
+
+    %}
+% previous ET integration code    
+%{
+    try
+    cur_trial_ETsamples=exptdata_mod{tt, 1}.m_afEyePositiontimes-exptdata_mod{tt, 1}.m_afEyePositiontimes(1)+g_strctStatistics.m_strctEyeData.m_fEyeIntegrationPeriod(1);
+    catch
+%        cur_trial_ETsamples=2*[1:length(exptdata_mod{tt,1}.m_afEyeXPositionScreenCoordinates)]./length(exptdata_mod{tt,1}.m_afEyeXPositionScreenCoordinates);
+        sprintf('ET data missing? \n')
+    end
+    cur_trial_ET_trace(:,1)=([interp1(cur_trial_ETsamples,exptdata_mod{tt,1}.m_afEyeXPositionScreenCoordinates,edges,'linear')-exptdata_mod{tt,1}.m_pt2iFixationSpot(1)])./pixelscaf;
+    cur_trial_ET_trace(:,2)=([interp1(cur_trial_ETsamples,exptdata_mod{tt,1}.m_afEyeYPositionScreenCoordinates,edges,'linear')-exptdata_mod{tt,1}.m_pt2iFixationSpot(2)])./pixelscaf;
+
+
+    ET_trace_raw(cur_trlinds,1)=cur_trial_ET_trace(:,1);
+    ET_trace_raw(cur_trlinds,2)=cur_trial_ET_trace(:,2);
+
+    ET_trace(cur_trlinds,1)=ET_trace_raw(cur_trlinds,1);
+    ET_trace(cur_trlinds,2)=ET_trace_raw(cur_trlinds,2);
+    
+    if ~isempty(exptdata_mod{tt,6}.saccades);
+%         cur_sac_inds=[1];
+%         sacc_inds=[sacc_inds; [cur_trlinds(1)-1, cur_trlinds(1)]];
+%         sac_edges=[0,1];
+        cur_sac_inds=[]; cur_sac_start_inds=[]; cur_sac_stop_inds=[];
+        
+        if length(exptdata_mod{tt,6}.saccade_stop)<length(exptdata_mod{tt,6}.saccade_start)
+            exptdata_mod{tt,6}.saccade_start=exptdata_mod{tt,6}.saccade_start(1:length(exptdata_mod{tt,6}.saccade_stop));
+            exptdata_mod{tt,6}.saccades=exptdata_mod{tt,6}.saccades(1:length(exptdata_mod{tt,6}.saccade_stop));
+        end
+        if any(exptdata_mod{tt,6}.saccades-exptdata_mod{tt,2}>max(edges))
+            exptdata_mod{tt,6}.saccades(exptdata_mod{tt,6}.saccades>max(edges))=[];
+        end
+        
+        for sacs=1:length(exptdata_mod{tt,6}.saccades);
+            curtrl_sactimes = exptdata_mod{tt,6}.saccades-exptdata_mod{tt,2};
+            curtrl_sactimes_start = exptdata_mod{tt,6}.saccade_start-exptdata_mod{tt,2};
+            curtrl_sactimes_stop = exptdata_mod{tt,6}.saccade_stop-exptdata_mod{tt,2};
+            cur_sac_inds(sacs)=find(edges>curtrl_sactimes(sacs),1,'first');
+            cur_sac_start_inds(sacs)=find(edges>curtrl_sactimes_start(sacs),1,'first');
+            if isempty(find(edges>curtrl_sactimes_stop(sacs),1,'first'))
+                cur_sac_stop_inds(sacs)=length(edges);
+            else
+            cur_sac_stop_inds(sacs)=find(edges>curtrl_sactimes_stop(sacs),1,'first');
+            end
+        end
+            sacc_inds=[sacc_inds; cur_trlinds([cur_sac_start_inds' cur_sac_stop_inds'])];
+            %sac_edges=[sac_edges;[cur_sac_start_inds' cur_sac_stop_inds']];
+            bad_inds_sac=[bad_inds_sac, cur_trlinds(cur_sac_start_inds(sacs)):cur_trlinds(cur_sac_stop_inds(sacs))];
+        
+        %if cur_sac_inds(1)>1; sac_edges=[1,cur_sac_inds]; else; sac_edges=[cur_sac_inds];end
+        %if cur_sac_stop_inds(end)<trlbins; sacc_inds=[sacc_inds; [trlbins-1 trlbins]]; sac_edges=[sac_edges,trlbins];end
+    
+        % detect saccades separately
+
+    else
+%        sacc_inds=[sacc_inds; [cur_trlinds(1), cur_trlinds(1); cur_trlinds(trlbins)-1, cur_trlinds(trlbins)]];
+%        sac_edges=[0,1; trlbins, trlbins+1];
+        bad_inds_sac=[bad_inds_sac cur_trlinds(1:6)];
+    end
+%}
+
+%     for fixs=1:length(sac_edges)-1
+%         cur_fixs_adj_inds=[sac_edges(fixs,2):sac_edges(fixs+1,1)];
+%     %             ET_trace(cur_trlinds(cur_fixs_adj_inds),1)=mean(exptdata_mod{tt,3}(1,cur_fixs_adj_inds));
+%     %             ET_trace(cur_trlinds(cur_fixs_adj_inds),2)=mean(exptdata_mod{tt,3}(2,cur_fixs_adj_inds));
+%         ET_trace(cur_trlinds(cur_fixs_adj_inds),1)=mean(ET_trace(cur_trlinds(cur_fixs_adj_inds),1));
+%         ET_trace(cur_trlinds(cur_fixs_adj_inds),2)=mean(ET_trace(cur_trlinds(cur_fixs_adj_inds),2));
+%     end
+  
+		if tt>=2
+			Block_offsetinds=[Block_offsetinds,cur_trlinds(1)-1]; %end of last block
+			Block_onsetinds=[Block_onsetinds,cur_trlinds(1)]; %start of this block block
+		end
+%{    
+    figure(1);
+%     plot([ET_trace(cur_trlinds,1)-offsets(1)]./24,'r'); hold on
+%     plot([ET_trace(cur_trlinds,2)-offsets(2)]./24,'b'); 
+%     plot([ET_trace_raw(cur_trlinds,1)-offsets(1)]./24,'--r');
+%     plot([ET_trace_raw(cur_trlinds,2)-offsets(2)]./24,'--b'); 
+%     hold off
+    plot([ET_trace(cur_trlinds,1)],'r'); hold on
+    plot([ET_trace(cur_trlinds,2)],'b'); 
+    plot([ET_trace_raw(cur_trlinds,1)],'--r');
+    plot([ET_trace_raw(cur_trlinds,2)],'--b'); 
+    if ~isempty(intersect(bad_inds_fix,cur_trlinds))
+    vline(intersect(bad_inds_fix,cur_trlinds)-cur_trlinds(1),'b');
+    end
+    if ~isempty(intersect(bad_inds_artifact,cur_trlinds))
+    vline(intersect(bad_inds_artifact,cur_trlinds)-cur_trlinds(1),'b');
+    end
+    title([num2str(var(ET_trace_raw(cur_trlinds,1))) '   ' num2str(var(ET_trace_raw(cur_trlinds,2)))])
+    hold off    
+%    vline(intersect(cur_trlinds,sac_inds)-cur_trlinds(1))
+    vline(cur_sac_inds)
+%    ylim([-10 10])
+    pause
+%}  
+%/{
+% remove to only extract ET info   
+
+		switch exptdata_mod{tt,1}.DualstimPrimaryuseRGBCloud
+			case 8
+				stim(cur_trlinds,:,:,:)=permute( DensenoiseChromcloud_DKlspace(:,:,exptdata_mod{tt,1}.stimseq(1:repframes:repframes*trlbins),:),[3 1 2 4]);
+				%stimulus(cur_trlinds_stim,:,:,:)=permute(exptdata_mod{tt,1}.stimuli(:,:,1:2:end,:),[2 3 1 4]);
+				stimtype(cur_trlinds)=8;
+
+			case 7
+				stim(cur_trlinds,:,:,:)=permute( DensenoiseAchromcloud_binned(:,:,exptdata_mod{tt,1}.stimseq(1:repframes:repframes*trlbins),:),[3 1 2 4]);
+				%stimulus(cur_trlinds_stim,:,:,:)=permute(exptdata_mod{tt,1}.stimuli(:,:,1:2:end,:),[2 3 1 4]);
+				stimtype(cur_trlinds)=8;
+
+			case 6
+				stim(cur_trlinds,:,:,:)=hartleys60_DKL(exptdata_mod{tt,1}.stimseq(1:repframes:repframes*trlbins),:,:,:);
+				stimtype(cur_trlinds)=6;
+				hartleystim_metas(cur_trlinds,:)=hartleys_metas(exptdata_mod{tt,1}.stimseq(1:repframes:repframes*trlbins),:);
+
+			case 3
+				stim(cur_trlinds_stim,:,:,:)=hartleys60_DKL(exptdata_mod{tt,1}.stimseq(1:repframes:end),:,:,:);
+				stimtype(cur_trlinds)=3;
+				hartleystim_metas(cur_trlinds_stim,:)=hartleys_metas(exptdata_mod{tt,1}.stimseq(1:2:end),:);
+		end
+
+		if ~skipET
+			switch exptdata_mod{tt, 1}.DualstimSecondaryUseCloud
+				case 1
+					stimET(cur_trlinds,:)=DualstimETbars(exptdata_mod{tt, 1}.stimseq_ET_bars(1:repframes:end),:);
+					%stimulus(cur_trlinds_stim,:,:,:)=permute(exptdata_mod{tt,1}.stimuli(:,:,1:2:end,:),[2 3 1 4]);
+					stimETori(cur_trlinds,:)=exptdata_mod{tt, 1}.stimseq_ET_baroris(1:repframes:end);
+					stimtypeET(cur_trlinds)=1;
+
+				case 7
+					stimET(cur_trlinds,:,:,:)=permute( DensenoiseChromcloud_DKlspace(:,:,exptdata_mod{tt,1}.stimseq_ET_Cclouds(1:repframes:repframes*trlbins),:),[3 1 2 4]);
+					%stimulus(cur_trlinds_stim,:,:,:)=permute(exptdata_mod{tt,1}.stimuli(:,:,1:2:end,:),[2 3 1 4]);
+					stimtypeET(cur_trlinds)=7;            
+			end
+		end
+%}     
+		if mod(tt,50)==0
+			disp(['finished trial ' num2str(tt) ' of ' num2str(ntrls)])
+		end
+end
+
+
+%%
+tvec=[1:length(binned_SU1)];
+Block_offsetinds=[Block_offsetinds,length(binned_SU1)];
+%Block_offsetinds_blink=[Block_offsetinds_blink,length(binned_SU1)];
+%Block_inds=[unique([Block_onsetinds,Block_onsetinds_blink]);unique([Block_offsetinds,Block_offsetinds_blink])];
+Block_inds=[Block_onsetinds;Block_offsetinds];
+
+bad_inds_fix=sort([Block_inds(1,:), Block_inds(1,:)+1, Block_inds(1,:)+2,Block_inds(1,:)+3,Block_inds(1,:)+4,Block_inds(1,:)+5,Block_inds(1,:)+6],1);
+use_inds_fix=setdiff(tvec,unique(bad_inds_fix));
+
+%{
+%% Hartley analysis
+% get target indices
+targchans=find(sum(binned_SU1)>200);
+
+targchans_SU=targchans(targchans<=nSU);
+targchans_MU=targchans(targchans>nSU);
+Robs_probe_ID=spk_channels_SU(targchans_SU');
+RobsMU_probe_ID=spk_channels_MU(targchans_MU'-nSU);
+targchans_probe_ID = [Robs_probe_ID; RobsMU_probe_ID];
+spike_ID=double([spk_ID_SU; spk_ID_MU]);
+
+% targchans_probeindices = find(targchans_probe_ID<24);
+% targchans=targchans(targchans_probeindices);
+% targchans_probe_ID = targchans_probe_ID(targchans_probeindices);
+% spike_ID = spike_ID(targchans_probeindices);
+
+%% STA along hartley axes
+hart_use_inds=find(stimtype<=6);
+hart_use_inds(end-10:end)=[];
+
+freqvec=unique(hartleystim_metas(:,1));
+rotvec=unique(hartleystim_metas(:,2));
+shiftvec=unique(hartleystim_metas(:,3));
+colvec=unique(hartleystim_metas(:,4));
+
+binned_SU=double(binned_SU1);
+%%
+base_use_inds1=intersect(hart_use_inds,use_inds_fix);
+
+targlag = 3;
+
+ii=1; all_cells_tuning=[];
+tuningfig = figure('position', [300 500 1200 500]);
+
+for cc=targchans;
+    cur_tuning_all=[];
+    base_use_inds=base_use_inds1;
+    for ff=1:length(freqvec)
+        for oo=1:length(rotvec)
+            for ss=1:length(shiftvec)
+                for ccol=1:length(colvec)
+                    cur_freqinds=find(hartleystim_metas(:,1)==freqvec(ff));
+                    cur_rotinds=find(hartleystim_metas(:,2)==rotvec(oo));
+                    cur_shiftinds=find(hartleystim_metas(:,3)==shiftvec(ss));
+                    cur_colinds=find(hartleystim_metas(:,4)==colvec(ccol));
+                    
+                    cur_use_inds1=intersect(cur_freqinds,cur_rotinds);
+                    cur_use_inds2=intersect(cur_use_inds1,cur_shiftinds);
+                    cur_use_inds3=intersect(cur_use_inds2,cur_colinds);
+                    cur_use_inds=intersect(base_use_inds,cur_use_inds3);
+
+                    for curlag=1:6
+    %                    cur_STA_all(ff,oo,ss,curlag)=sum(binned_MUA(cur_use_inds+curlag,cc))./length(cur_use_inds);
+                        cur_tuning_all(ff,oo,ss,ccol,curlag)=sum(binned_SU(cur_use_inds+curlag,cc))./length(cur_use_inds);
+                    end
+                end
+            end
+        end
+    end
+
+    [~,targlag]=max(var(var(var(var(cur_tuning_all,1,4),1,3),1,2),1,1));
+
+    cur_tuning_lum = mean(squeeze(cur_tuning_all(:,:,:,1,targlag)),3);
+    cur_tuning_LM = mean(squeeze(cur_tuning_all(:,:,:,2,targlag)),3);
+    cur_tuning_S = mean(squeeze(cur_tuning_all(:,:,:,3,targlag)),3);
+    maxlim=max([cur_tuning_lum(:); cur_tuning_LM(:); cur_tuning_LM(:)]);
+    
+    subplot(1,3,1); imagesc(cur_tuning_lum); title('Lum');
+        ylabel('SF'); yticklabels(freqvec); xlabel('Orientation'); xticklabels(rotvec(2:2:end)); caxis([0 maxlim]);
+    subplot(1,3,2); imagesc(cur_tuning_LM); title('L-M');  xticklabels(rotvec(2:2:end)); yticklabels(freqvec); caxis([0 maxlim]); 
+    subplot(1,3,3); imagesc(cur_tuning_S); title('S'); xticklabels(rotvec(2:2:end)); yticklabels(freqvec); caxis([0 maxlim]); colorbar
+    
+    figtitle(['Spike ID: ' num2str(spike_ID(ii)) ' - Probe ' num2str(targchans_probe_ID(ii)) ' - Spikes: ' num2str(sum(binned_SU(base_use_inds1,cc))) ' - Firing rate: ' num2str(mean(binned_SU(base_use_inds1,cc))/dt)])
+    saveas(tuningfig,[strExperimentPath 'Spike ID ' num2str(spike_ID(ii)) ' - Probe ' num2str(targchans_probe_ID(ii)) '_HartleyTuning.png'])
+    %{
+    figure(1);
+    subplot(2,1,1)
+%    plot(rotvec,mean(mean(mean(cur_STA_all,4),3),1)*10); title('Orientation')
+    cur_STAs_rot=squeeze(mean(mean(cur_STA_all,3),1));
+%    cur_STAvars_rot=squeeze(mean(var(cur_STA_all,1,3),1));
+    plot(rotvec,cur_STAs_rot*60); title(['SU Unit ' num2str(cc)])
+    xlabel('Orientation (deg)'); ylabel('Firing rate (Hz)')
+     
+    subplot(2,1,2)
+    [~,bestlag_rot]=max(var(cur_STAs_rot));
+    [~,bestori]=max(cur_STAs_rot(:,bestlag_rot));
+%    [~,bestori]=max(var(cur_STAs_rot'));
+%    plot(freqvec/(pi/3),mean(mean(mean(cur_STA_all,4),3),2)*10); title('Spatial Frequency');set(gca, 'XScale', 'log')
+    cur_STAs_freq=squeeze(max(cur_STA_all(:,bestori,:,:),[],3));
+    %    cur_STAs_freqFull=squeeze(mean(mean(cur_STA_all,3),2));
+    cur_STAvars_freq=squeeze(mean(var(cur_STA_all,1,2),3));
+
+    plot(freqvec/(pi/3),cur_STAs_freq*60); title(['Spatial Frequency at ori' num2str(rotvec(bestori))]);%set(gca, 'XScale', 'log')
+    xlabel('Freq (cpd)'); ylabel('Firing rate (Hz)')
+    
+%    figtitle(['SU Unit ' num2str(cc)])
+    
+%     figure(2)
+%     imagesc(squeeze(mean(cur_STA_all(:,:,:,3),3))')
+%     xlabel('Frequency steps')
+%     ylabel('Orientations')
+%     title(['SU Unit ' num2str(cc)])
+%     
+    figure(3)
+    subplot(2,1,1)
+
+    plot(rotvec,cur_STAs_rot(:,bestlag_rot)*40); title(['SU Unit ' num2str(cc)])
+    xlabel('Orientation (deg)'); ylabel('Firing rate (Hz)')
+%    ylim([0 max(cur_STAs_rot(:,bestlag_rot)*40)])
+    
+    subplot(2,1,2)
+    [~,bestlag_freq]=max(var(cur_STAs_freq));
+%    plot(freqvec/(pi/3),cur_STAs_freq*15); title(['Spatial Frequency at ori' num2str(rotvec(bestori))]);%set(gca, 'XScale', 'log')
+    plot(freqvec/(pi/3),cur_STAs_freq(:,bestlag_freq)*40); title(['Spatial Frequency at ori' num2str(rotvec(bestori))]);%set(gca, 'XScale', 'log')
+    xlabel('Freq (cpd)'); ylabel('Firing rate (Hz)')
+%    ylim([0 max(cur_STAs_freq(:,bestlag_freq)*40)])
+    
+%    figtitle(['Best lags for SU Unit ' num2str(cc)])
+    
+%     figure(4)
+%     plot(freqvec/(pi/3),cur_STAvars_freq*15); title('Spatial Frequency');%set(gca, 'XScale', 'log')
+%}
+    all_cells_tuning(cc).probe = targchans_probe_ID(ii);
+    all_cells_tuning(cc).unitID = spike_ID(ii);
+    all_cells_tuning(cc).all_tuning=cur_tuning_all;
+    all_cells_tuning(cc).Lum=cur_tuning_lum;
+    all_cells_tuning(cc).LM=cur_tuning_LM;
+    all_cells_tuning(cc).S=cur_tuning_S;
+    
+    ii=ii+1;
+end  
+
+cur_filename=[strExperimentPath 'Jocamo_' metadata_struct.exptname(1:6) '_' arraylabel '_hartleytuning.mat'];
+save(cur_filename, 'all_cells_tuning');
+%% STA across several lags
+%cur_use_inds=intersect(find(stimtype==6),use_inds_fix);
+cur_use_inds=use_inds_fix;
+cur_use_inds(end-10:end)=[];
+%stim2=reshape(stim,size(stim,1),3*60*60);
+stim2=(double(reshape(stim,size(stim,1),3*60*60))./127);
+
+%%
+%{
+teststim=reshape(squeeze(stimulus(1,:,:,:)),1,3*60*60);
+teststim2=reshape(teststim,60,180);
+figure; 
+subplot(2,3,1); imagesc(squeeze(stimulus(1,:,:,1)))
+subplot(2,3,2); imagesc(squeeze(stimulus(1,:,:,2)))
+subplot(2,3,3); imagesc(squeeze(stimulus(1,:,:,3)))
+teststim2(:,[60 120])=max(teststim2(:));
+subplot(2,1,2); imagesc(teststim2)
+%}
+ii=1;
+STAfig = figure('position', [300 500 1200 500]);
+for cc=targchans    
+    tic
+%     for curlag=1:5
+% %    cur_STA{curlag}=binned_MUA(cur_use_inds+curlag,cc)'*stim2(cur_use_inds,:);
+% %    cur_STA{curlag}=binned_SU1(cur_use_inds+curlag,cc)'*stim2(cur_use_inds,:);
+% %    cur_STA{curlag}=binned_SU1(cur_use_inds+curlag,cc)'*stim3(cur_use_inds,:);
+% %    cur_STA{curlag}=binned_SU2(cur_use_inds+curlag,cc)'*stim2(cur_use_inds,:);
+% %    cur_STA{curlag}=binned_SUSort(cur_use_inds+curlag,cc)'*stim2(cur_use_inds,:);
+%     end
+
+    for curlag=1:6
+        cur_STA1(curlag,:)=binned_SU(cur_use_inds+curlag,cc)'*stim2(cur_use_inds,:);
+    end
+    for curlag=1:6
+%    cur_StA2=reshape(cur_STA{curlag},3,25,25);
+%    cur_StA3=reshape(permute(cur_StA2,[3 2 1]),25,75);
+%   cur_StA2=reshape(cur_STA{curlag},60,180);
+    cur_StA2=reshape(cur_STA1(curlag,:),60,180);
+
+    %curlim=max(abs(cell2mat(cur_STA(:)')));
+    curlim=max(abs(cur_STA1(:)'));
+    cur_StA2(:,[60 120])=curlim;
+    subplot(1,6,curlag)
+    imagesc(cur_StA2'); caxis([-curlim curlim]); pbaspect([1 3 1])
+    colormap(gray); xlabel(['Lag ' num2str(curlag)]);
+    if curlag==1; ylabel('S          L-M          Lum'); end
+    end
+%     figtitle(['Unit ' num2str(cc) ' - Probe ' num2str(targchans_probe_ID(ii)) ' - Spikes: ' num2str(sum(binned_SU(base_use_inds1,cc))) ' - Firing rate: ' num2str(mean(binned_SU(base_use_inds1,cc))/dt)])
+%     saveas(STAfig,[strExperimentPath 'Unit ' num2str(cc) ' - Probe ' num2str(targchans_probe_ID(ii)) '_HartleySTA.png'])
+    figtitle(['Spike ID: ' num2str(spike_ID(ii)) ' - Probe ' num2str(targchans_probe_ID(ii)) ' - Spikes: ' num2str(sum(binned_SU(base_use_inds1,cc))) ' - Firing rate: ' num2str(mean(binned_SU(base_use_inds1,cc))/dt)])
+    saveas(STAfig,[strExperimentPath 'Spike ID ' num2str(spike_ID(ii)) ' - Probe ' num2str(targchans_probe_ID(ii)) '_HartleySTA.png'])
+    ii=ii+1;
+
+    toc
+    %pause
+end  
+%}
+%%
+disp('Done with hartleys!')
+close all

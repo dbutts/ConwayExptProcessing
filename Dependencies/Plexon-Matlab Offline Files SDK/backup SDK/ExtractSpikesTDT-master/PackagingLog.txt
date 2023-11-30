@@ -1,0 +1,50 @@
+ant:
+<ant>
+  <mkdir dir="C:\Users\admin\Documents\MATLAB\extractSpikesTDT\for_redistribution" />
+  <mkdir dir="C:\Users\admin\Documents\MATLAB\extractSpikesTDT\for_testing" />
+  <mkdir dir="C:\Users\admin\Documents\MATLAB\extractSpikesTDT\for_redistribution_files_only" />
+</ant>
+mcc -C -o extractSpikesTDT -W WinMain:extractSpikesTDT -T link:exe -d C:\Users\admin\Documents\MATLAB\extractSpikesTDT\for_testing -v C:\Users\admin\Documents\MATLAB\ExtractSpikesTDT\extractSpikesTDT.m 
+Directory permission denied: C:\Box Sync\Box Sync\Leventhal Lab\Leventhal lab software\m-files\Gaidica_spikeworks\MThal-master\EEGPlot
+Directory permission denied: C:\Box Sync\Box Sync\Leventhal Lab\Leventhal lab software\m-files\Gaidica_spikeworks\MThal-master\data
+Directory permission denied: C:\Box Sync\Box Sync\Leventhal Lab\Leventhal lab software\m-files\Gaidica_spikeworks\MThal-master\spikeExtraction\matlab spikeworks
+Directory permission denied: C:\Box Sync\Box Sync\Leventhal Lab\Leventhal lab software\m-files\Gaidica_spikeworks\MThal-master\utilities\thirdparty\Matlab Offline Files SDK\Samples
+Directory permission denied: C:\Box Sync\Box Sync\Leventhal Lab\Leventhal lab software\m-files\Gaidica_spikeworks\MThal-master\utilities\thirdparty\Matlab Offline Files SDK\mexPlex\tests
+Directory permission denied: C:\Box Sync\Box Sync\Leventhal Lab\Leventhal lab software\m-files\Gaidica_spikeworks\MThal-master\utilities\thirdparty\PLX & DDT Offline Files SDK\SampleData
+Directory permission denied: C:\Box Sync\Box Sync\Leventhal Lab\Leventhal lab software\m-files\Gaidica_spikeworks\MThal-master\utilities\thirdparty\PLX & DDT Offline Files SDK\ddtReader_MFC\res
+Directory permission denied: C:\Box Sync\Box Sync\Leventhal Lab\Leventhal lab software\m-files\Gaidica_spikeworks\MThal-master\utilities\thirdparty\PLX & DDT Offline Files SDK\ddtReader_Win32_Console
+Directory permission denied: C:\Box Sync\Box Sync\Leventhal Lab\Leventhal lab software\m-files\Gaidica_spikeworks\MThal-master\utilities\thirdparty\PLX & DDT Offline Files SDK\doc
+Directory permission denied: C:\Box Sync\Box Sync\Leventhal Lab\Leventhal lab software\m-files\Gaidica_spikeworks\MThal-master\utilities\thirdparty\PLX & DDT Offline Files SDK\plxReader_MFC\res
+Directory permission denied: C:\Box Sync\Box Sync\Leventhal Lab\Leventhal lab software\m-files\Gaidica_spikeworks\MThal-master\utilities\thirdparty\PLX & DDT Offline Files SDK\plxReader_Win32_Console
+Directory permission denied: C:\Box Sync\Box Sync\Leventhal Lab\Leventhal lab software\m-files\Gaidica_spikeworks\MThal-master\utilities\thirdparty\PLX & DDT Offline Files SDK\plxVTdecoder_MFC\res
+Directory permission denied: C:\Box Sync\Box Sync\Leventhal Lab\Leventhal lab software\m-files\Gaidica_spikeworks\MThal-master\utilities\thirdparty\PLX & DDT Offline Files SDK\plxVTdecoder_Win32_Console
+Name is nonexistent or not a directory: C:\Box Sync\Box Sync\Leventhal Lab\Leventhal lab software\m-files\matlab spikeworks
+Compiler version: 5.2 (R2014b)
+Dependency analysis by REQUIREMENTS.
+[Warning: Adding path "C:\Users\admin\Documents\MATLAB\ExtractSpikesTDT" to
+Compiler path instance.] 
+Parsing file "C:\Users\admin\Documents\MATLAB\ExtractSpikesTDT\extractSpikesTDT.m"
+	(Referenced from: "Compiler Command Line").
+Deleting 14 temporary MEX authorization files.
+Removing: 'C:\Users\admin\AppData\Local\Temp\mathworks_tmp_1304_6658_1304.auth'.
+Removing: 'C:\Users\admin\AppData\Local\Temp\mathworks_tmp_1304_7143_1304.auth'.
+Removing: 'C:\Users\admin\AppData\Local\Temp\mathworks_tmp_1304_32237_1304.auth'.
+Removing: 'C:\Users\admin\AppData\Local\Temp\mathworks_tmp_1304_28117_1304.auth'.
+Removing: 'C:\Users\admin\AppData\Local\Temp\mathworks_tmp_1304_23076_1304.auth'.
+Removing: 'C:\Users\admin\AppData\Local\Temp\mathworks_tmp_1304_7577_1304.auth'.
+Removing: 'C:\Users\admin\AppData\Local\Temp\mathworks_tmp_1304_17599_1304.auth'.
+Removing: 'C:\Users\admin\AppData\Local\Temp\mathworks_tmp_1304_6825_1304.auth'.
+Removing: 'C:\Users\admin\AppData\Local\Temp\mathworks_tmp_1304_5901_1304.auth'.
+Removing: 'C:\Users\admin\AppData\Local\Temp\mathworks_tmp_1304_18156_1304.auth'.
+Removing: 'C:\Users\admin\AppData\Local\Temp\mathworks_tmp_1304_10714_1304.auth'.
+Removing: 'C:\Users\admin\AppData\Local\Temp\mathworks_tmp_1304_17507_1304.auth'.
+Removing: 'C:\Users\admin\AppData\Local\Temp\mathworks_tmp_1304_30368_1304.auth'.
+Removing: 'C:\Users\admin\AppData\Local\Temp\mathworks_tmp_1304_19242_1304.auth'.
+Generating file "C:\Users\admin\Documents\MATLAB\extractSpikesTDT\for_testing\readme.txt".
+Packaging...
+Adding custom icon C:\Program Files\MATLAB\R2014b\toolbox\compiler\Resources\default_icon.ico to C:\Users\admin\Documents\MATLAB\extractSpikesTDT\for_testing\extractSpikesTDT.exe.
+Attempting to embed the CTF archive into the application C:\Users\admin\Documents\MATLAB\extractSpikesTDT\for_testing\extractSpikesTDT.exe.
+Finished embedding CTF archive. Deleting the external CTF archive.
+Creating the bundle...
+Web based installer created at C:\Users\admin\Documents\MATLAB\extractSpikesTDT\for_redistribution\MyAppInstaller_web.exe.
+Packaging complete.
