@@ -24,6 +24,7 @@ if nargin < 2
 	switch(which_computer)
 		case 0, dirpath = '/Users/dbutts/Data/Conway/';
 		case 1, dirpath = 'C:\SpkSort2023\AAActiveData\';
+    case 2, dirpath = '/home/conwaylab/Data/';
 		otherwise
 			disp('which_computer is not specified')
 	end
