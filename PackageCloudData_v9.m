@@ -1,6 +1,6 @@
 function data = PackageCloudData_v9( exptdata, metadata_struct, targ_stimtype, targ_ETstimtype, stimFilePath, output_path, skipLFP, which_computer )
 %
-% Usage: 
+% Usage: data = PackageCloudData_v9( exptdata, metadata_struct, <targ_stimtype>, <targ_ETstimtype>, <stimFilePath>, output_path, skipLFP, which_computer )
 %
 % Can check experiment composition
 % experiment_composition( exptdata );
