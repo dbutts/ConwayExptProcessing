@@ -1,15 +1,12 @@
-function data = PackageCloudData_v9( exptdata, metadata_struct, targ_stimtype, targ_ETstimtype, stimFilePath, output_path, skipLFP, which_computer )
+function data = PackageTaskData_v9( exptdata, metadata_struct, task_type, targ_ETstimtype, stimFilePath, output_path, skipLFP, which_computer )
 %
-% Usage: data = PackageCloudData_v9( exptdata, metadata_struct, <targ_stimtype>, <targ_ETstimtype>, <stimFilePath>, output_path, skipLFP, which_computer )
+% Usage: data = PackageTaskData_v9( exptdata, metadata_struct, <task_type>, <targ_ETstimtype>, <stimFilePath>, output_path, skipLFP, which_computer )
 %
 % Can check experiment composition
 % experiment_composition( exptdata );
 
-% For stimtype (should work with 6,7,8)
-% 8 = Color cloud
-% 7 = luminance cloud
-% 6 = Color hartleys
-% 0 = ground truth
+% Process depending on task type
+% 1 = old mTurk
 
 % for ETstimtype: we use only 1, 7 (will work with both of these)
 % 7 = Color cloud in both windows
@@ -17,11 +14,11 @@ function data = PackageCloudData_v9( exptdata, metadata_struct, targ_stimtype, t
 % 2 = 1-D horizontal in 1, vertical in other
 % 3 = Alternate to 2...
 
-if (nargin < 3) || isempty(targ_stimtype)
-	targ_stimtype = 8;    %this selects which stimulus to process: 8 looks for cloud stims
+if (nargin < 3) || isempty(task_type)
+	task_type = 1;    % this selects which stimulus to process: 8 looks for cloud stims
 end
 if (nargin < 3) || isempty(targ_ETstimtype)
-	targ_ETstimtype = 0;    % this selects which stimulus to process: 8 looks for cloud stims
+	targ_ETstimtype = 0;    % zero means that there is no eye-tracking stim (or at least don't load
 end
 
 skipLP = 0; %set to 1 if you want to skip laminar probe data and only analyzing the ET stims
@@ -30,6 +27,7 @@ skipLP = 0; %set to 1 if you want to skip laminar probe data and only analyzing 
 if targ_ETstimtype == 0
 	skipET = 1;
 end
+
 plot_intermediate=0;
 
 %% reload data for analysis
@@ -155,12 +153,12 @@ end
 DualstimETbars = int8(squeeze((metadata_struct.g_astrctAllParadigms.DualstimETbars-128)/127)');
 
 %% Stimulus selection
-switch targ_stimtype
-	case 3; curstimstype='HL';	exptdata_mod = exptdata_HartleyLum;
-	case 6; curstimstype='HC';	exptdata_mod = exptdata_HartleyCol;
-	case 7; curstimstype='LC';	exptdata_mod = exptdata_LumCloud;
-	case 8; curstimstype='CC';	exptdata_mod = exptdata_ColCloud;
-end
+%switch targ_stimtype
+%	case 3; curstimstype='HL';	exptdata_mod = exptdata_HartleyLum;
+%	case 6; curstimstype='HC';	exptdata_mod = exptdata_HartleyCol;
+%	case 7; curstimstype='LC';	exptdata_mod = exptdata_LumCloud;
+%	case 8; curstimstype='CC';	exptdata_mod = exptdata_ColCloud;
+%end
 switch targ_ETstimtype
 	case 1; curETstimtype='1D';
 	case 7; curETstimtype='CC';
@@ -190,7 +188,7 @@ else
 end
 %ET_ad_up=[];
 
-data.stim = int8(zeros(NT,60,60,3)); 
+%data.stim = int8(zeros(NT,60,60,3)); 
 stimtype = zeros(NT,1);  
 
 if ~skipET
@@ -218,15 +216,6 @@ spk_times_all=cell([nSU+nMU,1]);
 cloud_scale=zeros(NT,1); 
 cloud_binary=zeros(NT,1);     
 
-%% Load Hartleys if necessary
-if (targ_stimtype == 3) || (targ_stimtype == 6)
-	%load('C:\SpkSort2023\Cloudstims_calib_01_2022\hartleys_60.mat')
-	load(sprintf('%shartleys_60.mat', stimFilePath))
-	hartleys = hartleys60_DKL;
-	hartleys_metas = hartleys60_meta;
-end
-
-
 cd(stimFilePath)
 %cur_scale=g_astrctAllParadigms{1, 1}.DualstimScale.Buffer(find(g_astrctAllParadigms{1, 1}.DualstimScale.TimeStamp<exptdata_mod{2,2},1,'last'));
 cur_scale=g_astrctAllParadigms.DualstimScale.Buffer(find(g_astrctAllParadigms.DualstimScale.TimeStamp<exptdata_mod{2,2},1,'last'));
@@ -239,6 +228,14 @@ DensenoiseChromcloud_DKlspace=int8(127*(DensenoiseChromcloud_DKlspace));
 % load(sprintf('%s%s_FullExpt_ET.mat', metadata_struct.expt_folder, exptname ))
 % variables: PlexET_ad_calib, PlexET_times 
 
+%% CREATE TASK VARIABLES
+% Classify each trial as correct or incorrect -- 
+data.task_correct = zeros(ntrls);
+data.task_type = zeros(ntrls);
+data.task_outcome = zeros(ntrls);
+data.task_catchtrial = zeros(ntrls);
+data.cueID = zeros(ntrls);
+data.choiceID = zeros(ntrls);
 
 %% PROCESS EACH TRIAL -- LOOP
 for tt = 1:ntrls
@@ -251,35 +248,28 @@ for tt = 1:ntrls
 		exptdata_mod{tt, 1}.usebinary=0;
 	end
 
-	if targ_stimtype == 8
-		if exptdata_mod{tt,1}.BlockID ~= cur_BlockID
-			cur_BlockID = exptdata_mod{tt,1}.BlockID;
-			%cur_scale=g_astrctAllParadigms{1, 1}.DualstimScale.Buffer(find(g_astrctAllParadigms{1, 1}.DualstimScale.TimeStamp<exptdata_mod{tt,2},1,'last'));
-			cur_scale=g_astrctAllParadigms.DualstimScale.Buffer(find(g_astrctAllParadigms.DualstimScale.TimeStamp<exptdata_mod{tt,2},1,'last'));
-			if exptdata_mod{tt, 1}.usebinary  
-				load(sprintf(['Cloudstims_BinaryChrom_size60_scale%d_SPscale6_%02d.mat'], cur_scale, cur_BlockID));            
-			else
-				load(sprintf(['Cloudstims_Chrom_size60_scale%d_%02d.mat'], cur_scale, cur_BlockID));
-			end
-			DensenoiseChromcloud_DKlspace=int8(127*(DensenoiseChromcloud_DKlspace));
-		end
-    
-		cur_TrialID = exptdata_mod{tt,1}.TrialID;
-		BlockID(cur_trlinds)=cur_BlockID;
-		TrialID(cur_trlinds)=cur_TrialID;
-    
-		cloud_scale(cur_trlinds) = cur_scale;
-		cloud_binary(cur_trlinds) = exptdata_mod{tt, 1}.usebinary;     
-	end
-
 	if ~isfield(exptdata_mod{tt,1}, 'UseLeye')
 		exptdata_mod{tt, 1}.UseLeye=1;
 		exptdata_mod{tt, 1}.UseReye=1;
 	end
 	useLeye(cur_trlinds)=exptdata_mod{tt,1}.UseLeye;
 	useReye(cur_trlinds)=exptdata_mod{tt,1}.UseReye;
+
+	%% Get task information
+	data.task_outcome(tt) = exptdata_mod{tt, 1}.m_strctTrialOutcome.m_strResult; % self-explanatory
+	if strcmp(exptdata_mod{tt, 1}.m_strctTrialOutcome.m_strResult, 'Incorrect')
+		data.task_correct(tt) = -1; 
+	elseif strcmp(exptdata_mod{ii, 1}.m_strctTrialOutcome.m_strResult, 'Correct')
+		data.task_correct(tt) = 1;
+	end
+
+	data.task_type(tt) = exptdata_mod{tt, 1}.m_iMkTurkTaskType; % 1 means a color trial, 2 means a shape trial
+	data.task_catchtrial(tt) = exptdata_mod{tt, 1}.isCatchTrial; % 1 means the task type has just switched
+	data.cueID(tt) = exptdata_mod{tt, 1}.m_iMkTurkTargetID; % the correct color/shape this trial
+	data.choiceID(tt) = exptdata_mod{tt, 1}.m_iMkTurkChoiceIDs; % the possible color/shape IDs this trial (Inote that the correct one is always in the first index)
+
     
-  % Pull spike times/binned
+  %% Pull spike times/binned
 	for channel = 1:nChans
 		if ~isempty(exptdata_mod{tt, 10+3*(channel-1)})
 			try
@@ -523,29 +513,7 @@ subplot(2,1,2); plot(exptdata_ColCloud{tt, 1}.ETthisTrialRawEyeData); title('Kof
 %}  
 %/{
 % remove to only extract ET info   
-    
-	switch exptdata_mod{tt,1}.DualstimPrimaryuseRGBCloud
-		case 8
-			data.stim(cur_trlinds,:,:,:) = permute( DensenoiseChromcloud_DKlspace(:,:,exptdata_mod{tt,1}.stimseq(1:repframes:repframes*trlbins),:),[3 1 2 4]);
-			%stimulus(cur_trlinds_stim,:,:,:)=permute(exptdata_mod{tt,1}.stimuli(:,:,1:2:end,:),[2 3 1 4]);
-			stimtype(cur_trlinds)=8;
-
-		case 7
-			data.stim(cur_trlinds,:,:,:) = permute( DensenoiseAchromcloud_binned(:,:,exptdata_mod{tt,1}.stimseq(1:repframes:repframes*trlbins),:),[3 1 2 4]);
-			%stimulus(cur_trlinds_stim,:,:,:)=permute(exptdata_mod{tt,1}.stimuli(:,:,1:2:end,:),[2 3 1 4]);
-			stimtype(cur_trlinds) = 8;
-
-		case 6    
-			data.stim(cur_trlinds,:,:,:) = hartleys60_DKL(exptdata_mod{tt,1}.stimseq(1:repframes:repframes*trlbins),:,:,:);
-			stimtype(cur_trlinds)=6;
-			hartleystim_metas(cur_trlinds,:) = hartleys_metas(exptdata_mod{tt,1}.stimseq(1:repframes:repframes*trlbins),:);
-
-		case 3
-			data.stim(cur_trlinds_stim,:,:,:) = hartleys60_DKL(exptdata_mod{tt,1}.stimseq(1:repframes:end),:,:,:);
-			stimtype(cur_trlinds) = 3;
-			hartleystim_metas(cur_trlinds_stim,:) = hartleys_metas(exptdata_mod{tt,1}.stimseq(1:2:end),:);
-	end
-    
+        
 	if ~skipET
 		switch exptdata_mod{tt, 1}.DualstimSecondaryUseCloud
 			case 1
@@ -561,7 +529,7 @@ subplot(2,1,2); plot(exptdata_ColCloud{tt, 1}.ETthisTrialRawEyeData); title('Kof
 		end
 	end
 %}     
- 
+
 	if mod(tt,100)==0
 		fprintf( '  Finished trial %4d of %4d\n', tt, ntrls )
 	end
@@ -757,7 +725,7 @@ exptdata_mod{end, 1}.tertiarystim_bar_rect];
 fix_location = exptdata_mod{end, 1}.m_pt2iFixationSpot;
 fix_size = exptdata_mod{end, 1}.m_fFixationSizePix-1;
 
-data.stim = permute(data.stim, [2 3 4 1]);
+%data.stim = permute(data.stim, [2 3 4 1]);
 stimtype = stimtype';
 stimscale = (stim_location(3)-stim_location(1))/60;
 
@@ -907,8 +875,8 @@ datafiltsMU = ones(size(RobsMU));
 %% Accumulate spike-times and spikeIDs
 spk_times=[]; spk_IDs=[];
 for cc=1:length(spk_times_all)
-	spk_times = [spk_times,spk_times_all{cc}'];
-	spk_IDs = [spk_IDs, ones(1,length(spk_times_all{cc}))*cc];
+	spk_times = [spk_times, spk_times_all{cc}'];
+	spk_IDs = [spk_IDs, ones(1, length(spk_times_all{cc}))*cc];
 end
 
 %% Build data structure and save
@@ -936,8 +904,8 @@ data.useReye = useReye;
 data.sacc_inds = sacc_inds;
 
 %data.stim = stim;
-data.stimtype = stimtype;
-% data.stimET = [];
+data.stimtype = 0;
+data.stimET = [];
 
 data.trial_start_ts = trial_start_ts;
 data.block_inds = block_inds;
@@ -968,7 +936,7 @@ end
 
 % ET conditionals
 if ~skipET
-	%data.stimET = stimET;
+	data.stimET = stimET;
 	data.stimtypeET = stimtypeET;
 	%data.fixdotET = fixdotET;  % this will usually be blank
 	if targ_ETstimtype == 1  % 1D-bar ET stimuli
