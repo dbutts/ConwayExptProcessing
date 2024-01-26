@@ -1,9 +1,10 @@
-function [ExptTrials, ExptInfo] = ExtractAndAlignData( exptname, dirpath, which_computer )
+function [ExptTrials, ExptInfo] = ExtractAndAlignData( exptname, dirpath, which_computer, eye_tracker )
 %
-% Usage: ExtractAndAlignData( exptname, dirpath, <which_computer> )
+% Usage: ExtractAndAlignData( exptname, dirpath, <which_computer>, <eye_tracker> )
 %
 % exptname of the form '230510_141725_Jacomo'
 % dirpath is directory where these files are
+% eye_tracking is which eye_tracker used: 0=eyescan, 1=monoc eyelink, 2=binoc eyelink, 3=monocular dDPI
 %
 % All these things directories need to be in path (or add subdirctory for Felix's dependencies folder)
 % addpath('/Users/dbutts/Projects/ColorV1/ColorProcessing_Packaged/Dependencies/iCSD/')
@@ -12,6 +13,12 @@ function [ExptTrials, ExptInfo] = ExtractAndAlignData( exptname, dirpath, which_
 % addpath('/Users/dbutts/Projects/ColorV1/ColorProcessing_Packaged/Dependencies/Kilotools_FB_2023/')
 % addpath('/Users/dbutts/Projects/ColorV1/ColorProcessing_Packaged/Dependencies/Plexon-Matlab Offline Files SDK/')
 % addpath('/Users/dbutts/Projects/ColorV1/ColorProcessing_Packaged/Dependencies/Kilotools_FB_2023/kilo2Tools-master/npy-matlab/npy-matlab')
+
+if nargin < 4
+	ET_Eyelink = 3; % (default) 0=eyescan, 1=monoc eyelink, 2=binoc eyelink, 3=monocular dDPI
+else
+	ET_Eyelink = eye_tracker;
+end
 
 if nargin < 3
 	% This can be used to set default directories
@@ -38,8 +45,7 @@ end
 %filenameP = exptname;
 
 %% Extract Bevil's data
-spk_offset=0; 
-ET_Eyelink=3; % set to 3 for any dDPI tracked files
+spk_offset = 0; 
 %iso_SUs=[]; 
 
 useofflinesorting = 1; % set to 1 in order to use kilosort outputs, otherwise 0
@@ -345,7 +351,7 @@ end
 %}
 %numUnitsInSession=max(allNumUnits);  % not used
 
-%% Get ET data
+%% Process Eye-tracking data
 load([dirpath, exptname, '.mat'], 'g_strctEyeCalib');
 load([dirpath, exptname, '.mat'], 'g_strctStimulusServer');
 
