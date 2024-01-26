@@ -1,4 +1,4 @@
-function [ExptTrials, ExptInfo] = ExtractAndAlignData( exptname, dirpath, which_computer, eye_tracker )
+function [ExptTrials, ExptInfo] = ExtractAndAlignData( exptname, dirpath, which_computer, ks, eye_tracker, is_cloud )
 %
 % Usage: ExtractAndAlignData( exptname, dirpath, <which_computer>, <eye_tracker> )
 %
@@ -14,24 +14,29 @@ function [ExptTrials, ExptInfo] = ExtractAndAlignData( exptname, dirpath, which_
 % addpath('/Users/dbutts/Projects/ColorV1/ColorProcessing_Packaged/Dependencies/Plexon-Matlab Offline Files SDK/')
 % addpath('/Users/dbutts/Projects/ColorV1/ColorProcessing_Packaged/Dependencies/Kilotools_FB_2023/kilo2Tools-master/npy-matlab/npy-matlab')
 
-if nargin < 4
+if nargin < 6
+    is_cloud = 1; % default) indicates processing for cloud data. set to 0 to skip cloud-specific variables and align task data or other paradigms 
+end
+
+if nargin < 5 || isempty(eye_tracker)
 	ET_Eyelink = 3; % (default) 0=eyescan, 1=monoc eyelink, 2=binoc eyelink, 3=monocular dDPI
 else
 	ET_Eyelink = eye_tracker;
 end
 
-if nargin < 3
+if nargin < 3 || isempty(which_computer)
 	% This can be used to set default directories
 	% Dan's laptop = 0
 	% Bevil office desktop = 1
-	which_computer = 0; % default value
+    % LSR 2A58 sorting rig = 2
+	which_computer = 2; % default value
 end
 
 if nargin < 2
 	switch(which_computer)
 		case 0, dirpath = '/Users/dbutts/Data/Conway/';
 		case 1, dirpath = 'C:\SpkSort2023\AAActiveData\';
-    case 2, dirpath = '/home/conwaylab/Data/';
+        case 2, dirpath = '/home/conwaylab/Data/';
 		otherwise
 			disp('which_computer is not specified')
 	end
@@ -58,11 +63,15 @@ LFPchans=1:nChans;
 %sessionsToProcess = [];
 plxFilePath = [dirpath exptname '.pl2'];
 matFilePath = [dirpath exptname filesep]; 
-KSstitched=0; 
-ksFilePath = [dirpath exptname filesep 'kilosorting_laminar' filesep]; 
-arraylabel ='lam';
+
+if (nargin < 3) || isempty(ks)
+    ks.stitched=0; 
+    ks.arraylabel ='lam';
+    ks.FilePath = [dirpath exptname filesep 'kilosorting_laminar' filesep]; 
+end
+
 %strExperimentPath = [matFilePath 'Analysis' filesep];
-output_directory = [dirpath 'Analysis' filesep];
+output_directory = [dirpath exptname filesep 'Analysis' filesep];
 
 configFilePath = [dirpath exptname '.mat'];
 
@@ -103,17 +112,7 @@ allMatFiles = dir('*.mat');
 allMatFiles = allMatFiles(indices);
 
 allPLXfiles = dir([pwd,filesep, '*.plx']);
-g_strctStatistics.trackedXYZCoordinates = [];
-g_strctStatistics.m_aiXYZCoorindateColorMatchingTable = [];
-g_strctStatistics.bPlotRFFieldWithinStimRectangle = 1;
-g_strctStatistics.m_strctEyeData.m_fEyeIntegrationPeriod = [-.050,4];
-
-g_strctStatistics.numBins = 200;
-g_strctStatistics.positionBinGrid = [12,20];
-g_strctStatistics.bPlotRFFieldWithinStimRectangle = 1;
-g_strctStatistics.RFMappingTrialIntegrationTime(:,1) = -.05:.01:.34 ;
-g_strctStatistics.RFMappingTrialIntegrationTime(:,2) = -.04:.01:.35 ;
-g_strctStatistics.m_bPlotRFFieldByColor = 1;
+g_strctStatistics.m_strctEyeData.m_fEyeIntegrationPeriod = [g_strctStatistics.preTrialWindow,g_strctStatistics.postTrialWindow];
 
 syncStrobeID = 32757;
 eventChannelNumber = 257;
@@ -123,12 +122,12 @@ stopRecordID = 32766;
 %% Prepare Kilosort information
 if useofflinesorting==1
 
-	if KSstitched==1
-		load([ksFilePath 'KS_stitched.mat'])
+	if ks.stitched==1
+		load([ks.FilePath 'KS_stitched.mat'])
 	else
-		spk_times = readNPY([ksFilePath 'spike_times_seconds.npy']) +spk_offset;
-		spk_clusters = readNPY([ksFilePath 'spike_clusters.npy']);
-		spk_info = tdfread([ksFilePath 'cluster_info.tsv']);
+		spk_times = readNPY([ks.FilePath 'spike_times_seconds.npy']) +spk_offset;
+		spk_clusters = readNPY([ks.FilePath 'spike_clusters.npy']);
+		spk_info = tdfread([ks.FilePath 'cluster_info.tsv']);
 	end
 	
 	spk_clustIDs = unique(spk_clusters); nclusts=length(spk_clustIDs);
@@ -269,20 +268,22 @@ end
 RECstart = kofikoStrobeAllTS(1);
 RECend = kofikoStrobeAllTS(end);
 
-targ_trials=[];
-for tt=1:length(ExptTrials)
-	if strcmp(ExptTrials{tt, 1}.m_strTrialType, 'Dual Stim')
-		% if strcmp(ExptTrials{tt, 1}.m_strTrialType, 'Fivedot');
-		if (ExptTrials{tt, 2} >= RECstart) && (ExptTrials{tt, 2} <= RECend) 
-			targ_trials = [targ_trials, tt];
-		else
-			fprintf('   Invalid Dual-Stim trial detected (#%d) -- eliminating.\n', tt)
-		end
-	end
+if is_cloud % only include cloud trials; this discards Fivedot, Handmapper, etc trials
+    targ_trials=[];
+    for tt=1:length(ExptTrials)
+	    if strcmp(ExptTrials{tt, 1}.m_strTrialType, 'Dual Stim')
+		    % if strcmp(ExptTrials{tt, 1}.m_strTrialType, 'Fivedot');
+		    if (ExptTrials{tt, 2} >= RECstart) && (ExptTrials{tt, 2} <= RECend) 
+			    targ_trials = [targ_trials, tt];
+		    else
+			    fprintf('   Invalid Dual-Stim trial detected (#%d) -- eliminating.\n', tt)
+		    end
+	    end
+    end
+    
+    %% Reduce trials to valid subset
+    ExptTrials=ExptTrials(targ_trials,:);
 end
-
-%% Reduce trials to valid subset
-ExptTrials=ExptTrials(targ_trials,:);
 
 %% Ensure trials are in correct order
 ntrials=length(ExptTrials);
@@ -291,7 +292,7 @@ for tt=1:ntrials
 	trialstart_raw(tt)=ExptTrials{tt, 2}; 
 end
 [~,order] = sort(trialstart_raw);
-ExptTrials = ExptTrials(order, :);  
+ExptTrials = ExptTrials(order, :); % ensures that kofiko didn't mess up trial order when appending trials
 
 %%
 topLevelIndex = [];
@@ -379,8 +380,8 @@ elseif ET_Eyelink == 3
 	[~, ~, ~, ~, PlexET_ad(3,:)] = plx_ad_v(thisSessionFile, 'AI07');
 	[ET_adfreq, ET_n, ET_ts, ET_fn, PlexET_ad(4,:)] = plx_ad_v(thisSessionFile, 'AI08');
 	PlexET_ad_calib=PlexET_ad;
-	PlexET_ad_calib(3,:) = (PlexET_ad_calib(3,:)-median(PlexET_ad_calib(3,:)))*(g_strctEyeCalib.GainX.Buffer(end)./1000);
-	PlexET_ad_calib(4,:) = (PlexET_ad_calib(4,:)-median(PlexET_ad_calib(4,:)))*(g_strctEyeCalib.GainY.Buffer(end)./1000);
+	PlexET_ad_calib(3,:) = (PlexET_ad_calib(3,:)-median(PlexET_ad_calib(3,:)))*(g_strctEyeCalib.GainX.Buffer(end)./5000); % assumes a standard dDPI gain of 250, which works out to a ~5-fold gain on the analog signal - at least as far as i can tell. -FB 
+	PlexET_ad_calib(4,:) = (PlexET_ad_calib(4,:)-median(PlexET_ad_calib(4,:)))*(g_strctEyeCalib.GainY.Buffer(end)./5000);
 
 elseif ET_Eyelink == 0
 	[~, ~, ~, ~, PlexET_ad(1,:)] = plx_ad_v(thisSessionFile, 'AI07');
@@ -773,11 +774,7 @@ for iTrials = 1:ntrials   %trialsInThisSession{iSessions}
 
 	kofikoSyncTime = kofikoSyncStrobesInThisSessionTS(trialSyncStrobeID);
 	plexonSyncTime = plexonSyncStrobesInThisSessionTS(trialSyncStrobeID);
-	% check if offsets need work?
-	%     if (ExptTrials{iTrials, 2} - kofikoSyncTime)>0
-	%         kofikoSyncTime = kofikoSyncStrobesInThisSessionTS(trialSyncStrobeID+1);
-	%         plexonSyncTime = plexonSyncStrobesInThisSessionTS(trialSyncStrobeID+1);
-	%     end
+
 	ExptTrials{iTrials,1}.kofikoSyncTime = kofikoSyncTime; 
 	ExptTrials{iTrials,1}.PlexonSyncTime = plexonSyncTime;
 	ExptTrials{iTrials,1}.PlexonOnsetTime = plexonSyncTime + (ExptTrials{iTrials, 2} - kofikoSyncTime);
@@ -785,16 +782,13 @@ for iTrials = 1:ntrials   %trialsInThisSession{iSessions}
 
 	if ~isfield( ExptTrials{iTrials, 1},'m_aiStimColor') || isempty(ExptTrials{iTrials, 1}.m_aiStimColor)
 		ExptTrials{iTrials, 1}.m_aiStimColor = [NaN, NaN, NaN];
-	end
-	%    ExptTrials{iTrials, 3} = ExptTrials{iTrials, 1}.m_aiStimColor;
-	%        ExptTrials{iTrials, 4} = ExptTrials{iTrials, 1}.m_fRotationAngle;
-	%    ExptTrials{iTrials, 6} = strcmpi(ExptTrials{iTrials, 1}.m_strTrialType,'moving bar');
-	%        sessionIndex(trialIter).m_fRotationAngle = ExptTrials{iTrials, 1}.m_fRotationAngle;
-	%    sessionIndex(trialIter).m_bIsMovingBarTrial =  ExptTrials{iTrials, 6};  
-	ExptTrials{iTrials, 3} = ExptTrials{iTrials, 1}.m_strTrialType;
+    end
 
-	sessionIndex(trialIter).m_aiStimulusColor = ExptTrials{iTrials, 1}.m_aiStimColor;
-	sessionIndex(trialIter).m_strTrialType = ExptTrials{iTrials, 1}.m_strTrialType;
+    if is_cloud
+	    ExptTrials{iTrials, 3} = ExptTrials{iTrials, 1}.m_strTrialType;
+    	sessionIndex(trialIter).m_strTrialType = ExptTrials{iTrials, 1}.m_strTrialType;
+    end
+
 
 	if useofflinesorting==1
 		for iUnit=1:nSU
@@ -808,8 +802,8 @@ for iTrials = 1:ntrials   %trialsInThisSession{iSessions}
            
 			spikesInThisTrial.spkID = exptDataP(iUnit).spkID;
 			%  spikesInThisTrial.rating = exptDataP(iUnit).rating;
-			ExptTrials{iTrials,10+3*(iUnit-1)} = spikesInThisTrial;
-			ExptTrials{iTrials,11+3*(iUnit-1)} = length(spikesInThisTrial.unit1);
+			ExptTrials{iTrials,10+(iUnit-1)} = spikesInThisTrial.unit1;
+			%ExptTrials{iTrials,11+3*(iUnit-1)} = length(spikesInThisTrial.unit1);
 			%sessionIndex(trialIter).m_afSpikesInThisTrial = spikesInThisTrial;
 		end
 
@@ -822,8 +816,8 @@ for iTrials = 1:ntrials   %trialsInThisSession{iSessions}
 				- (ExptTrials{iTrials, 2} - kofikoSyncTime);
 
 			MUAspikesInThisTrial.spkID = exptDataMUA(iUnit).spkID;
-			ExptTrials{iTrials,10+3*(iUnit-1+nSU)} = MUAspikesInThisTrial.unit1;
-			ExptTrials{iTrials,11+3*(iUnit-1+nSU)} = length(MUAspikesInThisTrial.unit1);	
+			ExptTrials{iTrials,10+(iUnit-1+nSU)} = MUAspikesInThisTrial.unit1;
+			%ExptTrials{iTrials,11+3*(iUnit-1+nSU)} = length(MUAspikesInThisTrial.unit1);	
 		end
 	else		
 		for channel = find(allNumUnits) %1:nChans
@@ -855,15 +849,7 @@ for iTrials = 1:ntrials   %trialsInThisSession{iSessions}
 		plexonLFPDataAlignedToThisTrial = LFP_ad(1:24, LFP_times - plexonSyncTime - (ExptTrials{iTrials, 2} - kofikoSyncTime) >= g_strctStatistics.preTrialWindow & ...
 			LFP_times - plexonSyncTime - (ExptTrials{iTrials, 2} - kofikoSyncTime) <=  g_strctStatistics.postTrialWindow);
 		ExptTrials{iTrials,4} = plexonLFPDataAlignedToThisTrial;  
-	end
-
-
-	% % for aligning EMs to plexon timestamps    
-	%     plexonEMsAlignedToThisTrial =  saccade_times - plexonSyncTime ;
-	%     EMsInThisTrial = plexonEMsAlignedToThisTrial(plexonEMsAlignedToThisTrial - ...
-	%         (ExptTrials{iTrials, 2} - kofikoSyncTime) >= g_strctStatistics.preTrialWindow & ...
-	%         plexonEMsAlignedToThisTrial - (ExptTrials{iTrials, 2} - kofikoSyncTime) <=  g_strctStatistics.postTrialWindow)...
-	%         - (ExptTrials{iTrials, 2} - kofikoSyncTime);
+    end
 
 	% for aligning EMs to Kofiko timestamps
 	EMsInThisTrial.saccades =  saccade_times(saccade_times >= ExptTrials{iTrials, 2}+g_strctStatistics.preTrialWindow & ...
@@ -876,17 +862,13 @@ for iTrials = 1:ntrials   %trialsInThisSession{iSessions}
 		ET_times <= ExptTrials{iTrials, 2}+g_strctStatistics.postTrialWindow);
 	ExptTrials{iTrials,6} = EMsInThisTrial;
 
-	%     plexonETDataAlignedToThisTrial.ET_trace = PlexET_ad(:, PlexET_times - plexonSyncTime - (ExptTrials{iTrials, 2} - kofikoSyncTime) >= g_strctStatistics.preTrialWindow & ...
-	%             PlexET_times - plexonSyncTime - (ExptTrials{iTrials, 2} - kofikoSyncTime) <=  g_strctStatistics.postTrialWindow);
-	%     plexonETDataAlignedToThisTrial.ET_times = PlexET_times(:, PlexET_times - plexonSyncTime - (ExptTrials{iTrials, 2} - kofikoSyncTime) >= g_strctStatistics.preTrialWindow & ...
-	%             PlexET_times - plexonSyncTime - (ExptTrials{iTrials, 2} - kofikoSyncTime) <=  g_strctStatistics.postTrialWindow);
-
 	plexonETDataAlignedToThisTrial.ET_trace = PlexET_ad(:, PlexET_times - plexonSyncTime - (ExptTrials{iTrials, 2} - kofikoSyncTime) >= g_strctStatistics.preTrialWindow & ...
 		PlexET_times - plexonSyncTime - (ExptTrials{iTrials, 2} - kofikoSyncTime) <=  g_strctStatistics.postTrialWindow);
 	plexonETDataAlignedToThisTrial.ET_times = PlexET_times(:, PlexET_times - plexonSyncTime - (ExptTrials{iTrials, 2} - kofikoSyncTime) >= g_strctStatistics.preTrialWindow & ...
 		PlexET_times - plexonSyncTime - (ExptTrials{iTrials, 2} - kofikoSyncTime) <=  g_strctStatistics.postTrialWindow);  
 	ExptTrials{iTrials,7} = plexonETDataAlignedToThisTrial;
 
+    % % old code for aligning online-sorted data
 	%     for iUnit2 = 1:allNumUnits2
 	%         SortedSpikesAlignedToThisTrial = [];
 	%         nameOfUnit = ['unit',num2str(iUnit2)];
@@ -917,17 +899,18 @@ fprintf('Done combining information.\n')
 %%
 cd(currentDirectory);
 
-outfile = sprintf( '%s_FullExpt_ks%d_%s_v09.mat', exptname, useofflinesorting, arraylabel );
+outfile = sprintf( '%s_FullExpt_ks%d_%s_v09.mat', exptname, useofflinesorting, ks.arraylabel );
 
 % Save other variables to continue the process
 ExptInfo.exptname = exptname;
-ExptInfo.array_label ='lam';
+ExptInfo.array_label = ks.arraylabel;
 ExptInfo.nSU = nSU;
 ExptInfo.nMU = nMU;
 ExptInfo.spk_ID_SU = spk_ID_SU; 
 ExptInfo.spk_ID_MU = spk_ID_MU;
 ExptInfo.spk_channels_SU = spk_channels_SU;
 ExptInfo.spk_channels_MU = spk_channels_MU;
+ExptInfo.trialwindow = [g_strctStatistics.preTrialWindow, g_strctStatistics.postTrialWindow];
 ExptInfo.ET_Eyelink = ET_Eyelink;
 ExptInfo.use_offline_sorting = useofflinesorting;
 ExptInfo.expt_folder = dirpath;
@@ -965,7 +948,10 @@ disp('Saved!')
 % end
 
 %% Processing the LFPs/CSDs
-fprintf('\nProcessing CSDs (all trials):\n')
-CSDprocess( ExptTrials, [], 1, exptname, output_directory, 1 );
-% Usage: [csd, lfp] = CSDprocess( ExptRecording, trial_select, save_images, exptname, savedir, verbose )
+if is_cloud
+    fprintf('\nProcessing CSDs (all trials):\n')
+    CSDprocess( ExptTrials, [], 1, exptname, output_directory, 1 );
+    % Usage: [csd, lfp] = CSDprocess( ExptRecording, trial_select, save_images, exptname, savedir, verbose )
+end
+
 return 
