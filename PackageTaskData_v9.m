@@ -94,7 +94,7 @@ cur_BlockID=1;
 %%
 numSpks = zeros(nChans);
 for cc=1:nChans
-	numSpks(cc)=sum(cell2mat(exptdata(:, 11+2*(cc-1))));  % this just seems to have total number of spikes
+	numSpks(cc)=sum(cell2mat(exptdata(:, 10+(cc-1))));  % this just seems to have total number of spikes
 end
 
 %targchans=find(numSpks>2000);
@@ -175,7 +175,7 @@ if any([strfind(exptname,'220203'), strfind(exptname,'220205'), strfind(exptname
 	edges = linspace(0,trlsecs,trlbins); edges_hist=linspace(0,trlsecs,trlbins+1);
 	cur_trial_ETsamples = [0:.001:2.669];
 else
-	trlsecs = 6;
+	trlsecs = 4;
 	edges = linspace(0,trlsecs,trlbins); edges_hist=linspace(0,trlsecs,trlbins+1);  
 	cur_trial_ETsamples = [0:.001:3.999];
 end
@@ -272,17 +272,17 @@ for tt = 1:ntrls
     
   %% Pull spike times/binned
 	for channel = 1:nChans
-		if ~isempty(exptdata_mod{tt, 10+2*(channel-1)})
+		if ~isempty(exptdata_mod{tt, 10+(channel-1)})
 			try
-				cur_spks = exptdata_mod{tt,10+2*(channel-1)}.unit1;
+				cur_spks = exptdata_mod{tt,10+(channel-1)}.unit1;
 				cur_spks(cur_spks<0)=[]; cur_spks(cur_spks>trlsecs)=[];
-				binned_SU1(cur_trlinds,channel) = histcounts(exptdata_mod{tt,10+2*(channel-1)}.unit1,edges_hist);
+				binned_SU1(cur_trlinds,channel) = histcounts(exptdata_mod{tt,10+(channel-1)}.unit1,edges_hist);
 				spk_times_all{channel} = [spk_times_all{channel}; cur_spks+(trlsecs*(tt-1))];
 
 			catch
-				cur_spks = exptdata_mod{tt,10+2*(channel-1)};
+				cur_spks = exptdata_mod{tt,10+(channel-1)};
 				cur_spks(cur_spks<0)=[]; cur_spks(cur_spks>trlsecs)=[];
-				binned_SU1(cur_trlinds,channel) = histcounts(exptdata_mod{tt,10+2*(channel-1)},edges_hist);
+				binned_SU1(cur_trlinds,channel) = histcounts(exptdata_mod{tt,10+(channel-1)},edges_hist);
 				spk_times_all{channel,1} = [spk_times_all{channel,1}; cur_spks+(trlsecs*(tt-1))];
 			end
 		end   
