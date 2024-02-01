@@ -309,17 +309,21 @@ for tt = 1:ntrls
 
 	cur_trial_ET_trace_full=[]; cur_trial_ET_trace = [];
 	%    cur_trial_ETsamples=[0:.001:3.999];
-	cur_trial_ET_trace_full(:,1)=(exptdata_mod{tt, 7}.ET_trace(1,:)' )*(g_strctEyeCalib.GainX.Buffer(end)./1000);
-	cur_trial_ET_trace_full(:,2)=(exptdata_mod{tt, 7}.ET_trace(2,:)' )*(g_strctEyeCalib.GainY.Buffer(end)./1000);
+	% 
+	if metadata_struct.ET_Eyelink == 3
+		%cur_trial_ET_trace_full(:,1)=(exptdata_mod{tt, 7}.ET_trace(3,:)' - median(exptdata_mod{tt, 7}.ET_trace(3,:)'))*(g_strctEyeCalib.GainX.Buffer(end)./1000);
+		%cur_trial_ET_trace_full(:,2)=(exptdata_mod{tt, 7}.ET_trace(4,:)' - median(exptdata_mod{tt, 7}.ET_trace(4,:)'))*(g_strctEyeCalib.GainY.Buffer(end)./1000);    
+		cur_trial_ET_trace_full(:,1)=(exptdata_mod{tt, 7}.ET_trace(3,:)')*(g_strctEyeCalib.GainX.Buffer(end)./1000);
+		cur_trial_ET_trace_full(:,2)=(exptdata_mod{tt, 7}.ET_trace(4,:)')*(g_strctEyeCalib.GainY.Buffer(end)./1000);    
+	else 
+		cur_trial_ET_trace_full(:,1)=(exptdata_mod{tt, 7}.ET_trace(1,:)' )*(g_strctEyeCalib.GainX.Buffer(end)./1000);
+		cur_trial_ET_trace_full(:,2)=(exptdata_mod{tt, 7}.ET_trace(2,:)' )*(g_strctEyeCalib.GainY.Buffer(end)./1000);
+	end
 	
 	if numETtraces > 2
     	cur_trial_ET_trace_full(:,3)=(exptdata_mod{tt, 7}.ET_trace(3,:)' )*(g_strctEyeCalib.GainX.Buffer(end)./1000);
     	cur_trial_ET_trace_full(:,4)=(exptdata_mod{tt, 7}.ET_trace(4,:)' )*(g_strctEyeCalib.GainY.Buffer(end)./1000);
 	end
-	if metadata_struct.ET_Eyelink == 3
-		cur_trial_ET_trace_full(:,1)=(exptdata_mod{tt, 7}.ET_trace(3,:)' - median(exptdata_mod{tt, 7}.ET_trace(3,:)'))*(g_strctEyeCalib.GainX.Buffer(end)./1000);
-		cur_trial_ET_trace_full(:,2)=(exptdata_mod{tt, 7}.ET_trace(4,:)' - median(exptdata_mod{tt, 7}.ET_trace(4,:)'))*(g_strctEyeCalib.GainY.Buffer(end)./1000);    
-	end 
 
 	% % if needing to interpolate time positions
 	%         cur_trial_ET_trace(:,1)=interp1(cur_trial_ETsamples,cur_trial_ET_trace_full(:,1),edges,'linear');
@@ -334,7 +338,6 @@ for tt = 1:ntrls
 	else
 		cur_trial_ET_trace_full(:,1) = (exptdata_mod{tt, 7}.ET_trace(1,:)' - median(exptdata_mod{tt, 7}.ET_trace(1,:)'))*(g_strctEyeCalib.GainX.Buffer(end)./1000);
 		cur_trial_ET_trace_full(:,2) = (exptdata_mod{tt, 7}.ET_trace(2,:)' - median(exptdata_mod{tt, 7}.ET_trace(2,:)'))*(g_strctEyeCalib.GainY.Buffer(end)./1000);    
-	
 		eye_smooth = [181, 3, 5]; sgolay_deg = [3,2,4];
 		sac_thresh = 2.6; %3.5; %threshold eye speed %2.5 with 1.2
 		peri_thresh = 1.6; %threshold eye speed for defining saccade boundary inds
@@ -345,26 +348,19 @@ for tt = 1:ntrls
 	else
 		plot_flag=0; 
 	end
-
-	% if any([strfind(exptname,'220203'), strfind(exptname,'220205'), strfind(exptname,'220207')])
-	%     [~, ~, ~, saccade_times, sac_start_times, sac_stop_times] = detect_saccades_bevfel(...
-	%         cur_trial_ET_trace_full', cur_trial_ETsamples, 3, eye_smooth, sgolay_deg, sac_thresh, peri_thresh, plot_flag);
-	% else
-	%     [~, ~, ~, saccade_times, sac_start_times, sac_stop_times] = detect_saccades_bevfel(...
-	%         cur_trial_ET_trace_full', cur_trial_ETsamples, 3, eye_smooth, sgolay_deg, sac_thresh, peri_thresh, plot_flag);
-	% end
     	
 	%%
 	if plot_intermediate==1
 		pause
 	end
-			
+
 	%% Processing of eye-tracking signals
 	% do same processing of ET data as done for saccade detection
 	if metadata_struct.ET_Eyelink == 3
+
 		ET_trace_raw_1khz([1:trlsecs*1000]+trlsecs*1000*(tt-1),1:2)=cur_trial_ET_trace_full;
 		ET_trace_raw_1khz([1:trlsecs*1000]+trlsecs*1000*(tt-1),3) = exptdata_mod{tt, 7}.ET_trace(1,:)';
-	
+
 		cur_trial_ETsamples_kofiko = exptdata_mod{tt, 1}.m_afEyePositiontimes - exptdata_mod{tt, 1}.m_afEyePositiontimes(1);
 		%cur_trial_ET_trace(1,:)=interp1(cur_trial_ETsamples_kofiko, exptdata_mod{tt, 1}.m_afEyeXPositionScreenCoordinates' - exptdata_mod{tt, 1}.m_pt2iFixationSpot(1), linspace(0,4,240))';
 		%cur_trial_ET_trace(2,:)=interp1(cur_trial_ETsamples_kofiko, exptdata_mod{tt, 1}.m_afEyeYPositionScreenCoordinates' - exptdata_mod{tt, 1}.m_pt2iFixationSpot(2), linspace(0,4,240))';    
