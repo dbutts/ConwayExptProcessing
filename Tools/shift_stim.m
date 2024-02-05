@@ -5,7 +5,6 @@ function shifted_stim = shift_stim( stim, ETtrace, stim_deltas )
 % stim passed in should be size [NT NX NY nlags]
 % Note that shifts larger than 30 in any direction will be misinterpreted (circ)
 
-%shifted_stim = permute( stim, [4 1 2 3] );
 NT = size(stim, 1);
 shifted_stim = stim;
 
@@ -17,13 +16,9 @@ shifts = mod( round(-ETtrace)+30 + stim_deltas, 60);
 shifts(isnan(shifts)) = 30;
 
 tic
-for i = 1:size(SHstim,1)
-	if shifts(1,i) ~= 30
-		shifted_stim(i,:,:,:) = circshift( shifted_stim(i,:,:,:), shifts(1,i), 2 );
-	end
-	if shifts(2,i) ~= 30
-		shifted_stim(i,:,:,:) = circshift( shifted_stim(i,:,:,:), shifts(2,i), 3 );
-	end
+for i = 1:NT
+	shifted_stim(i,:,:,:) = circshift( shifted_stim(i,:,:,:), shifts(1,i), 2 );
+	shifted_stim(i,:,:,:) = circshift( shifted_stim(i,:,:,:), shifts(2,i), 3 );
 end
 toc
 

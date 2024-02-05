@@ -29,6 +29,7 @@ skipLP = 0; %set to 1 if you want to skip laminar probe data and only analyzing 
 % Just set targ_ETstimtype to zero (default if you dont want this
 if targ_ETstimtype == 0
 	skipET = 1;
+    curETstimtype = 'NA';
 end
 plot_intermediate=0;
 
@@ -37,7 +38,8 @@ if nargin < 8
 	% This can be used to set default directories
 	% Dan's laptop = 0
 	% Bevil office desktop = 1
-	which_computer = 0; % default value
+    % LSR 2A58 sorting rig = 2
+	which_computer = 2; % default value
 end
 
 if (nargin < 7) || isempty(skipLTP)
@@ -55,6 +57,7 @@ if (nargin < 5) || isempty(stimFilePath)
 	switch(which_computer)
 		case 0, stimFilePath = '/Users/dbutts/Data/Conway/Cloudstims_calib_01_2022/';
 		case 1, stimFilePath = 'C:\SpkSort2023\Cloudstims_calib_01_2022\';
+        case 2, stimFilePath = '/home/conwaylab/Processing/Cloudstims_calib_01_2022';
 		otherwise
 			disp('which_computer not defined')
 	end
@@ -68,7 +71,8 @@ nSU = metadata_struct.nSU;
 nMU = metadata_struct.nMU;
 g_astrctAllParadigms = metadata_struct.g_astrctAllParadigms;  % expt configuration information
 g_strctEyeCalib = metadata_struct.g_strctEyeCalib;
-output_directory = [output_path 'Analysis' filesep];
+%output_directory = [output_path 'Analysis' filesep];
+output_directory = [output_path];
 
 % Set up data-struct for output
 data.exptname = exptname;
@@ -96,7 +100,7 @@ cur_BlockID=1;
 %%
 numSpks = zeros(nChans);
 for cc=1:nChans
-	numSpks(cc)=sum(cell2mat(exptdata(:, 11+3*(cc-1))));
+	numSpks(cc)=length(cell2mat(exptdata(:, 10+(cc-1))));
 end
 %targchans=find(numSpks>2000);
 
@@ -107,13 +111,15 @@ end
 %% Assign list of trials to teach type of data from the experiment
 trlonset_diffs = [4; diff(cell2mat(exptdata(:, 2)))];
 
+trialdur = metadata_struct.trialdur;
+
 for switch_stimtype=0:8
 
 	targ_trials=[];  
 	for tt=1:length(exptdata)
 		%    if strcmp(exptdata{tt, 1}.m_strTrialType, 'Dense Noise');
 		if strcmp(exptdata{tt, 1}.m_strTrialType, 'Dual Stim') && ...
-			(exptdata{tt, 1}.m_bMonkeyFixated == 1) && (trlonset_diffs(tt) > 0) && ...
+			(exptdata{tt, 1}.m_bMonkeyFixated == 1) && (trlonset_diffs(tt) > trialdur) && ...
 			(exptdata{tt, 1}.DualstimPrimaryuseRGBCloud == switch_stimtype) % &&...
 			% exptdata{tt, 1}.DualstimSecondaryUseCloud==targ_ETstimtype; % && exptdata{tt, 1}.m_aiStimulusRect(1)==975;
 			targ_trials=[targ_trials,tt];
@@ -152,8 +158,12 @@ end
 
 % DAN commented out: This now comes in the experiment info metadata
 %load([metadata_struct.expt_folder exptname '.mat'], 'g_astrctAllParadigms')
-DualstimETbars = int8(squeeze((metadata_struct.g_astrctAllParadigms.DualstimETbars-128)/127)');
 
+try
+    DualstimETbars = int8(squeeze((metadata_struct.g_astrctAllParadigms.DualstimETbars-128)/127)');
+catch
+    warning('No ET bars found - so there is no no 1D noise data. not a problem for experiments using all clouds.')
+end
 %% Stimulus selection
 switch targ_stimtype
 	case 3; curstimstype='HL';	exptdata_mod = exptdata_HartleyLum;
@@ -229,7 +239,12 @@ end
 
 cd(stimFilePath)
 %cur_scale=g_astrctAllParadigms{1, 1}.DualstimScale.Buffer(find(g_astrctAllParadigms{1, 1}.DualstimScale.TimeStamp<exptdata_mod{2,2},1,'last'));
-cur_scale=g_astrctAllParadigms.DualstimScale.Buffer(find(g_astrctAllParadigms.DualstimScale.TimeStamp<exptdata_mod{2,2},1,'last'));
+try
+    cur_scale=g_astrctAllParadigms.DualstimScale.Buffer(find(g_astrctAllParadigms.DualstimScale.TimeStamp<exptdata_mod{2,2},1,'last'));
+catch
+    warning('Something is wrong with stim scale - how long did this experiment run?')
+    cur_scale=g_astrctAllParadigms.m_fInitial_DualstimPrimaryCloudScale;
+end
 load(sprintf('Cloudstims_Chrom_size60_scale%d_%02d.mat', cur_scale, cur_BlockID));
 %load(sprintf([stimFilePath 'Cloudstims_Chrom_size60_scale%d_%02d.mat'], cur_scale, cur_BlockID)) 
 DensenoiseChromcloud_DKlspace=int8(127*(DensenoiseChromcloud_DKlspace));
@@ -255,7 +270,12 @@ for tt = 1:ntrls
 		if exptdata_mod{tt,1}.BlockID ~= cur_BlockID
 			cur_BlockID = exptdata_mod{tt,1}.BlockID;
 			%cur_scale=g_astrctAllParadigms{1, 1}.DualstimScale.Buffer(find(g_astrctAllParadigms{1, 1}.DualstimScale.TimeStamp<exptdata_mod{tt,2},1,'last'));
-			cur_scale=g_astrctAllParadigms.DualstimScale.Buffer(find(g_astrctAllParadigms.DualstimScale.TimeStamp<exptdata_mod{tt,2},1,'last'));
+            try
+    			cur_scale=g_astrctAllParadigms.DualstimScale.Buffer(find(g_astrctAllParadigms.DualstimScale.TimeStamp<exptdata_mod{tt,2},1,'last'));
+            catch
+                cur_scale=g_astrctAllParadigms.m_fInitial_DualstimPrimaryCloudScale; %if Kofiko crashed and this stuff wasn't saved, we'll just have to hope that nobody changed the default value here.
+            end
+
 			if exptdata_mod{tt, 1}.usebinary  
 				load(sprintf(['Cloudstims_BinaryChrom_size60_scale%d_SPscale6_%02d.mat'], cur_scale, cur_BlockID));            
 			else
@@ -281,17 +301,17 @@ for tt = 1:ntrls
     
   % Pull spike times/binned
 	for channel = 1:nChans
-		if ~isempty(exptdata_mod{tt, 10+3*(channel-1)})
+		if ~isempty(exptdata_mod{tt, 10+(channel-1)})
 			try
-				cur_spks = exptdata_mod{tt,10+3*(channel-1)}.unit1;
+				cur_spks = exptdata_mod{tt,10+(channel-1)}.unit1;
 				cur_spks(cur_spks<0)=[]; cur_spks(cur_spks>trlsecs)=[];
-				binned_SU1(cur_trlinds,channel) = histcounts(exptdata_mod{tt,10+3*(channel-1)}.unit1,edges_hist);
+				binned_SU1(cur_trlinds,channel) = histcounts(exptdata_mod{tt,10+(channel-1)}.unit1,edges_hist);
 				spk_times_all{channel} = [spk_times_all{channel}; cur_spks+(trlsecs*(tt-1))];
 
 			catch
-				cur_spks = exptdata_mod{tt,10+3*(channel-1)};
+				cur_spks = exptdata_mod{tt,10+(channel-1)};
 				cur_spks(cur_spks<0)=[]; cur_spks(cur_spks>trlsecs)=[];
-				binned_SU1(cur_trlinds,channel) = histcounts(exptdata_mod{tt,10+3*(channel-1)},edges_hist);
+				binned_SU1(cur_trlinds,channel) = histcounts(exptdata_mod{tt,10+(channel-1)},edges_hist);
 				spk_times_all{channel,1} = [spk_times_all{channel,1}; cur_spks+(trlsecs*(tt-1))];
 			end
 		end   

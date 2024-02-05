@@ -1,4 +1,4 @@
-function [ExptTrials, ExptInfo] = ExtractAndAlignData( exptname, dirpath, which_computer, ks, eye_tracker, is_cloud )
+function [ExptTrials, ExptInfo] = ExtractAndAlignData( exptname, dirpath, which_computer, ks, opts )
 %
 % Usage: ExtractAndAlignData( exptname, dirpath, <which_computer>, <eye_tracker> )
 %
@@ -14,14 +14,28 @@ function [ExptTrials, ExptInfo] = ExtractAndAlignData( exptname, dirpath, which_
 % addpath('/Users/dbutts/Projects/ColorV1/ColorProcessing_Packaged/Dependencies/Plexon-Matlab Offline Files SDK/')
 % addpath('/Users/dbutts/Projects/ColorV1/ColorProcessing_Packaged/Dependencies/Kilotools_FB_2023/kilo2Tools-master/npy-matlab/npy-matlab')
 
-if nargin < 6
-    is_cloud = 1; % default) indicates processing for cloud data. set to 0 to skip cloud-specific variables and align task data or other paradigms 
-end
+if nargin < 5
+    if ~isfield(opts.eye_tracker)
+	    ET_Eyelink = 3; % (default) 0=eyescan, 1=monoc eyelink, 2=binoc eyelink, 3=monocular dDPI
+    else
+	    ET_Eyelink = opts.eye_tracker;
+    end
 
-if nargin < 5 || isempty(eye_tracker)
-	ET_Eyelink = 3; % (default) 0=eyescan, 1=monoc eyelink, 2=binoc eyelink, 3=monocular dDPI
-else
-	ET_Eyelink = eye_tracker;
+    if ~isfield(opts.is_cloud)
+        opts.is_cloud = 1; % default) indicates processing for cloud data. set to 0 to skip cloud-specific variables and align task data or other paradigms 
+    end
+
+    if ~isfield(opts.spk_offset) 
+        opts.spk_offset = 0; 
+    end
+
+    if ~isfield(opts.trialwindow)
+        g_strctStatistics.preTrialWindow = 0; % default to 4-second trials
+        g_strctStatistics.postTrialWindow = 4;
+    else
+        g_strctStatistics.preTrialWindow = opts.trialwindow(1);
+        g_strctStatistics.postTrialWindow = opts.trialwindow(2);
+    end
 end
 
 if nargin < 3 || isempty(which_computer)
@@ -50,8 +64,6 @@ end
 %filenameP = exptname;
 
 %% Extract Bevil's data
-spk_offset = 0; 
-%iso_SUs=[]; 
 
 useofflinesorting = 1; % set to 1 in order to use kilosort outputs, otherwise 0
 
@@ -102,9 +114,6 @@ global strctColorValues unitsInFile PlottingVars g_strctStatistics ExptTrials to
 %persistent plexonDataAlignedToThisTrial
 experimentIndex = {};
 
-g_strctStatistics.preTrialWindow = 0;
-g_strctStatistics.postTrialWindow = 4; %0.4
-
 currentDirectory = pwd;
 cd(dirpath);
 allMatFiles = dir('*.mat');
@@ -125,7 +134,7 @@ if useofflinesorting==1
 	if ks.stitched==1
 		load([ks.FilePath 'KS_stitched.mat'])
 	else
-		spk_times = readNPY([ks.FilePath 'spike_times_seconds.npy']) +spk_offset;
+		spk_times = readNPY([ks.FilePath 'spike_times_seconds.npy']) +opts.spk_offset;
 		spk_clusters = readNPY([ks.FilePath 'spike_clusters.npy']);
 		spk_info = tdfread([ks.FilePath 'cluster_info.tsv']);
 	end
@@ -268,7 +277,7 @@ end
 RECstart = kofikoStrobeAllTS(1);
 RECend = kofikoStrobeAllTS(end);
 
-if is_cloud % only include cloud trials; this discards Fivedot, Handmapper, etc trials
+if opts.is_cloud % only include cloud trials; this discards Fivedot, Handmapper, etc trials
     targ_trials=[];
     for tt=1:length(ExptTrials)
 	    if strcmp(ExptTrials{tt, 1}.m_strTrialType, 'Dual Stim')
@@ -582,8 +591,8 @@ if ~skipLFP
 	LFP_ad=LFP_ad';  
 	LFP_times=[1:LFP_n]/LFP_adfreq;
 end
-if spk_offset ~=0
-	LFP_times=LFP_times+spk_offset;
+if opts.spk_offset ~=0
+	LFP_times=LFP_times+opts.spk_offset;
 end
 
 %% previous location of reading in kilosort outputs
@@ -784,7 +793,7 @@ for iTrials = 1:ntrials   %trialsInThisSession{iSessions}
 		ExptTrials{iTrials, 1}.m_aiStimColor = [NaN, NaN, NaN];
     end
 
-    if is_cloud
+    if opts.is_cloud
 	    ExptTrials{iTrials, 3} = ExptTrials{iTrials, 1}.m_strTrialType;
     	sessionIndex(trialIter).m_strTrialType = ExptTrials{iTrials, 1}.m_strTrialType;
     end
@@ -911,6 +920,7 @@ ExptInfo.spk_ID_MU = spk_ID_MU;
 ExptInfo.spk_channels_SU = spk_channels_SU;
 ExptInfo.spk_channels_MU = spk_channels_MU;
 ExptInfo.trialwindow = [g_strctStatistics.preTrialWindow, g_strctStatistics.postTrialWindow];
+ExptInfo.trialdur = ExptInfo.trialwindow(2)-ExptInfo.trialwindow(1);
 ExptInfo.ET_Eyelink = ET_Eyelink;
 ExptInfo.use_offline_sorting = useofflinesorting;
 ExptInfo.expt_folder = dirpath;
@@ -948,7 +958,7 @@ disp('Saved!')
 % end
 
 %% Processing the LFPs/CSDs
-if is_cloud
+if opts.is_cloud
     fprintf('\nProcessing CSDs (all trials):\n')
     CSDprocess( ExptTrials, [], 1, exptname, output_directory, 1 );
     % Usage: [csd, lfp] = CSDprocess( ExptRecording, trial_select, save_images, exptname, savedir, verbose )

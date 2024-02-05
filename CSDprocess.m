@@ -105,10 +105,10 @@ imagesc(expt_CSDs)
 title([exptname ' iCSD'])
 ylabel('Probe number'); xlabel('Time (ms)')
 xlim([0 550]); colorbar
-ax=gca; ax.XTickLabel={'-100','0','100','200','300','400','500'};
+%ax=gca; ax.XTickLabel={'-100','0','100','200','300','400','500'};
 %ax=gca; ax.XTickLabel={'0','100','200','300','400','500','600'};
-%caxis([-4e5 1e5])
 %ax=gca; ax.XTickLabel={'-50','50','150','250','350','450'};
+%caxis([-4e5 1e5])
 %colormap(hotcold); caxis([-max(expt_CSDs(:))/3 max(expt_CSDs(:))/3]);
 
 if save_images
@@ -135,7 +135,7 @@ imagesc(lfps2)
 title([exptname ' LFP'])
 ylabel('Probe number'); xlabel('Time (ms)')
 xlim([0 550]); colorbar
-ax=gca; ax.XTickLabel={'-100','0','100','200','300','400','500'};
+%ax=gca; ax.XTickLabel={'-100','0','100','200','300','400','500'};
 %colormap(hotcold); caxis([-max(lfps2(:))/3 max(lfps2(:))/3]);
 
 if save_images

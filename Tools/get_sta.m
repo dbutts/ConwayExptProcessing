@@ -1,4 +1,4 @@
-function stas = get_sta( data, targets, use_inds, to_shift, stim_deltas )
+function stas = get_sta( data, targets, use_inds, to_shift, stim_deltas, num_lags )
 %
 % Usage: stas = get_sta( data, <targets>, <to_shift>, <stim_deltas> )
 %
@@ -10,6 +10,7 @@ function stas = get_sta( data, targets, use_inds, to_shift, stim_deltas )
 binned_SU = [single(data.Robs'), single(data.RobsMU')];
 spk_ch = [data.Robs_probe_ID; data.RobsMU_probe_ID];
 nSU=size(data.Robs,1); 
+
 
 if nargin < 2 
     targets = 1:size(binned_SU,2); % default to plotting all SUs and MUs
@@ -25,7 +26,12 @@ if nargin < 4 || isempty(to_shift)
 end
 
 if nargin < 5
-    stim_deltas = zeros(NT,2); 
+    NT=size(data.ETtrace,2);
+    stim_deltas = zeros(2,NT); 
+end
+
+if nargin < 6
+    num_lags = 6;
 end
 
 stim_shift=permute(data.stim,[4 1 2 3]);
@@ -40,17 +46,18 @@ end
 %reshaping stimuli to get STAs with matrix multiplication, which is faster
 stim2 = single(reshape(stim_shift,size(stim_shift,1),3*60*60))./127;
 
-
+stas=zeros(max(targets),num_lags,3*60*60);
 
 disp('Now plotting!')
 for cc=targets
 	tic
 	figure;
-	for curlag=1:6
+	for curlag=1:num_lags
 		cur_STA1(curlag,:) = binned_SU(use_inds+curlag,cc)' * stim2(use_inds,:);
 	end
 
-	for curlag=1:6 
+    stas(cc,curlag, :)=cur_STA1;
+	for curlag=1:num_lags
 		cur_StA2=reshape(cur_STA1(curlag,:),60,180);
 		%curlim=150;%
 		curlim=max(abs(cur_STA1(:)'));

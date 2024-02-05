@@ -16,9 +16,7 @@ dirpath = '/home/conwaylab/Data/';
 cd(dirpath)
 
 % this is the name of the experiment you want to run
-%filenameP = '230501_160618_Jacomo'; 
-%filenameP = '230503_100839_Jacomo'; 
-filenameP = '230503_133708_Jacomo'; 
+filenameP = '230508_111431_Jacomo'; 
 
 outputdir = [dirpath filenameP '/Analysis/'];
 disp('setup complete')
@@ -29,7 +27,7 @@ preconverted = 0; % 0 if sorting the file for the first time, 1 if the recording
 [datPath, droptestcheck] = Step0_KilosortLaminar(dirpath,filenameP,preconverted); %this will take some time to run!
 
 disp(['Plexon-Kofiko offset in seconds: ' num2str(droptestcheck)]) % this will tell us if the plexon time alignment issue is present
-if droptestcheck>0.1; warning("Danger - Plexon might have dropped frames! Check pl2 file."); else; disp('Experiment kilosorted and ready for curation!'); end
+if abs(droptestcheck)>0.1; warning("Danger - Plexon might have dropped frames! Check pl2 file."); else; disp('Experiment kilosorted and ready for curation!'); end
 
 %% Once this prints "DONE", go curate the file in Phy!
 
@@ -39,10 +37,21 @@ if droptestcheck>0.1; warning("Danger - Plexon might have dropped frames! Check 
 %% now, align kofiko information about stimuli with plexon data about spikes, LFPs, and eye traces
 
 which_computer = 2; % (default=2) 2 = LSR, room 2A58
-ET_type = 3; % (default=3) 0=eyescan, 1=monoc eyelink, 2=binoc eyelink, 3=monocular dDPI 
-is_cloud = 0; % (default=1) indicates processing for cloud data. set to 0 to skip cloud-specific variables and align task data or other paradigms 
 
-[ExptTrials, ExptInfo] = ExtractAndAlignData( filenameP, dirpath, which_computer, ET_type, is_cloud ); 
+ks.stitched=0; % if you combined kilosort outputs for multiple arrays
+ks.arraylabel ='lam';
+ks.FilePath = [dirpath filenameP filesep 'kilosorting_laminar' filesep]; 
+
+opts.eye_tracker = 3; % (default=3) 0=eyescan, 1=monoc eyelink, 2=binoc eyelink, 3=monocular dDPI 
+opts.is_cloud = 1; % (default=1) indicates processing for cloud data. set to 0 to skip cloud-specific variables and align task data or other paradigms 
+opts.trialwindow = [0 4]; % 4 second trials
+if abs(droptestcheck)>0.1;
+    opts.spk_offset = droptestcheck;
+else
+    opts.spk_offset = 0;
+end
+
+[ExptTrials, ExptInfo] = ExtractAndAlignData( filenameP, dirpath, which_computer, ks, opts ); 
 % to see options (including a different datadirectory, type 'help ExtractAndAlignData'
 % this will automatically generate and save CSD/LFP, but you can call the
 % function again and analyze them
@@ -53,6 +62,7 @@ is_cloud = 0; % (default=1) indicates processing for cloud data. set to 0 to ski
 %% next, package the data
 %load([outputdir filenameP '_FullExpt_ks1_lam_v09.mat'])
 
+ExptInfo.trialdur = 4;
 data = PackageCloudData_v9( ExptTrials, ExptInfo, [], [], stimpath, outputdir );
 % data = PackageCloudData_v9( ExptTrials, ExptInfo );
 
@@ -67,7 +77,10 @@ target_SUs = [1 2 4 5 6 9 11];
 apply_ETshifts = 1;
 stim_deltas = 0;
 
-get_sta(data, target_SUs, apply_ETshifts, stim_deltas)
+stas = get_sta(data, target_SUs, apply_ETshifts, stim_deltas)
 
+%% now we plot the best lag of our STAs by depth
+%TODO: add stas_depth code that shows select STAs in order of laminar
+%arrangement
 %%
 
