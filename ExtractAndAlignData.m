@@ -14,29 +14,33 @@ function [ExptTrials, ExptInfo] = ExtractAndAlignData( exptname, dirpath, which_
 % addpath('/Users/dbutts/Projects/ColorV1/ColorProcessing_Packaged/Dependencies/Plexon-Matlab Offline Files SDK/')
 % addpath('/Users/dbutts/Projects/ColorV1/ColorProcessing_Packaged/Dependencies/Kilotools_FB_2023/kilo2Tools-master/npy-matlab/npy-matlab')
 
-if nargin < 5
-    if ~isfield(opts.eye_tracker)
-	    ET_Eyelink = 3; % (default) 0=eyescan, 1=monoc eyelink, 2=binoc eyelink, 3=monocular dDPI
-    else
-	    ET_Eyelink = opts.eye_tracker;
-    end
 
-    if ~isfield(opts.is_cloud)
-        opts.is_cloud = 1; % default) indicates processing for cloud data. set to 0 to skip cloud-specific variables and align task data or other paradigms 
-    end
-
-    if ~isfield(opts.spk_offset) 
-        opts.spk_offset = 0; 
-    end
-
-    if ~isfield(opts.trialwindow)
-        g_strctStatistics.preTrialWindow = 0; % default to 4-second trials
-        g_strctStatistics.postTrialWindow = 4;
-    else
-        g_strctStatistics.preTrialWindow = opts.trialwindow(1);
-        g_strctStatistics.postTrialWindow = opts.trialwindow(2);
-    end
+if nargin < 5; 
+    opts = struct;
 end
+
+if ~isfield(opts, 'eye_tracker')
+    ET_Eyelink = 3; % (default) 0=eyescan, 1=monoc eyelink, 2=binoc eyelink, 3=monocular dDPI
+else
+    ET_Eyelink = opts.eye_tracker;
+end
+
+if ~isfield(opts, 'is_cloud')
+    opts.is_cloud = 1; % default) indicates processing for cloud data. set to 0 to skip cloud-specific variables and align task data or other paradigms 
+end
+
+if ~isfield(opts, 'spk_offset') 
+    opts.spk_offset = 0; 
+end
+
+if ~isfield(opts, 'trialwindow')
+    g_strctStatistics.preTrialWindow = 0; % default to 4-second trials
+    g_strctStatistics.postTrialWindow = 4;
+else
+    g_strctStatistics.preTrialWindow = opts.trialwindow(1);
+    g_strctStatistics.postTrialWindow = opts.trialwindow(2);
+end
+
 
 if nargin < 3 || isempty(which_computer)
 	% This can be used to set default directories
@@ -65,7 +69,11 @@ end
 
 %% Extract Bevil's data
 
-useofflinesorting = 1; % set to 1 in order to use kilosort outputs, otherwise 0
+if ks.use_plexon ==1
+    useofflinesorting = 0; % set to 1 in order to use kilosort outputs, otherwise 0
+else
+    useofflinesorting = 1; % set to 1 in order to use kilosort outputs, otherwise 0
+end
 
 skipLFP=0; 
 nChans=24; %for CSD only now
@@ -109,7 +117,7 @@ end
 %}
 
 %%
-global strctColorValues unitsInFile PlottingVars g_strctStatistics ExptTrials topLevelIndex 
+%global strctColorValues unitsInFile PlottingVars g_strctStatistics ExptTrials topLevelIndex 
 
 %persistent plexonDataAlignedToThisTrial
 experimentIndex = {};
@@ -121,7 +129,7 @@ allMatFiles = dir('*.mat');
 allMatFiles = allMatFiles(indices);
 
 allPLXfiles = dir([pwd,filesep, '*.plx']);
-g_strctStatistics.m_strctEyeData.m_fEyeIntegrationPeriod = [g_strctStatistics.preTrialWindow,g_strctStatistics.postTrialWindow];
+g_strctStatistics.m_strctEyeData.m_fEyeIntegrationPeriod = [g_strctStatistics.preTrialWindow, g_strctStatistics.postTrialWindow];
 
 syncStrobeID = 32757;
 eventChannelNumber = 257;
@@ -158,9 +166,76 @@ if useofflinesorting==1
 	spk_channels_MU = spk_info.ch(spk_labels_MU);
 	nSU=length(spk_ID_SU);
 	nMU=length(spk_ID_MU);
+
+else
+    %% align spiking data
+    [tscounts, wfcounts, evcounts, contcounts] = plx_info(plxFilePath, false);
+    keyboard
+    %    for channel=1:32
+    %        numUnits = find(sum(wfcounts(2:end,:),2));
+    numUnits = find(sum(wfcounts,2));
+    allNumUnits=[];
+    topLevelIndex.m_iNumNeuronUnits = numUnits;
+    
+    %% This goes through online sorting -- commenting out
+    for channel=1:nChans
+	    numUnitsInSession = 0;
+	    for iUnit = 1:numel(numUnits)
+		    nameOfUnit = ['unit',num2str(numUnits(iUnit))];
+		    tempTS = 0;
+		    try
+			    %%%% [~, ~, tempTS, ~] = plx_waves_v([thisSessionFile], channel, iUnit);  % ONLY FOR ONLINE SORTING
+			    % [~, ~, tempTS, ~] = PL2Waves([thisSessionFile], channel, iUnit);
+		    catch
+			    fprintf('big oof \n')
+		    end
+		    if tempTS > 0
+			    numUnitsInSession = numUnitsInSession + 1;
+			    unitsInFile = [unitsInFile, iUnit];
+			    % [spikes(channel).(nameOfUnit).count, spikes(channel).(nameOfUnit).numWaves, spikes(channel).(nameOfUnit).timeStamps, spikes(channel).(nameOfUnit).Waves] = ...
+				%     plx_waves_v([thisSessionFile], channel, iUnit); % old version of doing this; commented ouit to keep formatting in line with KS style
+			    [spikes(channel).(nameOfUnit).count, spikes(channel).(nameOfUnit).numWaves, spikes(channel).(nameOfUnit).timeStamps, spikes(channel).(nameOfUnit).Waves] = ...
+				    plx_waves_v(plxFilePath, channel, iUnit);
+
+		    end
+	    end
+	    allNumUnits=[allNumUnits,numUnitsInSession];
+    end
+    %numUnitsInSession=max(allNumUnits);  % not used
 end
 
-%% Load Kilosort files
+%% Organize spike time metadata
+exptDataP = []; exptDataP2=[]; exptDataMUA=[];
+if useofflinesorting==1
+	for iUnit=1:length(spk_labels_SU)
+		exptDataP(iUnit).spkID = double(spk_ID_SU(iUnit));
+		exptDataP(iUnit).spkCh = spk_channels_SU(iUnit);
+		% exptDataP(iUnit).rating = spk_rating_SU(iUnit);  
+		exptDataP(iUnit).unit1 = spk_times(find(spk_clusters==spk_ID_SU(iUnit)));
+	end
+
+	for iUnit=1:length(spk_labels_MU)
+		exptDataMUA(iUnit).spkID = double(spk_ID_MU(iUnit));
+		exptDataMUA(iUnit).spkCh = spk_channels_MU(iUnit);
+		% exptDataMUA(iUnit).rating = spk_rating_MU(iUnit);
+		exptDataMUA(iUnit).unit1 = spk_times(find(spk_clusters==spk_ID_MU(iUnit)));  
+	end
+
+else
+	for channel=1:nChans    
+		for iUnit = 1:allNumUnits(channel)
+			nameOfUnit = ['unit',num2str(iUnit)];
+
+			try
+				exptDataP(channel).(nameOfUnit) = spikes(channel).(nameOfUnit).timeStamps;
+			catch
+				exptDataP(channel).(nameOfUnit) = 0;   
+			end		
+        end
+	end
+end
+
+%% Load Kofiko trial files
 allMatFiles = dir([matFilePath, '*.mat']);
 [~, indices] = sort(vertcat(allMatFiles(:).datenum));
 allMatFiles = allMatFiles(indices);
@@ -180,8 +255,6 @@ for iFiles = 1:size(allMatFiles,1)
 	% details = whos([output_directory,allMatFiles(iFiles).name])
 	%g_strctLocalg_strctStatistics.ExptTrials(cellfun('isempty',g_strctLocalg_strctStatistics.ExptTrials)) = [];
 	g_strctStatistics.ExptTrials(cellfun('isempty',g_strctStatistics.ExptTrials)) = [];
-	%g_strctLocalg_strctStatistics.ExptTrials = vertcat(g_strctLocalg_strctStatistics.ExptTrials,g_strctDynamicStimLog.TrialLog);
-	%g_strctLocalg_strctStatistics.ExptTrials = vertcat(g_strctLocalg_strctStatistics.ExptTrials{cellfun(@isempty,g_strctLocalg_strctStatistics.ExptTrials),dataToSave');
 	if (exist('g_strctLocalExperimentRecording') == 1)
 		% disp('case 1')
 		g_strctStatistics.ExptTrials = vertcat(g_strctStatistics.ExptTrials,vertcat({g_strctLocalExperimentRecording{find(~cellfun(@isempty,g_strctLocalExperimentRecording))}})');
@@ -204,8 +277,6 @@ ExptTrials = g_strctStatistics.ExptTrials;
 clear g_strctStatistics.ExptTrials;
 
 %%
-%strctColorValues = fnCheckForColorFile();
-
 try
 	[events.count, events.timeStamps, events.strobeNumber] = plx_event_ts(plxFilePath, eventChannelNumber);
 	% [events] = PL2EventTs(plxFilePath, eventChannelNumber);
@@ -325,41 +396,7 @@ if ~strcmp(experimentFileExtension,'.plx') && ~strcmp(experimentFileExtension,'.
 	thisSessionFile = [thisSessionFile, '.plx'];
 end
 
-%% align spiking data
-numUnitsInSession = 0;
-[tscounts, wfcounts, evcounts, contcounts] = plx_info([thisSessionFile], false);
-%    for channel=1:32
-%        numUnits = find(sum(wfcounts(2:end,:),2));
-numUnits = find(sum(wfcounts,2));
-allNumUnits=[];
-topLevelIndex.m_iNumNeuronUnits = numUnits;
-
-%% This goes through online sorting -- commenting out
-%{
-for channel=1:nChans
-	numUnitsInSession = 0;
-	for iUnit = 1:numel(numUnits)
-		nameOfUnit = ['unit',num2str(numUnits(iUnit))];
-		tempTS = 0;
-		try
-			%%%% [~, ~, tempTS, ~] = plx_waves_v([thisSessionFile], channel, iUnit);  % ONLY FOR ONLINE SORTING
-			% [~, ~, tempTS, ~] = PL2Waves([thisSessionFile], channel, iUnit);
-		catch
-			fprintf('big oof \n')
-		end
-		if tempTS > 0
-			numUnitsInSession = numUnitsInSession + 1;
-			unitsInFile = [unitsInFile, iUnit];
-			[spikes(channel).(nameOfUnit).count, spikes(channel).(nameOfUnit).numWaves, spikes(channel).(nameOfUnit).timeStamps, spikes(channel).(nameOfUnit).Waves] = ...
-				plx_waves_v([thisSessionFile], channel, iUnit);
-			% [spikes.(nameOfUnit).count, spikes.(nameOfUnit).numWaves, spikes.(nameOfUnit).timeStamps, spikes.(nameOfUnit).Waves] = ...
-			%		PL2Waves([thisSessionFile], channel, iUnit);
-		end
-	end
-	allNumUnits=[allNumUnits,numUnitsInSession];
-end
-%}
-%numUnitsInSession=max(allNumUnits);  % not used
+%% former location of online-sorted spike processing
 
 %% Process Eye-tracking data
 load([dirpath, exptname, '.mat'], 'g_strctEyeCalib');
@@ -597,52 +634,7 @@ end
 
 %% previous location of reading in kilosort outputs
 
-%% Organize spike time metadata
-exptDataP = []; exptDataP2=[]; exptDataMUA=[];
-if useofflinesorting==1
-	for iUnit=1:length(spk_labels_SU)
-		exptDataP(iUnit).spkID = double(spk_ID_SU(iUnit));
-		exptDataP(iUnit).spkCh = spk_channels_SU(iUnit);
-		% exptDataP(iUnit).rating = spk_rating_SU(iUnit);  
-		exptDataP(iUnit).unit1 = spk_times(find(spk_clusters==spk_ID_SU(iUnit)));
-	end
-
-	for iUnit=1:length(spk_labels_MU)
-		exptDataMUA(iUnit).spkID = double(spk_ID_MU(iUnit));
-		exptDataMUA(iUnit).spkCh = spk_channels_MU(iUnit);
-		% exptDataMUA(iUnit).rating = spk_rating_MU(iUnit);
-		exptDataMUA(iUnit).unit1 = spk_times(find(spk_clusters==spk_ID_MU(iUnit)));  
-	end
-
-else
-	for channel=1:nChans    
-		for iUnit = 1:allNumUnits(channel)
-			nameOfUnit = ['unit',num2str(iUnit)];
-			if useofflinesorting==1
-				%{
-        exptDataP(channel).(nameOfUnit) = Clusters{channel}.times(find(Clusters{channel}.spike_clusts==iUnit+1));
-				%exptDataP(channel).(nameOfUnit) = allchan_spktimes{1,channel};
-				%exptDataMUA(channel).(nameOfUnit) = allchan_spktimes{2,channel};
-				%} 
-			else     
-				try
-					exptDataP(channel).(nameOfUnit) = spikes(channel).(nameOfUnit).timeStamps;
-				catch
-					exptDataP(channel).(nameOfUnit) = 0;   
-				end
-			end		
-		end
-
-		%         if useofflinesorting==1
-		%             if ismember(channel,iso_SUs)
-		%                 exptDataMUA{channel} = Clusters{channel}.times(find(Clusters{channel}.spike_clusts==1));
-		%             else
-		%                 exptDataMUA{channel} = Clusters{channel}.times(find(Clusters{channel}.spike_clusts>=1));
-		%             end
-		%         end  
-	end
-end
-
+%%
 iSessions = 1;
 allStartTS = [ExptTrials{:,2}];
 
@@ -764,7 +756,7 @@ end
 %}
 
 %% Align all time signals
-trialIter = 1;
+trialIter = 1; oosynctrials=[];
 disp(['General time-alignment: ' num2str(ntrials) ' trials'])
 for iTrials = 1:ntrials   %trialsInThisSession{iSessions}
 	spikesInThisTrial = [];
@@ -772,12 +764,16 @@ for iTrials = 1:ntrials   %trialsInThisSession{iSessions}
 	[~,trialSyncStrobeID] = min(abs(ExptTrials{iTrials, 2} - kofikoSyncStrobesInThisSessionTS));
 
 	if trialSyncStrobeID>length(kofikoSyncStrobesInThisSessionTS)
-		error(['Error with sync strobes? off by ' num2str(trialSyncStrobeID-length(kofikoSyncStrobesInThisSessionTS))]);
+		warning(['Error with sync strobes? off by ' num2str(trialSyncStrobeID-length(kofikoSyncStrobesInThisSessionTS))]);
+        oosynctrials = [oosynctrials, iTrials];
+        continue
 		%trialSyncStrobeID=length(kofikoSyncStrobesInThisSessionTS);
 	end
   
 	if trialSyncStrobeID>length(plexonSyncStrobesInThisSessionTS)
-		error(['Error with sync strobes? off by ' num2str(trialSyncStrobeID-length(plexonSyncStrobesInThisSessionTS))]);
+		warning(['Error with sync strobes? off by ' num2str(trialSyncStrobeID-length(plexonSyncStrobesInThisSessionTS))]);
+        oosynctrials = [oosynctrials, iTrials];
+        continue
 		%trialSyncStrobeID=length(plexonSyncStrobesInThisSessionTS);
 	end
 
@@ -897,12 +893,8 @@ for iTrials = 1:ntrials   %trialsInThisSession{iSessions}
 	end
 end 
 %%
-% if ~isempty(experimentIndex)
-%     save([output_directory,'experimentIndex.mat'],'experimentIndex')
-%     globalSessionTags = experimentIndex{:,3};
-%     save([output_directory,'experimentTags.mat'],'globalSessionTags')
-% end
 
+%%
 fprintf('Done combining information.\n')
 
 %%

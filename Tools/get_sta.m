@@ -55,20 +55,25 @@ for cc=targets
 	for curlag=1:num_lags
 		cur_STA1(curlag,:) = binned_SU(use_inds+curlag,cc)' * stim2(use_inds,:);
 	end
+	curlim=max(abs(cur_STA1(:)'));
 
-    stas(cc,curlag, :)=cur_STA1;
+    stas(cc,:, :)=cur_STA1;
 	for curlag=1:num_lags
 		cur_StA2=reshape(cur_STA1(curlag,:),60,180);
 		%curlim=150;%
-		curlim=max(abs(cur_STA1(:)'));
 		cur_StA2(:,[60 120])=curlim;
 
-		subplot(6,1,curlag)
+		subplot(6,3,1+(curlag-1)*3)
 		imagesc(cur_StA2); clim([-curlim curlim]); pbaspect([3 1 1])
 
-		colormap(gray); xlabel(['Lag ' num2str(curlag)]);
+        cur_StA3=reshape(cur_STA1(curlag,:),60*60,3);
+        cur_StA_L = cur_StA3*[-0.040, 0.5220,0]'; % from 01_2022 calib
+		cur_StA_L2=reshape(cur_StA_L,60,60);
+        cur_StA_M = cur_StA3*[0.0351, -0.4625, 0]'; % from 01_2022 calib
+		cur_StA_M2=reshape(cur_StA_M,60,60);
+
 		if curlag == 1
-			ylabel('S          L-M          Lum'); 
+			xlabel('Lum          L-M          S'); 
             if cc<=nSU;
                 titlestr = sprintf('SU %0d: ch# %d; %s', cc, spk_ch(cc), shiftstr);
             else
@@ -76,7 +81,18 @@ for cc=targets
             end
 			%title(['SU ' num2str(cc) ': ch#', num2str(spk_ch(cc)), 'spkID' num2str(spk_ID(cc))]); 
             title(titlestr)
-		end
+        end
+
+        subplot(6,3,2+(curlag-1)*3)
+		imagesc(cur_StA_L2); clim([-curlim curlim].*.522); pbaspect([1 1 1]); % color limit based on L-isolating max
+		if curlag == 1; xlabel('L'); end
+
+		subplot(6,3,3+(curlag-1)*3)
+		imagesc(cur_StA_M2); clim([-curlim curlim].*.4625); pbaspect([1 1 1])
+		if curlag == 1; xlabel('M'); end
+
+		colormap(gray); xlabel(['Lag ' num2str(curlag)]);
+
 	end
 	%    figtitle(['Probe ' num2str(Robs_probe_ID(cc)) '   Unit ' num2str(cc) ])
 	toc

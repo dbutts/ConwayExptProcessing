@@ -897,15 +897,17 @@ switch targ_stimtype
 		trialID = TrialID;
 		cloud_scale = cloud_scale';
 		cloud_binary = cloud_binary';
-		targchans=find(sum(binned_SU1)>2000);
+%		targchans=find(sum(binned_SU1)>2000);
     
 	case 6
-		hartley_metas = hartleystim_metas';
-		load(cur_filename_targchans)
+		blockID = BlockID;
+		trialID = TrialID;
+        hartley_metas = hartleystim_metas';
+%		load(cur_filename_targchans)
 end
 
-targchans_SU = targchans(targchans <= nSU);
-%targchans=1:nSU;
+%targchans_SU = targchans(targchans <= nSU);
+targchans_SU=1:nSU;
 
 SU_clusters=[];
 Robs = binned_SU1(:,targchans_SU)';
@@ -918,8 +920,8 @@ datafilts = ones(size(Robs));
 %targchansMU=find(sum(binned_SU2)>500);
 %RobsMU=binned_SU2(:,targchansMU)';
 
-%targchansMU=[1:nMU]+nSU;
-targchansMU = targchans(targchans > nSU);
+%targchansMU = targchans(targchans > nSU);
+targchansMU=[1:nMU]+nSU;
 RobsMU = binned_SU1(:,targchansMU)';
 RobsMU_probe_ID = metadata_struct.spk_channels_MU(targchansMU'-nSU);
 datafiltsMU = ones(size(RobsMU));

@@ -16,7 +16,7 @@ dirpath = '/home/conwaylab/Data/';
 cd(dirpath)
 
 % this is the name of the experiment you want to run
-filenameP = '230508_111431_Jacomo'; 
+filenameP = '230501_160618_Jacomo'; 
 
 outputdir = [dirpath filenameP '/Analysis/'];
 disp('setup complete')
@@ -38,6 +38,7 @@ if abs(droptestcheck)>0.1; warning("Danger - Plexon might have dropped frames! C
 
 which_computer = 2; % (default=2) 2 = LSR, room 2A58
 
+ks.use_plexon = 1; % set to 1 to use on-line sorting
 ks.stitched=0; % if you combined kilosort outputs for multiple arrays
 ks.arraylabel ='lam';
 ks.FilePath = [dirpath filenameP filesep 'kilosorting_laminar' filesep]; 
@@ -46,7 +47,7 @@ opts.eye_tracker = 3; % (default=3) 0=eyescan, 1=monoc eyelink, 2=binoc eyelink,
 opts.is_cloud = 1; % (default=1) indicates processing for cloud data. set to 0 to skip cloud-specific variables and align task data or other paradigms 
 opts.trialwindow = [0 4]; % 4 second trials
 if abs(droptestcheck)>0.1;
-    opts.spk_offset = droptestcheck;
+    opts.spk_offset = droptestcheck; % cTODO: check if this is also true for negative values
 else
     opts.spk_offset = 0;
 end
@@ -62,6 +63,10 @@ end
 %% next, package the data
 %load([outputdir filenameP '_FullExpt_ks1_lam_v09.mat'])
 
+% first package the hartley stimuli
+data_hartleys = PackageCloudData_v9( ExptTrials, ExptInfo, 6, [], stimpath, outputdir );
+
+% now package cloud data
 ExptInfo.trialdur = 4;
 data = PackageCloudData_v9( ExptTrials, ExptInfo, [], [], stimpath, outputdir );
 % data = PackageCloudData_v9( ExptTrials, ExptInfo );
@@ -69,7 +74,7 @@ data = PackageCloudData_v9( ExptTrials, ExptInfo, [], [], stimpath, outputdir );
 disp('All Done')
 
 %% finally, generate STAs for all recorded cells
-get_sta(data);
+stas = get_sta(data);
 disp('STAs finished!')
 
 %% if you want to generate STAs for only a subset of the data, use this code instead:
