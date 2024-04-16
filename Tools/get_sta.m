@@ -1,4 +1,4 @@
-function stas = get_sta( data, targets, use_inds, to_shift, stim_deltas, num_lags )
+function stas = get_sta( data, targets, use_inds, to_shift, stim_deltas, num_lags, save_vars )
 %
 % Usage: stas = get_sta( data, <targets>, <to_shift>, <stim_deltas> )
 %
@@ -30,8 +30,12 @@ if nargin < 5
     stim_deltas = zeros(2,NT); 
 end
 
-if nargin < 6
+if nargin < 6 || isempty(num_lags)
     num_lags = 6;
+end
+
+if nargin < 7 || isempty(save_vars)
+    save_vars.to_save=0;
 end
 
 stim_shift=permute(data.stim,[4 1 2 3]);
@@ -51,17 +55,18 @@ stas=zeros(max(targets),num_lags,3*60*60);
 disp('Now plotting!')
 for cc=targets
 	tic
-	figure;
+	STA = figure;
 	for curlag=1:num_lags
 		cur_STA1(curlag,:) = binned_SU(use_inds+curlag,cc)' * stim2(use_inds,:);
 	end
-	curlim=max(abs(cur_STA1(:)'));
+	curlim=max(abs(cur_STA1(:)')); 
+        if curlim==0; curlim=0.1; end % avoids plotting bugs if a bad STA is included in a large set of plots
 
     stas(cc,:, :)=cur_STA1;
 	for curlag=1:num_lags
 		cur_StA2=reshape(cur_STA1(curlag,:),60,180);
 		%curlim=150;%
-		cur_StA2(:,[60 120])=curlim;
+		cur_StA2(:,[60 120])=curlim; % plots vertical lines dividing up the plots
 
 		subplot(6,3,1+(curlag-1)*3)
 		imagesc(cur_StA2); clim([-curlim curlim]); pbaspect([3 1 1])
@@ -89,13 +94,21 @@ for cc=targets
 
 		subplot(6,3,3+(curlag-1)*3)
 		imagesc(cur_StA_M2); clim([-curlim curlim].*.4625); pbaspect([1 1 1])
-		if curlag == 1; xlabel('M'); end
-
+		
 		colormap(gray); xlabel(['Lag ' num2str(curlag)]);
+
+        if curlag == 1; xlabel('M'); end
+
 
 	end
 	%    figtitle(['Probe ' num2str(Robs_probe_ID(cc)) '   Unit ' num2str(cc) ])
 	toc
 	%    pause
+    if save_vars.to_save==1
+        % save the STA as pdf saveas(figure, filename)
+    	saveas(STA,[save_vars.outputdir save_vars.titlestr ' SU' num2str(cc) '_STA.pdf'])
+        % save the STA as a jpg
+        saveas(STA,[save_vars.outputdir save_vars.titlestr ' SU' num2str(cc) '_STA.jpg'])
+    end
 end
 

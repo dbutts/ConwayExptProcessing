@@ -1,4 +1,4 @@
-function CCs = generate_color_cloud_binary( NT, NX, CLRscale, SPscale, THRESH )
+function CCs = mk_color_cloud_binary( NT, NX, CLRscale, SPscale, THRESH )
 %
 % Usage: CCs = generate_color_cloud_binary( NT, NX, CLRscale, SPscale, THRESH )
 

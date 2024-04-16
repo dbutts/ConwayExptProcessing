@@ -69,10 +69,10 @@ end
 
 %% Extract Bevil's data
 
-if ks.use_plexon ==1
-    useofflinesorting = 0; % set to 1 in order to use kilosort outputs, otherwise 0
+if ks.use_online ==1
+    useofflinesorting = 0; % set to 0 to use plexon on-line sorting
 else
-    useofflinesorting = 1; % set to 1 in order to use kilosort outputs, otherwise 0
+    useofflinesorting = 1; % set to 1 to use kilosort outputs
 end
 
 skipLFP=0; 
@@ -81,13 +81,19 @@ LFPchans=1:nChans;
 %LFP_chanmap=LFPchans;
 
 %sessionsToProcess = [];
-plxFilePath = [dirpath exptname '.pl2'];
 matFilePath = [dirpath exptname filesep]; 
 
 if (nargin < 3) || isempty(ks)
     ks.stitched=0; 
     ks.arraylabel ='lam';
-    ks.FilePath = [dirpath exptname filesep 'kilosorting_laminar' filesep]; 
+    ks.filepath = [dirpath exptname filesep 'kilosorting_laminar' filesep]; 
+    plxFilePath = [dirpath exptname '.pl2'];
+else
+    if isfield(ks, 'pl2path')
+        plxFilePath = [ks.pl2path exptname '.pl2'];
+    else
+        plxFilePath = [dirpath exptname '.pl2'];
+    end
 end
 
 %strExperimentPath = [matFilePath 'Analysis' filesep];
@@ -140,11 +146,11 @@ stopRecordID = 32766;
 if useofflinesorting==1
 
 	if ks.stitched==1
-		load([ks.FilePath 'KS_stitched.mat'])
+		load([ks.filepath 'KS_stitched.mat'])
 	else
-		spk_times = readNPY([ks.FilePath 'spike_times_seconds.npy']) +opts.spk_offset;
-		spk_clusters = readNPY([ks.FilePath 'spike_clusters.npy']);
-		spk_info = tdfread([ks.FilePath 'cluster_info.tsv']);
+		spk_times = readNPY([ks.filepath 'spike_times_seconds.npy']) +opts.spk_offset;
+		spk_clusters = readNPY([ks.filepath 'spike_clusters.npy']);
+		spk_info = tdfread([ks.filepath 'cluster_info.tsv']);
 	end
 	
 	spk_clustIDs = unique(spk_clusters); nclusts=length(spk_clustIDs);
@@ -170,43 +176,38 @@ if useofflinesorting==1
 else
     %% align spiking data
     [tscounts, wfcounts, evcounts, contcounts] = plx_info(plxFilePath, false);
-    keyboard
-    %    for channel=1:32
-    %        numUnits = find(sum(wfcounts(2:end,:),2));
-    numUnits = find(sum(wfcounts,2));
-    allNumUnits=[];
-    topLevelIndex.m_iNumNeuronUnits = numUnits;
-    
-    %% This goes through online sorting -- commenting out
-    for channel=1:nChans
-	    numUnitsInSession = 0;
-	    for iUnit = 1:numel(numUnits)
-		    nameOfUnit = ['unit',num2str(numUnits(iUnit))];
-		    tempTS = 0;
-		    try
-			    %%%% [~, ~, tempTS, ~] = plx_waves_v([thisSessionFile], channel, iUnit);  % ONLY FOR ONLINE SORTING
-			    % [~, ~, tempTS, ~] = PL2Waves([thisSessionFile], channel, iUnit);
-		    catch
-			    fprintf('big oof \n')
-		    end
-		    if tempTS > 0
-			    numUnitsInSession = numUnitsInSession + 1;
-			    unitsInFile = [unitsInFile, iUnit];
-			    % [spikes(channel).(nameOfUnit).count, spikes(channel).(nameOfUnit).numWaves, spikes(channel).(nameOfUnit).timeStamps, spikes(channel).(nameOfUnit).Waves] = ...
-				%     plx_waves_v([thisSessionFile], channel, iUnit); % old version of doing this; commented ouit to keep formatting in line with KS style
-			    [spikes(channel).(nameOfUnit).count, spikes(channel).(nameOfUnit).numWaves, spikes(channel).(nameOfUnit).timeStamps, spikes(channel).(nameOfUnit).Waves] = ...
-				    plx_waves_v(plxFilePath, channel, iUnit);
-
-		    end
-	    end
-	    allNumUnits=[allNumUnits,numUnitsInSession];
+    spk_clusters=[]; spk_times=[];
+    spk_ID_SU=[]; spk_channels_SU=[];
+    for channel=ks.onlinechans
+        allNumUnits(channel) = length(find(wfcounts(2:end,channel+1))); %note that channel and unit number are offset by 1
+        spk_ID_SU = [spk_ID_SU; [1:allNumUnits(channel)]'+(channel*100)];
+        spk_channels_SU = [spk_channels_SU; ones(allNumUnits(channel),1)*channel];
     end
-    %numUnitsInSession=max(allNumUnits);  % not used
+    nSU = sum(allNumUnits); spk_labels_SU=1:nSU;
+    nMU = 0; spk_labels_MU=[]; %for online sorting, we'll just treat every unit as an SU
+        spk_ID_MU=[];
+        spk_channels_MU=[];
+
+    numUnits = find(sum(wfcounts,2))-1;
+    
+    %% Now actually grab all the spike timestamps
+    ii=1;
+    for channel=ks.onlinechans
+	    for iUnit = 1:allNumUnits(channel)
+		    nameOfUnit = ['unit',num2str(numUnits(iUnit))];
+		    % [spikes(channel).(nameOfUnit).count, spikes(channel).(nameOfUnit).numWaves, spikes(channel).(nameOfUnit).timeStamps, spikes(channel).(nameOfUnit).Waves] = ...
+			%     plx_waves_v([thisSessionFile], channel, iUnit); % old version of doing this; commented ouit to keep formatting in line with KS style
+		    [~, ~, cur_timestamps, ~] = plx_waves_v(plxFilePath, channel, iUnit);
+            spk_times = [spk_times; cur_timestamps]; 
+            spk_clusters = [spk_clusters; ones(length(cur_timestamps),1)*spk_ID_SU(ii)]; 
+            ii=ii+1;
+	    end
+    end
 end
 
 %% Organize spike time metadata
 exptDataP = []; exptDataP2=[]; exptDataMUA=[];
-if useofflinesorting==1
+%if useofflinesorting==1
 	for iUnit=1:length(spk_labels_SU)
 		exptDataP(iUnit).spkID = double(spk_ID_SU(iUnit));
 		exptDataP(iUnit).spkCh = spk_channels_SU(iUnit);
@@ -221,19 +222,18 @@ if useofflinesorting==1
 		exptDataMUA(iUnit).unit1 = spk_times(find(spk_clusters==spk_ID_MU(iUnit)));  
 	end
 
-else
-	for channel=1:nChans    
-		for iUnit = 1:allNumUnits(channel)
-			nameOfUnit = ['unit',num2str(iUnit)];
-
-			try
-				exptDataP(channel).(nameOfUnit) = spikes(channel).(nameOfUnit).timeStamps;
-			catch
-				exptDataP(channel).(nameOfUnit) = 0;   
-			end		
-        end
-	end
-end
+% else
+% 	for channel=1:nChans    
+% 		for iUnit = 1:allNumUnits(channel)
+% 			nameOfUnit = ['unit',num2str(iUnit)];
+% 			try
+% 				exptDataP(channel).(nameOfUnit) = spikes(channel).(nameOfUnit).timeStamps;
+% 			catch
+% 				exptDataP(channel).(nameOfUnit) = 0;   
+% 			end		
+%         end
+% 	end
+% end
 
 %% Load Kofiko trial files
 allMatFiles = dir([matFilePath, '*.mat']);
@@ -795,7 +795,7 @@ for iTrials = 1:ntrials   %trialsInThisSession{iSessions}
     end
 
 
-	if useofflinesorting==1
+	% if useofflinesorting==1
 		for iUnit=1:nSU
 			plexonDataAlignedToThisTrial = [];         
 			plexonDataAlignedToThisTrial =  exptDataP(iUnit).unit1 - plexonSyncTime;
@@ -824,30 +824,45 @@ for iTrials = 1:ntrials   %trialsInThisSession{iSessions}
 			ExptTrials{iTrials,10+(iUnit-1+nSU)} = MUAspikesInThisTrial.unit1;
 			%ExptTrials{iTrials,11+3*(iUnit-1+nSU)} = length(MUAspikesInThisTrial.unit1);	
 		end
-	else		
-		for channel = find(allNumUnits) %1:nChans
-			for iUnit = 1:allNumUnits(channel)
-				plexonDataAlignedToThisTrial = []; 
-				nameOfUnit = ['unit',num2str(iUnit)];
-				% nameOfUnit = ['unit',num2str(unitsInFile(iUnit))];            
-         
-				plexonDataAlignedToThisTrial =  exptDataP(channel).(nameOfUnit) - plexonSyncTime ;
-				spikesInThisTrial.(nameOfUnit) = plexonDataAlignedToThisTrial(plexonDataAlignedToThisTrial - ...
-					(ExptTrials{iTrials, 2} - kofikoSyncTime) >= g_strctStatistics.preTrialWindow & ...
-					plexonDataAlignedToThisTrial - (ExptTrials{iTrials, 2} - kofikoSyncTime) <=  g_strctStatistics.postTrialWindow)...
-					- (ExptTrials{iTrials, 2} - kofikoSyncTime);;
-			end
-			%         plexonMUADataAlignedToThisTrial =  exptDataMUA{channel} - plexonSyncTime ;
-			%         MUAspikesInThisTrial = plexonMUADataAlignedToThisTrial(plexonMUADataAlignedToThisTrial - ...
-			%             (ExptTrials{iTrials, 2} - kofikoSyncTime) >= g_strctStatistics.preTrialWindow & ...
-			%             plexonMUADataAlignedToThisTrial - (ExptTrials{iTrials, 2} - kofikoSyncTime) <=  g_strctStatistics.postTrialWindow)...
-			%             - (ExptTrials{iTrials, 2} - kofikoSyncTime);
-			ExptTrials{iTrials,10+3*(channel-1)} = spikesInThisTrial;
-			ExptTrials{iTrials,11+3*(channel-1)} = length(spikesInThisTrial.unit1);
-			sessionIndex(trialIter).m_afSpikesInThisTrial = spikesInThisTrial;
-			%        ExptTrials{iTrials,12+3*(channel-1)} = MUAspikesInThisTrial;
-		end 
-	end
+	% else		
+	% 	for channel = find(allNumUnits) %1:nChans
+		% 	for iUnit = 1:allNumUnits(channel)
+			% 	plexonDataAlignedToThisTrial = []; 
+			% 	nameOfUnit = ['unit',num2str(iUnit)];
+			% 	% nameOfUnit = ['unit',num2str(unitsInFile(iUnit))];            
+    % 
+			% 	plexonDataAlignedToThisTrial =  exptDataP(channel).(nameOfUnit) - plexonSyncTime ;
+			% 	spikesInThisTrial.(nameOfUnit) = plexonDataAlignedToThisTrial(plexonDataAlignedToThisTrial - ...
+			% 		(ExptTrials{iTrials, 2} - kofikoSyncTime) >= g_strctStatistics.preTrialWindow & ...
+			% 		plexonDataAlignedToThisTrial - (ExptTrials{iTrials, 2} - kofikoSyncTime) <=  g_strctStatistics.postTrialWindow)...
+			% 		- (ExptTrials{iTrials, 2} - kofikoSyncTime);;
+		% 	end
+		% 	%         plexonMUADataAlignedToThisTrial =  exptDataMUA{channel} - plexonSyncTime ;
+		% 	%         MUAspikesInThisTrial = plexonMUADataAlignedToThisTrial(plexonMUADataAlignedToThisTrial - ...
+		% 	%             (ExptTrials{iTrials, 2} - kofikoSyncTime) >= g_strctStatistics.preTrialWindow & ...
+		% 	%             plexonMUADataAlignedToThisTrial - (ExptTrials{iTrials, 2} - kofikoSyncTime) <=  g_strctStatistics.postTrialWindow)...
+		% 	%             - (ExptTrials{iTrials, 2} - kofikoSyncTime);
+		% 	ExptTrials{iTrials,10+3*(channel-1)} = spikesInThisTrial;
+		% 	ExptTrials{iTrials,11+3*(channel-1)} = length(spikesInThisTrial.unit1);
+		% 	sessionIndex(trialIter).m_afSpikesInThisTrial = spikesInThisTrial;
+		% 	%        ExptTrials{iTrials,12+3*(channel-1)} = MUAspikesInThisTrial;
+	% 	end 
+	% end
+
+    % % original code for aligning online-sorted data
+	%     for iUnit2 = 1:allNumUnits2
+	%         SortedSpikesAlignedToThisTrial = [];
+	%         nameOfUnit = ['unit',num2str(iUnit2)];
+	% %            nameOfUnit = ['unit',num2str(unitsInFile(iUnit))];            
+	%         SortedSpikesAlignedToThisTrial =  exptDataP2.(nameOfUnit);
+	%         SortedSpikesInThisTrial.(nameOfUnit) = SortedSpikesAlignedToThisTrial(SortedSpikesAlignedToThisTrial - ...
+	%             (ExptTrials{iTrials, 2} - kofikoSyncTime) >= g_strctStatistics.preTrialWindow & ...
+	%             SortedSpikesAlignedToThisTrial - (ExptTrials{iTrials, 2} - kofikoSyncTime) <=  g_strctStatistics.postTrialWindow)...
+	%             - (ExptTrials{iTrials, 2} - kofikoSyncTime);
+	%         ExptTrials{iTrials,9}(iUnit2) = length(SortedSpikesInThisTrial);
+	%   
+	%     end
+	%     ExptTrials{iTrials,8} = SortedSpikesInThisTrial;
 
 	if ~skipLFP
 		%    ncols=size(ExptTrials,2);
@@ -873,20 +888,6 @@ for iTrials = 1:ntrials   %trialsInThisSession{iSessions}
 		PlexET_times - plexonSyncTime - (ExptTrials{iTrials, 2} - kofikoSyncTime) <=  g_strctStatistics.postTrialWindow);  
 	ExptTrials{iTrials,7} = plexonETDataAlignedToThisTrial;
 
-    % % old code for aligning online-sorted data
-	%     for iUnit2 = 1:allNumUnits2
-	%         SortedSpikesAlignedToThisTrial = [];
-	%         nameOfUnit = ['unit',num2str(iUnit2)];
-	% %            nameOfUnit = ['unit',num2str(unitsInFile(iUnit))];            
-	%         SortedSpikesAlignedToThisTrial =  exptDataP2.(nameOfUnit);
-	%         SortedSpikesInThisTrial.(nameOfUnit) = SortedSpikesAlignedToThisTrial(SortedSpikesAlignedToThisTrial - ...
-	%             (ExptTrials{iTrials, 2} - kofikoSyncTime) >= g_strctStatistics.preTrialWindow & ...
-	%             SortedSpikesAlignedToThisTrial - (ExptTrials{iTrials, 2} - kofikoSyncTime) <=  g_strctStatistics.postTrialWindow)...
-	%             - (ExptTrials{iTrials, 2} - kofikoSyncTime);
-	%         ExptTrials{iTrials,9}(iUnit2) = length(SortedSpikesInThisTrial);
-	%   
-	%     end
-	%     ExptTrials{iTrials,8} = SortedSpikesInThisTrial;
 	trialIter = trialIter + 1;  
 	if mod(iTrials,100)==0
 		fprintf('-> trial %4d of %d\n',iTrials, ntrials)

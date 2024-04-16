@@ -80,13 +80,13 @@ data.stim = [];   % these are the big variables that not worth representing twic
 data.stimET = [];
 
 %% params
-if useofflinesorting == 1
+%if useofflinesorting == 1
 	nChans=metadata_struct.nSU+metadata_struct.nMU;
 	spk_ID=[metadata_struct.spk_ID_SU; metadata_struct.spk_ID_MU];
 	spk_ch=[metadata_struct.spk_channels_SU+1; metadata_struct.spk_channels_MU+1];
-else
-	nChans=24; %targchans=1:24;
-end
+% else
+% 	nChans=24;
+% end
 
 if any([strfind(exptname,'220203'), strfind(exptname,'220205'), strfind(exptname,'220207')])
 	trlbins=160; dt=.024; repframes=3;
@@ -227,6 +227,7 @@ spk_times_all=cell([nSU+nMU,1]);
 
 cloud_scale=zeros(NT,1); 
 cloud_binary=zeros(NT,1);     
+cloud_area = zeros(NT,1);  
 
 %% Load Hartleys if necessary
 if (targ_stimtype == 3) || (targ_stimtype == 6)
@@ -289,7 +290,8 @@ for tt = 1:ntrls
 		TrialID(cur_trlinds)=cur_TrialID;
     
 		cloud_scale(cur_trlinds) = cur_scale;
-		cloud_binary(cur_trlinds) = exptdata_mod{tt, 1}.usebinary;     
+		cloud_binary(cur_trlinds) = exptdata_mod{tt, 1}.usebinary;  
+        cloud_area(cur_trlinds) = exptdata_mod{tt,1}.m_aiStimulusArea;
 	end
 
 	if ~isfield(exptdata_mod{tt,1}, 'UseLeye')
@@ -762,7 +764,11 @@ for nn = 1:length(exptdata_mod)
 end
 
 % Determine median stim location and use that -- but then record shifts relative to that
-L = stim_locs(1,3,1)-stim_locs(1,1,1);
+try
+    L = stim_locs(1,3,1)-stim_locs(1,1,1);
+catch
+    L = stim_locs(1,1,3)-stim_locs(1,1,1);
+end
 
 tcx = median(stim_locs(:,:,1));
 tcy = median(stim_locs(:,:,2));
@@ -886,7 +892,11 @@ sacc_inds=sacc_inds';
 ETtrace_raw=ET_trace_raw_1khz';
 ETtrace=ET_trace';
 %ETtrace_plex_calib = PlexET_ad_calib';
-ETgains = [g_strctEyeCalib.GainX.Buffer, g_strctEyeCalib.GainY.Buffer];
+try
+    ETgains = [g_strctEyeCalib.GainX.Buffer, g_strctEyeCalib.GainY.Buffer];
+catch
+    ETgains = [g_strctEyeCalib.GainX.Buffer(end), g_strctEyeCalib.GainY.Buffer(end)]; %kludge, but should work for msot cases: usually we set the gains at the beginning and then leave them there
+end
 useLeye=useLeye';
 useReye=useReye';
 
@@ -897,6 +907,7 @@ switch targ_stimtype
 		trialID = TrialID;
 		cloud_scale = cloud_scale';
 		cloud_binary = cloud_binary';
+        cloud_area = cloud_area';
 %		targchans=find(sum(binned_SU1)>2000);
     
 	case 6
@@ -984,6 +995,7 @@ switch targ_stimtype
 	case 8
 		data.cloud_scale = cloud_scale;
 		data.cloud_binary = cloud_binary;
+        data.cloud_area = cloud_area;
 	case 6
 		data.hartley_metas = hartley_metas;
 end

@@ -1,4 +1,4 @@
-function [datPath, droptestcheck] = Step0_KilosortLaminar(dirpath,filenameP,preconverted)
+function [datPath, droptestcheck] = Step0_KilosortLaminar(dirpath,filenameP,pl2path, preconverted)
 %UNTITLED2 Summary of this function goes here
 %   Detailed explanation goes here
 
@@ -27,18 +27,18 @@ opts.batch_size = 5e9; % batch size prevents memory overflow errors. default = 3
 %                               conversion. remember, this must be in plexon-numbering.
 %%
 try
-    [fs, n, ts, fn, ~] = plx_ad_v([filenameP '.pl2'], ['SPKC001'] );
+    [fs, n, ts, fn, ~] = plx_ad_v([pl2path filenameP '.pl2'], ['SPKC001'] );
 catch
-    [fs, n, ts, fn, ~] = plx_ad_v([filenameP '.pl2'], ['SPKC01'] );
+    [fs, n, ts, fn, ~] = plx_ad_v([pl2path filenameP '.pl2'], ['SPKC01'] );
 end
-[~, n_aux, ts_aux, fn_aux, ~] = plx_ad_v([filenameP '.pl2'], ['AI01'] );
+[~, n_aux, ts_aux, fn_aux, ~] = plx_ad_v([pl2path filenameP '.pl2'], ['AI01'] );
 if n<2; error('error reading laminar probe'); end
 %%
 droptestcheck = [n/40000- n_aux/1000];
 %%
 if ~preconverted
     %convert pl2 file into dat format
-    [samples, datPath] = convertRawToDat_Laminar([filenameP '.pl2'],opts);
+    [samples, datPath] = convertRawToDat_Laminar([pl2path filenameP '.pl2'],opts);
 else
     datPath = [dirpath filenameP '/kilosorting_laminar/' filenameP '.dat'];
 end
