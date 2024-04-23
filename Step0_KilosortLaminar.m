@@ -1,6 +1,6 @@
-function [datPath, droptestcheck] = Step0_KilosortLaminar(dirpath,filenameP,pl2path, preconverted)
-%UNTITLED2 Summary of this function goes here
-%   Detailed explanation goes here
+function [datPath, droptestcheck] = Step0_KilosortLaminar(dirpath,filenameP,pl2path, opts)
+%Step0_KilosortLaminar Packages and then kilosorts laminar probe data
+%   Based on custom code by Leor Katz, adapted by Felix Bartsch, 2024
 
 if nargin <3
     preconverted=0;
@@ -20,9 +20,6 @@ opts.plotProbeVoltage = false;
 opts.extractLfp = false;
 opts.outputFolder = outputFolder;
 
-opts.nChans = 24; % laminar probes will usually have 24 channels, but this can be set to 32 depending on the probe
-opts.ChnOffset=0;
-opts.batch_size = 5e9; % batch size prevents memory overflow errors. default = 300000000 for IT
 %opts.specificChannels = [];  % user can select which plexon channels to use for
 %                               conversion. remember, this must be in plexon-numbering.
 %%
@@ -36,7 +33,7 @@ if n<2; error('error reading laminar probe'); end
 %%
 droptestcheck = [n/40000- n_aux/1000];
 %%
-if ~preconverted
+if ~opts.preconverted
     %convert pl2 file into dat format
     [samples, datPath] = convertRawToDat_Laminar([pl2path filenameP '.pl2'],opts);
 else

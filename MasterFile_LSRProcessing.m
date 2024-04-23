@@ -23,9 +23,13 @@ outputdir = [dirpath filenameP '/Analysis/'];
 disp('setup complete')
 %% first kilosort the data for the laminar probe
 disp('Kilosorting Starting')
-preconverted = 0; % 0 if sorting the file for the first time, 1 if the recording has already been converted into dat format
 
-[datPath, droptestcheck] = Step0_KilosortLaminar(dirpath,filenameP,pl2path,preconverted); %this will take some time to run!
+opts.preconverted = 0; % 0 if sorting the file for the first time, 1 if the recording has already been converted into dat format
+opts.nChans = 24; % laminar probes will usually have 24 channels, but this can be set to 32 or 64 depending on the probe
+opts.ChnOffset=0;
+opts.batch_size = 5e9; % batch size prevents memory overflow errors. default = 300000000 for IT
+
+[datPath, droptestcheck] = Step0_KilosortLaminar(dirpath,filenameP,pl2path,opts); %this will take some time to run!
 
 disp(['Plexon-Kofiko offset in seconds: ' num2str(droptestcheck)]) % this will tell us if the plexon time alignment issue is present
 if abs(droptestcheck)>0.1; warning("Danger - Plexon might have dropped frames! Check pl2 file."); else; disp('Experiment kilosorted and ready for curation!'); end
@@ -33,8 +37,51 @@ disp('Kilosorting complete')
 %% Once this prints "DONE", go curate the file in Phy!
 
 %% now kilosort the data for the other arrays
-% TODO
+    %% Utah 1 - Serial 0071
+    opts.ArrayLabel = 'UT1'; %load channel map
+    opts.chInfo = load('/home/conwaylab/Git/ConwayExptProcessing/Dependencies/Kilotools_FB_2023/Kilosort_config/Vinny/V_UT1_chanMap_nogroup.mat');
+    opts.ChnOffset=64;
 
+    opts.curchannels = [1:32];
+    [datPaths.UT1a, ~] = Step0_KilosortArray(dirpath,filenameP,pl2path,opts);
+
+    opts.curchannels = [33:64];
+    [datPaths.UT1b, ~] = Step0_KilosortArray(dirpath,filenameP,pl2path,opts);
+
+    opts.curchannels = [65:96];
+    [datPaths.UT1c, ~] = Step0_KilosortArray(dirpath,filenameP,pl2path,opts);
+    %% Utah 2 - Serial 0072
+    opts.ArrayLabel = 'UT2'; %load channel map
+    opts.chInfo = load('/home/conwaylab/Git/ConwayExptProcessing/Dependencies/Kilotools_FB_2023/Kilosort_config/Vinny/V_UT2_chanMap_nogroup.mat');
+    opts.ChnOffset=160;
+
+    opts.curchannels = [1:32];
+    [datPaths.UT2a, ~] = Step0_KilosortArray(dirpath,filenameP,pl2path,opts);
+
+    opts.curchannels = [33:64];
+    [datPaths.UT2b, ~] = Step0_KilosortArray(dirpath,filenameP,pl2path,opts);
+
+    opts.curchannels = [65:96];
+    [datPaths.UT2c, ~] = Step0_KilosortArray(dirpath,filenameP,pl2path,opts);
+
+    %% NForm array
+    opts.ArrayLabel = 'NF'; %load channel map
+    opts.chInfo = load('/home/conwaylab/Git/ConwayExptProcessing/Dependencies/Kilotools_FB_2023/Kilosort_config/Vinny/V_NF_chanMap.mat');
+    opts.ChnOffset=256;
+
+    opts.curchannels = [1:32];
+    [datPaths.UT1, ~] = Step0_KilosortArray(dirpath,filenameP,pl2path,opts);
+
+    opts.curchannels = [33:64];
+    [datPaths.UT1, ~] = Step0_KilosortArray(dirpath,filenameP,pl2path,opts);
+
+    opts.curchannels = [65:96];
+    [datPaths.UT1, ~] = Step0_KilosortArray(dirpath,filenameP,pl2path,opts);    
+
+    opts.curchannels = [97:128];
+    [datPaths.UT1, ~] = Step0_KilosortArray(dirpath,filenameP,pl2path,opts);   
+    %%
+    disp('Done with arrays!! Now ready to combine kilosorting files.')
 %% if you are rerunning the stuff below, uncomment this cell to quickly rerun the drop test check and see if plexon dropped any measurements
 disp('Drop test check starting')
 [fs, n, ts, fn, ~] = plx_ad_v([pl2path filenameP '.pl2'], ['SPKC001'] );
@@ -52,7 +99,7 @@ ks.use_online = 0; % set to 1 to use on-line sorting, should be 0 if you want to
 ks.onlinechans = [1:24]; % which channels of on-line sorted spikes should we go through? 
 ks.stitched=0; % if you combined kilosort outputs for multiple arrays
 ks.arraylabel ='lam';
-ks.filepath = [dirpath filenameP filesep 'kilosorting_laminar' filesep]; 
+ks.filepath = [dirpath filenameP filesep 'kilosorting_laminar' filesep]; % point this at array folders or the "stiched" folder if you want to sort data from multiple arrays
 ks.pl2path = pl2path;
 
 opts.eye_tracker = 3; % (default=3) 0=eyescan, 1=monoc eyelink, 2=binoc eyelink, 3=monocular dDPI 
