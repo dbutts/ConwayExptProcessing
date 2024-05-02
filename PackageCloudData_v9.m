@@ -277,9 +277,11 @@ for tt = 1:ntrls
                 cur_scale=g_astrctAllParadigms.m_fInitial_DualstimPrimaryCloudScale; %if Kofiko crashed and this stuff wasn't saved, we'll just have to hope that nobody changed the default value here.
             end
 
-			if exptdata_mod{tt, 1}.usebinary  
+			if exptdata_mod{tt, 1}.usebinary==1
 				load(sprintf(['Cloudstims_BinaryChrom_size60_scale%d_SPscale6_%02d.mat'], cur_scale, cur_BlockID));            
-			else
+            elseif exptdata_mod{tt, 1}.usebinary==2
+				load(sprintf(['Cloudstims_ContrastMatched_size60_scale%d_%02d.mat'], cur_scale, cur_BlockID));      
+            else
 				load(sprintf(['Cloudstims_Chrom_size60_scale%d_%02d.mat'], cur_scale, cur_BlockID));
 			end
 			DensenoiseChromcloud_DKlspace=int8(127*(DensenoiseChromcloud_DKlspace));

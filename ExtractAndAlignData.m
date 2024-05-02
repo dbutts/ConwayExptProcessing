@@ -42,11 +42,12 @@ else
 end
 
 
-if nargin < 3 || isempty(which_computer)
+if nargin < 4 || isempty(which_computer)
 	% This can be used to set default directories
 	% Dan's laptop = 0
 	% Bevil office desktop = 1
     % LSR 2A58 sorting rig = 2
+    % Rig C Plexon rig = 3
 	which_computer = 2; % default value
 end
 
@@ -55,6 +56,7 @@ if nargin < 2
 		case 0, dirpath = '/Users/dbutts/Data/Conway/';
 		case 1, dirpath = 'C:\SpkSort2023\AAActiveData\';
         case 2, dirpath = '/home/conwaylab/Data/';
+        case 3, dispath = 'D:\PlexonData\'
 		otherwise
 			disp('which_computer is not specified')
 	end
@@ -110,7 +112,7 @@ load(configFilePath)
 
 %% test for misalignment
 %/{
-[SPKC_adfreq, SPKC_n, SPKC_ts, SPKC_fn, SPKC_ad_test] = plx_ad_v(plxFilePath, 'SPKC003');
+[SPKC_adfreq, SPKC_n, SPKC_ts, SPKC_fn, SPKC_ad_test] = plx_ad_v(plxFilePath, 'SPKC001');
 [ET_adfreq, ET_n, ET_ts, ET_fn, PlexET_ad_test] = plx_ad_v(plxFilePath, 'AI07');
 [LFP_adfreq, LFP_n, LFP_ts, LFP_fn, LFP_ad_test] = plx_ad_v(plxFilePath, ['FP' num2str(1,'%03.f')]);
 ET_n./LFP_n;
