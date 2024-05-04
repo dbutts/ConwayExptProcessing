@@ -1,4 +1,4 @@
-function [datPath, droptestcheck] = Step0_KilosortArray(dirpath,filenameP,pl2path, opts)
+function [datPath, droptestcheck] = Step0_KilosortArray(dirpath,filenameP,pl2path, outputFolder, opts)
 %Step0_KilosortLaminar Packages and then kilosorts laminar probe data
 %   Based on custom code by Leor Katz, adapted by Felix Bartsch, 2024
 
@@ -10,7 +10,6 @@ cd(dirpath)
 if dirpath(end) ~= filesep
 	dirpath = [dirpath filesep];
 end
-outputFolder = [dirpath filenameP '/kilosorting_laminar/'];
 
 disp('Starting conversion')
 

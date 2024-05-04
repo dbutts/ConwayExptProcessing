@@ -52,6 +52,7 @@ addPathsForSpikeSorting;
 
 %% 'createChanMap.m' section:
 
+probeGeometry   = 'array';
 connected       = ops.connected;
 chanMap         = ops.chanMap;
 chanMap0ind     = chanMap - 1;
@@ -60,6 +61,9 @@ xcoords         = ops.xcoords;
 ycoords         = ops.ycoords;
 kcoords         = ops.kcoords;
 
+
+save(fullfile(datFolder, 'chanMap.mat'), ...
+    'chanMap','connected', 'xcoords', 'ycoords', 'kcoords', 'chanMap0ind', 'fs', 'probeGeometry');
 
 %% 'standardConfig.m' section:
 
