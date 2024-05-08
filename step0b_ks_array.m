@@ -54,7 +54,7 @@ addPathsForSpikeSorting;
 
 probeGeometry   = 'array';
 connected       = ops.connected;
-chanMap         = ops.chanMap;
+chanMap         = ops.chanMap-min(ops.chanMap)+1;
 chanMap0ind     = chanMap - 1;
 
 xcoords         = ops.xcoords;

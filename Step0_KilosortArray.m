@@ -58,7 +58,7 @@ fs = 40000; %default
 nCh = opts.nChans; % = size(samples,1);
 
 ops.connected   = opts.connected;
-ops.chanMap     = opts.chanMap;
+ops.chanMap     = 1:nCh; %because the indexing has reset following conversion to .dat format
 ops.xcoords     = opts.xcoords;
 ops.ycoords     = opts.ycoords;
 ops.kcoords     = opts.kcoords;
@@ -72,7 +72,7 @@ ops.fshigh = 300; % KS3: high-pass more aggresively
 ops.minfr_goodchannels = 0; 
 
 % threshold on projections (like in Kilosort1, can be different for last pass like [10 4])
-ops.Th = [9 5]; % KS2.5
+ops.Th = [9 4]; % KS2.5
 %ops.Th = [9 9];  % KS3
 
 % how important is the amplitude penalty (like in Kilosort1, 0 means not used, 10 is average, 50 is a lot) 
