@@ -41,6 +41,10 @@ else
     g_strctStatistics.postTrialWindow = opts.trialwindow(2);
 end
 
+if ~isfield(opts, 'trl_fix_thresh')
+    opts.trl_fix_thresh = 1; % default) indicates fraction of a trial the monkey has to fixate in order for the trial to be included in analysis
+end
+
 
 if nargin < 4 || isempty(which_computer)
 	% This can be used to set default directories
@@ -50,6 +54,8 @@ if nargin < 4 || isempty(which_computer)
     % Rig C Plexon rig = 3
 	which_computer = 2; % default value
 end
+
+
 
 if nargin < 2
 	switch(which_computer)
@@ -78,7 +84,7 @@ else
 end
 
 skipLFP=0; 
-nChans=24; %for CSD only now
+nChans=64; %for CSD only now
 LFPchans=1:nChans;
 %LFP_chanmap=LFPchans;
 
@@ -673,7 +679,7 @@ N_recalibs=g_strctEyeCalib.CenterX.TimeStamp;
 % end
 %%
 %[ExptTrials{:,12}] == 1);
-trialsInThisSession{iSessions} = find(allStartTS > sessionStartTS(1) & allStartTS < sessionEndTS(end));
+%trialsInThisSession{iSessions} = find(allStartTS > sessionStartTS(1) & allStartTS < sessionEndTS(end));
 
 trialIter = 1;
 
@@ -790,6 +796,20 @@ for iTrials = 1:ntrials   %trialsInThisSession{iSessions}
 	if ~isfield( ExptTrials{iTrials, 1},'m_aiStimColor') || isempty(ExptTrials{iTrials, 1}.m_aiStimColor)
 		ExptTrials{iTrials, 1}.m_aiStimColor = [NaN, NaN, NaN];
     end
+    
+    % try and check for partial trials
+    xtrace = (ExptTrials{iTrials,1}.m_afEyeXPositionScreenCoordinates-960);
+    ytrace = (ExptTrials{iTrials,1}.m_afEyeYPositionScreenCoordinates-540);  
+%        bad_inds = find(abs(xtrace)>45 | abs(ytrace)>45);
+%        use_inds_trial = ones(1,length(xtrace)); use_inds_trial(bad_inds)=0;
+    xfix = length(find(abs(xtrace)<45))./length(xtrace);
+    yfix = length(find(abs(ytrace)<45))./length(ytrace);
+
+    if xfix>opts.trl_fix_thresh && yfix>opts.trl_fix_thresh;
+        ExptTrials{iTrials,1}.m_bMonkeyFixatedOverride=1;
+    else
+        ExptTrials{iTrials,1}.m_bMonkeyFixatedOverride=0;
+    end
 
     if opts.is_cloud
 	    ExptTrials{iTrials, 3} = ExptTrials{iTrials, 1}.m_strTrialType;
@@ -868,7 +888,7 @@ for iTrials = 1:ntrials   %trialsInThisSession{iSessions}
 
 	if ~skipLFP
 		%    ncols=size(ExptTrials,2);
-		plexonLFPDataAlignedToThisTrial = LFP_ad(1:24, LFP_times - plexonSyncTime - (ExptTrials{iTrials, 2} - kofikoSyncTime) >= g_strctStatistics.preTrialWindow & ...
+		plexonLFPDataAlignedToThisTrial = LFP_ad(1:nChans, LFP_times - plexonSyncTime - (ExptTrials{iTrials, 2} - kofikoSyncTime) >= g_strctStatistics.preTrialWindow & ...
 			LFP_times - plexonSyncTime - (ExptTrials{iTrials, 2} - kofikoSyncTime) <=  g_strctStatistics.postTrialWindow);
 		ExptTrials{iTrials,4} = plexonLFPDataAlignedToThisTrial;  
     end
@@ -907,6 +927,7 @@ outfile = sprintf( '%s_FullExpt_ks%d_%s_v09.mat', exptname, useofflinesorting, k
 
 % Save other variables to continue the process
 ExptInfo.exptname = exptname;
+ExptInfo.monkey_name = opts.monkey_name;
 ExptInfo.array_label = ks.arraylabel;
 ExptInfo.nSU = nSU;
 ExptInfo.nMU = nMU;

@@ -12,7 +12,7 @@ if nargin < 3
 	stim_deltas = zeros(NT,2);
 end
 
-shifts = mod( round(-ETtrace)+30 + stim_deltas, 60);
+shifts = mod( round(ETtrace)+30 + stim_deltas, 60);
 shifts(isnan(shifts)) = 30;
 
 tic

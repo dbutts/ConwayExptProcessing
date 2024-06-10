@@ -29,7 +29,7 @@ if nargin < 3
 	save_images=0;
 end
 
-nChans=24;
+nChans=size(ExptRecording{1,4},1);
 
 %% Now we process LFPs
 targ_trials=[];

@@ -118,8 +118,10 @@ for switch_stimtype=0:8
 	targ_trials=[];  
 	for tt=1:length(exptdata)
 		%    if strcmp(exptdata{tt, 1}.m_strTrialType, 'Dense Noise');
+        if ~isfield(exptdata{tt,1},'m_bMonkeyFixatedOverride'); exptdata{tt, 1}.m_bMonkeyFixatedOverride=0; end
 		if strcmp(exptdata{tt, 1}.m_strTrialType, 'Dual Stim') && ...
-			(exptdata{tt, 1}.m_bMonkeyFixated == 1) && (trlonset_diffs(tt) > trialdur) && ...
+			(exptdata{tt, 1}.m_bMonkeyFixated == 1 | exptdata{tt, 1}.m_bMonkeyFixatedOverride == 1) && ...
+            (trlonset_diffs(tt) > trialdur) && ...
 			(exptdata{tt, 1}.DualstimPrimaryuseRGBCloud == switch_stimtype) % &&...
 			% exptdata{tt, 1}.DualstimSecondaryUseCloud==targ_ETstimtype; % && exptdata{tt, 1}.m_aiStimulusRect(1)==975;
 			targ_trials=[targ_trials,tt];
@@ -438,6 +440,7 @@ for tt = 1:ntrls
 	ET_trace(cur_trlinds,1)=cur_trial_ET_trace(1,:)';
 	ET_trace(cur_trlinds,2)=cur_trial_ET_trace(2,:)';
 
+    
  %   sacc_inds=[sacc_inds; cur_trlinds([cur_sac_start_inds' cur_sac_stop_inds'])];
  %   bad_inds_sac=[bad_inds_sac, cur_trlinds(cur_sac_start_inds(sacs)):cur_trlinds(cur_sac_stop_inds(sacs))];
 
@@ -448,73 +451,7 @@ subplot(2,1,1); plot(exptdata_ColCloud{tt, 7}.ET_trace'); title('Plexon ET trace
 subplot(2,1,2); plot(exptdata_ColCloud{tt, 1}.ETthisTrialRawEyeData); title('Kofiko ET traces'); axis tight
 
     %}
-% previous ET integration code    
-%{
-    try
-    cur_trial_ETsamples=exptdata_mod{tt, 1}.m_afEyePositiontimes-exptdata_mod{tt, 1}.m_afEyePositiontimes(1)+g_strctStatistics.m_strctEyeData.m_fEyeIntegrationPeriod(1);
-    catch
-%        cur_trial_ETsamples=2*[1:length(exptdata_mod{tt,1}.m_afEyeXPositionScreenCoordinates)]./length(exptdata_mod{tt,1}.m_afEyeXPositionScreenCoordinates);
-        sprintf('ET data missing? \n')
-    end
-    cur_trial_ET_trace(:,1)=([interp1(cur_trial_ETsamples,exptdata_mod{tt,1}.m_afEyeXPositionScreenCoordinates,edges,'linear')-exptdata_mod{tt,1}.m_pt2iFixationSpot(1)])./pixelscaf;
-    cur_trial_ET_trace(:,2)=([interp1(cur_trial_ETsamples,exptdata_mod{tt,1}.m_afEyeYPositionScreenCoordinates,edges,'linear')-exptdata_mod{tt,1}.m_pt2iFixationSpot(2)])./pixelscaf;
 
-
-    ET_trace_raw(cur_trlinds,1)=cur_trial_ET_trace(:,1);
-    ET_trace_raw(cur_trlinds,2)=cur_trial_ET_trace(:,2);
-
-    ET_trace(cur_trlinds,1)=ET_trace_raw(cur_trlinds,1);
-    ET_trace(cur_trlinds,2)=ET_trace_raw(cur_trlinds,2);
-    
-    if ~isempty(exptdata_mod{tt,6}.saccades);
-%         cur_sac_inds=[1];
-%         sacc_inds=[sacc_inds; [cur_trlinds(1)-1, cur_trlinds(1)]];
-%         sac_edges=[0,1];
-        cur_sac_inds=[]; cur_sac_start_inds=[]; cur_sac_stop_inds=[];
-        
-        if length(exptdata_mod{tt,6}.saccade_stop)<length(exptdata_mod{tt,6}.saccade_start)
-            exptdata_mod{tt,6}.saccade_start=exptdata_mod{tt,6}.saccade_start(1:length(exptdata_mod{tt,6}.saccade_stop));
-            exptdata_mod{tt,6}.saccades=exptdata_mod{tt,6}.saccades(1:length(exptdata_mod{tt,6}.saccade_stop));
-        end
-        if any(exptdata_mod{tt,6}.saccades-exptdata_mod{tt,2}>max(edges))
-            exptdata_mod{tt,6}.saccades(exptdata_mod{tt,6}.saccades>max(edges))=[];
-        end
-        
-        for sacs=1:length(exptdata_mod{tt,6}.saccades);
-            curtrl_sactimes = exptdata_mod{tt,6}.saccades-exptdata_mod{tt,2};
-            curtrl_sactimes_start = exptdata_mod{tt,6}.saccade_start-exptdata_mod{tt,2};
-            curtrl_sactimes_stop = exptdata_mod{tt,6}.saccade_stop-exptdata_mod{tt,2};
-            cur_sac_inds(sacs)=find(edges>curtrl_sactimes(sacs),1,'first');
-            cur_sac_start_inds(sacs)=find(edges>curtrl_sactimes_start(sacs),1,'first');
-            if isempty(find(edges>curtrl_sactimes_stop(sacs),1,'first'))
-                cur_sac_stop_inds(sacs)=length(edges);
-            else
-            cur_sac_stop_inds(sacs)=find(edges>curtrl_sactimes_stop(sacs),1,'first');
-            end
-        end
-            sacc_inds=[sacc_inds; cur_trlinds([cur_sac_start_inds' cur_sac_stop_inds'])];
-            %sac_edges=[sac_edges;[cur_sac_start_inds' cur_sac_stop_inds']];
-            bad_inds_sac=[bad_inds_sac, cur_trlinds(cur_sac_start_inds(sacs)):cur_trlinds(cur_sac_stop_inds(sacs))];
-        
-        %if cur_sac_inds(1)>1; sac_edges=[1,cur_sac_inds]; else; sac_edges=[cur_sac_inds];end
-        %if cur_sac_stop_inds(end)<trlbins; sacc_inds=[sacc_inds; [trlbins-1 trlbins]]; sac_edges=[sac_edges,trlbins];end
-    
-        % detect saccades separately
-
-    else
-%        sacc_inds=[sacc_inds; [cur_trlinds(1), cur_trlinds(1); cur_trlinds(trlbins)-1, cur_trlinds(trlbins)]];
-%        sac_edges=[0,1; trlbins, trlbins+1];
-        bad_inds_sac=[bad_inds_sac cur_trlinds(1:6)];
-    end
-%}
-
-%     for fixs=1:length(sac_edges)-1
-%         cur_fixs_adj_inds=[sac_edges(fixs,2):sac_edges(fixs+1,1)];
-%     %             ET_trace(cur_trlinds(cur_fixs_adj_inds),1)=mean(exptdata_mod{tt,3}(1,cur_fixs_adj_inds));
-%     %             ET_trace(cur_trlinds(cur_fixs_adj_inds),2)=mean(exptdata_mod{tt,3}(2,cur_fixs_adj_inds));
-%         ET_trace(cur_trlinds(cur_fixs_adj_inds),1)=mean(ET_trace(cur_trlinds(cur_fixs_adj_inds),1));
-%         ET_trace(cur_trlinds(cur_fixs_adj_inds),2)=mean(ET_trace(cur_trlinds(cur_fixs_adj_inds),2));
-%     end
     
    
 	if tt >= 2
@@ -546,7 +483,7 @@ subplot(2,1,2); plot(exptdata_ColCloud{tt, 1}.ETthisTrialRawEyeData); title('Kof
     pause
 %}  
 %/{
-% remove to only extract ET info   
+% comment out this section if you want to only extract ET info   
     
 	switch exptdata_mod{tt,1}.DualstimPrimaryuseRGBCloud
 		case 8
@@ -599,8 +536,20 @@ Block_offsetinds=[Block_offsetinds,length(binned_SU1)];
 %Block_inds=[unique([Block_onsetinds,Block_onsetinds_blink]);unique([Block_offsetinds,Block_offsetinds_blink])];
 Block_inds=[Block_onsetinds; Block_offsetinds];
 
-bad_inds_fix=sort([Block_inds(1,:), Block_inds(1,:)+1, Block_inds(1,:)+2,Block_inds(1,:)+3,Block_inds(1,:)+4,Block_inds(1,:)+5,Block_inds(1,:)+6],1);
-use_inds_fix=setdiff(tvec,unique(bad_inds_fix));
+bad_inds_block=sort([Block_inds(1,:), Block_inds(1,:)+1, Block_inds(1,:)+2,Block_inds(1,:)+3,Block_inds(1,:)+4,Block_inds(1,:)+5,Block_inds(1,:)+6],1);
+
+ETdist_thresh=40; 
+bad_inds_fix = unique([find(abs(ET_trace(:,1))>ETdist_thresh);find(abs(ET_trace(:,2))>ETdist_thresh)])';
+bad_inds_all = unique([bad_inds_block,bad_inds_fix,bad_inds_fix-1, bad_inds_fix-2, bad_inds_fix+1, bad_inds_fix+2]); % remove indices immediately preceding and following eye movement artifacts
+use_inds_fix=setdiff(tvec,bad_inds_all);
+
+% find sequences less than 10 due to eye movement removal, and exclude them
+% to avoid clogging up the modeling pipeline with tiny snippets
+diffs=diff([1,use_inds_fix]);
+[~,X]=find(diff(diffs)<10);  
+for k= X, use_inds_fix(diffs(k):diffs(k+1)-1)=0; end
+use_inds_fix(use_inds_fix==0)=[];
+
 %{
 use_inds_fix=setdiff(tvec,unique(bad_inds_fix));
 
@@ -742,8 +691,8 @@ pixel_size = 1;
 exptname = metadata_struct.exptname;
 exptdate = metadata_struct.exptname(1:6);
 
-cur_filename=['Jocamo_' exptname(1:6) '_' arraylabel '_' curstimstype '_ET' curETstimtype '_v09.mat'];
-cur_filename_targchans=['Jocamo_' exptname(1:6) '_' arraylabel '_CC_ETCC_v09_cloudSUinds.mat'];
+cur_filename=[metadata_struct.monkey_name '_' exptname(1:6) '_' arraylabel '_' curstimstype '_ET' curETstimtype '_v09.mat'];
+cur_filename_targchans=[metadata_struct.monkey_name '_' exptname(1:6) '_' arraylabel '_CC_ETCC_v09_cloudSUinds.mat'];
 
 %dt=.016;
 electrode_info = [];
@@ -1060,11 +1009,11 @@ if ~skipLFP
 	disp('Saving LFPs...') 
 	switch targ_stimtype
 		case 8
-			cur_filename_LFP=['Jocamo_' metadata_struct.exptname(1:6) '_' arraylabel '_' curstimstype '_ET' curETstimtype '_v09_LFP.mat'];
+			cur_filename_LFP=[metadata_struct.monkey_name '_' metadata_struct.exptname(1:6) '_' arraylabel '_' curstimstype '_ET' curETstimtype '_v09_LFP.mat'];
 			save(cur_filename_LFP,'LFP_ad', 'trial_start_ts', 'trial_start_inds', '-v7.3' )
       
 		case 6
-			cur_filename_LFP=['Jocamo_' metadata_struct.exptname(1:6) '_' arraylabel '_' curstimstype '_ET' curETstimtype '_v09_LFP.mat'];
+			cur_filename_LFP=[metadata_struct.monkey_name '_' metadata_struct.exptname(1:6) '_' arraylabel '_' curstimstype '_ET' curETstimtype '_v09_LFP.mat'];
 			save(cur_filename_LFP, 'trial_start_ts', 'trial_start_inds', '-v7.3' )
 	end
 	disp('Done with LFPs') 

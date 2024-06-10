@@ -22,7 +22,7 @@ if nargin <3 || isempty(use_inds)
 end
 
 if nargin < 4 || isempty(to_shift)
-    to_shift = 1; 
+    to_shift = 0; 
 end
 
 if nargin < 5

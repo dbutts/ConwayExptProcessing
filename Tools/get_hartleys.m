@@ -138,94 +138,97 @@ for i = target_SUs
     end
 end
 
-% Now plot the relevant STA for comparison - taken from get_sta.m
-binned_SU = [single(data.Robs'), single(data.RobsMU')];
-use_inds = data.valid_data;
-use_inds(end-10:end) = []; %cut last few indices to avoid artifacts
-stim_shift=permute(data.stim,[4 1 2 3]);
-NT=size(data.ETtrace,2);
-stim_deltas = zeros(2,NT); 
-stim_shift = shift_stim( stim_shift, data.ETtrace, stim_deltas );
-stim2 = single(reshape(stim_shift,size(stim_shift,1),3*60*60))./127;
-cur_STA1(lag,:) = binned_SU(use_inds+lag,target_SUs)' * stim2(use_inds,:);
-curlim=max(abs(cur_STA1(:)')); 
-    if curlim==0; curlim=0.1; end % avoids plotting bugs if a bad STA is included in a large set of plots
-cur_STA2=reshape(cur_STA1(lag,:),60,180);
-cur_STA2(:,[60 120])=curlim;
-subplot(4,3,7)
+if ~isempty(data)
+    % Now plot the relevant STA for comparison - taken from get_sta.m
+    binned_SU = [single(data.Robs'), single(data.RobsMU')];
+    use_inds = data.valid_data;
+    use_inds(end-10:end) = []; %cut last few indices to avoid artifacts
+    stim_shift=permute(data.stim,[4 1 2 3]);
+    NT=size(data.ETtrace,2);
+    stim_deltas = zeros(2,NT); 
+    stim_shift = shift_stim( stim_shift, data.ETtrace, stim_deltas );
+    stim2 = single(reshape(stim_shift,size(stim_shift,1),3*60*60))./127;
+    cur_STA1(lag,:) = binned_SU(use_inds+lag,target_SUs)' * stim2(use_inds,:);
+    curlim=max(abs(cur_STA1(:)')); 
+        if curlim==0; curlim=0.1; end % avoids plotting bugs if a bad STA is included in a large set of plots
+    cur_STA2=reshape(cur_STA1(lag,:),60,180);
+    cur_STA2(:,[60 120])=curlim;
+    subplot(4,3,7)
+    
+    %Now, we deviate from get_sta.m to plot only the lum portion
+    cur_STA2 = cur_STA2(:,1:60);
+    imagesc(cur_STA2); clim([-curlim curlim]); pbaspect([3 1 1])
+    title('Lum STA - fix ratio___')
+    
+    % Now do the 2D fast Fourier transform
+    fft_STA = fft2(cur_STA2);
+    fft_STA = abs(fftshift(fft_STA));
+    subplot(4,3,8)
+    imagesc(fft_STA)
+    colorbar
+    title('2D FFT of STA')
+    
+    
+    % divide the graph into quadrants
+    % search for the pair of quadrants that have the largest peak
+    % Find the size of the matrix
+    [m,n] = size(fft_STA);
+    % Divide the matrix into four quadrants
+    TopLeft = fft_STA(1:m/2, 1:n/2);
+    TopRight = fft_STA(1:m/2, n/2+1:end);
+    BottomLeft = fft_STA(m/2+1:end, 1:n/2);
+    BottomRight = fft_STA(m/2+1:end, n/2+1:end);
+    % Determine the maximum in each Quadrant
+    % Find row and column of Top Left max (TL)
+    [max_TL, linearIndex] = max(TopLeft(:));
+    [row_TL, col_TL] = ind2sub(size(TopLeft), linearIndex);
+    % Find row and column of Top Right max (TR)
+    [max_TR, linearIndex] = max(TopRight(:));
+    [row_TR, col_TR] = ind2sub(size(TopRight), linearIndex);
+    % Adjust top right column so that the additional columns are added in
+    col_TR = col_TR + n/2;
+    % Find row and column of Bottom right
+    [max_BR, linearIndex] = max(BottomRight(:));
+    [row_BR, col_BR] = ind2sub(size(BottomRight), linearIndex);
+    % Adjust bottom right matrix rows and columns
+    row_BR = row_BR + m/2;
+    col_BR = col_BR + n/2;
+    % Find row and column of Bottom Left
+    [max_BL, linearIndex] = max(BottomLeft(:));
+    [row_BL, col_BL] = ind2sub(size(BottomRight), linearIndex);
+    % Adjust row of bottom left
+    row_BL = row_BL + m/2;
+    % pull the corresponding maximum value from fourier
+    % Main diagonal = top left to bottom right
+    mainDiagonalAvg = (max_TL + max_BR)/2;
+    counterDiagonalAvg = (max_TR + max_BL)/2;
+    subplot(4,3,10)
+    imagesc(fft_STA)
+    title('Slope from quadrants')
+    hold on
+    if mainDiagonalAvg > counterDiagonalAvg
+        % slope of main diagnoal
+        slope = -(col_BR-col_TL)/(row_BR-row_TL);
+        % disp(['Main diagonal slope:' num2str(slope)])
+        plot([col_BR, col_TL], [row_BR, row_TL], 'r', 'LineWidth', 2);
+        legend(['Slope: ', num2str(slope)])
+    else
+        % slope of counter diagonal
+        slope = -(col_TR-col_BL)/(row_TR-row_BL);
+        % disp(['Counter diagonal slope:' num2str(slope)])
+        % plot a line between the fourier peaks and extend it using the slope
+        plot([col_TR, col_BL], [row_TR, row_BL], 'r', 'LineWidth', 2);
+        legend(['Slope: ', num2str(slope)])
+    end
+    
+    subplot(4,3,11)
+    imagesc(cur_STA2)
+    title('Lum STA with Slope Line')
+    hold on;
+    x1=30; y1=30; % middle of plot
+    x2=x1+30; y2=y1+30*slope;
+    line([x1,x2], [y1,y2], 'Color', 'r');
+    x3=0; y3=y1-30*slope;
+    line([x1,x3],[y1,y3], 'Color','r');
 
-%Now, we deviate from get_sta.m to plot only the lum portion
-cur_STA2 = cur_STA2(:,1:60);
-imagesc(cur_STA2); clim([-curlim curlim]); pbaspect([3 1 1])
-title('Lum STA - fix ratio___')
-
-% Now do the 2D fast Fourier transform
-fft_STA = fft2(cur_STA2);
-fft_STA = abs(fftshift(fft_STA));
-subplot(4,3,8)
-imagesc(fft_STA)
-colorbar
-title('2D FFT of STA')
-
-
-% divide the graph into quadrants
-% search for the pair of quadrants that have the largest peak
-% Find the size of the matrix
-[m,n] = size(fft_STA);
-% Divide the matrix into four quadrants
-TopLeft = fft_STA(1:m/2, 1:n/2);
-TopRight = fft_STA(1:m/2, n/2+1:end);
-BottomLeft = fft_STA(m/2+1:end, 1:n/2);
-BottomRight = fft_STA(m/2+1:end, n/2+1:end);
-% Determine the maximum in each Quadrant
-% Find row and column of Top Left max (TL)
-[max_TL, linearIndex] = max(TopLeft(:));
-[row_TL, col_TL] = ind2sub(size(TopLeft), linearIndex);
-% Find row and column of Top Right max (TR)
-[max_TR, linearIndex] = max(TopRight(:));
-[row_TR, col_TR] = ind2sub(size(TopRight), linearIndex);
-% Adjust top right column so that the additional columns are added in
-col_TR = col_TR + n/2;
-% Find row and column of Bottom right
-[max_BR, linearIndex] = max(BottomRight(:));
-[row_BR, col_BR] = ind2sub(size(BottomRight), linearIndex);
-% Adjust bottom right matrix rows and columns
-row_BR = row_BR + m/2;
-col_BR = col_BR + n/2;
-% Find row and column of Bottom Left
-[max_BL, linearIndex] = max(BottomLeft(:));
-[row_BL, col_BL] = ind2sub(size(BottomRight), linearIndex);
-% Adjust row of bottom left
-row_BL = row_BL + m/2;
-% pull the corresponding maximum value from fourier
-% Main diagonal = top left to bottom right
-mainDiagonalAvg = (max_TL + max_BR)/2;
-counterDiagonalAvg = (max_TR + max_BL)/2;
-subplot(4,3,10)
-imagesc(fft_STA)
-title('Slope from quadrants')
-hold on
-if mainDiagonalAvg > counterDiagonalAvg
-    % slope of main diagnoal
-    slope = -(col_BR-col_TL)/(row_BR-row_TL);
-    % disp(['Main diagonal slope:' num2str(slope)])
-    plot([col_BR, col_TL], [row_BR, row_TL], 'r', 'LineWidth', 2);
-    legend(['Slope: ', num2str(slope)])
-else
-    % slope of counter diagonal
-    slope = -(col_TR-col_BL)/(row_TR-row_BL);
-    % disp(['Counter diagonal slope:' num2str(slope)])
-    % plot a line between the fourier peaks and extend it using the slope
-    plot([col_TR, col_BL], [row_TR, row_BL], 'r', 'LineWidth', 2);
-    legend(['Slope: ', num2str(slope)])
 end
-
-subplot(4,3,11)
-imagesc(cur_STA2)
-title('Lum STA with Slope Line')
-hold on;
-x1=30; y1=30; % middle of plot
-x2=x1+30; y2=y1+30*slope;
-line([x1,x2], [y1,y2], 'Color', 'r');
-x3=0; y3=y1-30*slope;
-line([x1,x3],[y1,y3], 'Color','r');
