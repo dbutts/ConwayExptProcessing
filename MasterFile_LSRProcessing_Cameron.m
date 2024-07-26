@@ -3,24 +3,25 @@ clear all
 
 disp('Setup starting')
 
-addpath('/home/bizon/conwaylab/Git/ConwayExptProcessing/Dependencies/iCSD/')
-addpath('/home/bizon/conwaylab/Git/ConwayExptProcessing/Dependencies/iCSD/CSD_functions/')
-addpath('/home/bizon/conwaylab/Git/ConwayExptProcessing/Dependencies/Kilosort2/')
-addpath('/home/bizon/conwaylab/Git/ConwayExptProcessing/Dependencies/Kilotools_FB_2023/')
-addpath('/home/bizon/conwaylab/Git/ConwayExptProcessing/Dependencies/Plexon-Matlab Offline Files SDK/')
-addpath('/home/bizon/conwaylab/Git/ConwayExptProcessing/Dependencies/Kilotools_FB_2023/kilo2Tools-master/npy-matlab/npy-matlab')
-addpath('/home/bizon/conwaylab/Git/ConwayExptProcessing')
+addpath('/home/bizon/Git/ConwayExptProcessing/Dependencies/iCSD/')
+addpath('/home/bizon/Git/ConwayExptProcessing/Dependencies/iCSD/CSD_functions/')
+addpath('/home/bizon/Git/ConwayExptProcessing/Dependencies/Kilosort2/')
+addpath('/home/bizon/Git/ConwayExptProcessing/Dependencies/Kilotools_FB_2023/')
+addpath('/home/bizon/Git/ConwayExptProcessing/Dependencies/Plexon-Matlab Offline Files SDK/')
+% addpath('/home/bizon/Git/ConwayExptProcessing/Dependencies/Kilotools_FB_2023/kilo2Tools-master/npy-matlab/npy-matlab')
+addpath('/home/bizon/Git/ConwayExptProcessing')
+addpath('/home/bizon/Git/ConwayExptProcessing/Tools')
 
 %directory for pregenerated stimulus files
-stimpath = '/home/conwaylab/Processing/Cloudstims_calib_04_2024/';
+stimpath = '/home/bizon/Processing/Cloudstims_calib_04_2024/';
 
 % Switch into data directory
-dirpath = '/home/bizon/conwaylab/Data/';
+dirpath = '/home/bizon/Data/';
 pl2path = '/mnt/bc9/Data/'; % you can load the plexon file directly from the server, which may make loading data slower but save you data transfer complications
 cd(dirpath)
 
 % this is the name of the experiment you want to run
-filenameP = '230510_141725_Jacomo';
+filenameP = '240715_152545_Jacomo';
 monkey_name = 'Jacamo';
 
 outputdir = [dirpath filenameP '/Analysis/'];
@@ -190,7 +191,7 @@ disp('STA generation complete')
 brake
 %% if you want to generate STAs for only a subset of the data, use this code instead:
 disp('STA subset generation starting')
-target_SUs = [7 11 12 13 17]; % Change selection to a specific number of SUs Total number of SUs = size(data.Robs, 1)
+target_SUs = [9]; % Change selection to a specific number of SUs Total number of SUs = size(data.Robs, 1)
 apply_ETshifts = 0;
 stim_deltas = 0; 
 num_lags = 6;
@@ -206,6 +207,30 @@ save_vars.titlestr = [filenameP '_Cloud60_'];
 
 stas = get_sta(data, target_SUs, use_inds, apply_ETshifts, stim_deltas', num_lags, save_vars);
 disp('STA subset generation complete')
+
+%% plot the L,M,and S of rectangular regions
+target_SUs = [9];
+rectangle1 = [10 10 12 28]; % [x y w h]
+rectangle2 = [2 2 8 8];
+rectangle3 = [25 20 20 20];
+rectangle4 = [26 19 20 6];
+get_rec_opponency(data, target_SUs, use_inds, apply_ETshifts, stim_deltas', num_lags, save_vars, rectangle1, rectangle2, rectangle3, rectangle4);
+
+%% plot the L,M, and S of circular regions
+target_SUs = [9];
+type1 = ["circle", "r"]; %[type, color]
+parameters1 = [35, 28, 5]; %[xcenter ycenter radius]
+type2 = ["rectangle","b"];
+parameters2 = [10, 2, 30, 10]; % [x y width height]
+type3 = ["polygon","g"];
+parameters3 = [12 21 17 20 13 8; 15 15 27 37 37 30]; % [x1 x2... ; y1 y2...] clockwise
+type4 = ["polygon","y"];
+parameters4 = [23 34 48 37 25; 23 17 21 22 27];
+save_vars.titlestr = [filenameP '_regional_response_']; 
+
+get_regional_response(data, target_SUs, use_inds, apply_ETshifts, stim_deltas', num_lags, save_vars, ...
+    type1, parameters1, type2, parameters2, type3, parameters3, type4, parameters4);
+
 %% now we plot the best lag of our STAs by depth
 %TODO: add stas_depth code that shows select STAs in order of laminar
 %arrangement
