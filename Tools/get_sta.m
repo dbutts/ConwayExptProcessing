@@ -40,9 +40,12 @@ end
 
 stim_shift=permute(data.stim,[4 1 2 3]);
 
-if to_shift~=0
+if to_shift==1
     stim_shift = shift_stim( stim_shift, data.ETtrace, stim_deltas );
     shiftstr = 'with shifts';
+elseif to_shift==0
+    stim_shift = shift_stim( stim_shift, zeros(size(data.ETtrace)), stim_deltas );
+    shiftstr = 'no shifts';
 else
     shiftstr = 'no shifts';
 end
@@ -55,6 +58,10 @@ stas=zeros(max(targets),num_lags,3*60*60);
 disp('Now plotting!')
 for cc=targets
 	tic
+    % cameron added 2 lines: 
+    indexed_spikes = binned_SU(use_inds,cc);
+    total_spikes = sum(indexed_spikes == 1);
+
 	STA = figure;
 	for curlag=1:num_lags
 		cur_STA1(curlag,:) = binned_SU(use_inds+curlag,cc)' * stim2(use_inds,:);
@@ -86,6 +93,9 @@ for cc=targets
             end
 			%title(['SU ' num2str(cc) ': ch#', num2str(spk_ch(cc)), 'spkID' num2str(spk_ID(cc))]); 
             title(titlestr)
+            % cameron added 1 line:
+            subtitle("Total exp time: " + length(use_inds)/240 + " seconds" + newline + "end" ...
+                + newline + "total spikes: " + total_spikes);
         end
 
         subplot(6,3,2+(curlag-1)*3)
@@ -108,7 +118,7 @@ for cc=targets
         % save the STA as pdf saveas(figure, filename)
     	saveas(STA,[save_vars.outputdir save_vars.titlestr ' SU' num2str(cc) '_STA.pdf'])
         % save the STA as a jpg
-        saveas(STA,[save_vars.outputdir save_vars.titlestr ' SU' num2str(cc) '_STA.jpg'])
+        % saveas(STA,[save_vars.outputdir save_vars.titlestr ' SU' num2str(cc) '_STA.jpg'])
     end
 end
 

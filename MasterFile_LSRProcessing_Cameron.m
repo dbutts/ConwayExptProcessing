@@ -206,6 +206,19 @@ save_vars.titlestr = [filenameP '_Cloud60_'];
 
 stas = get_sta(data, target_SUs, use_inds, apply_ETshifts, stim_deltas', num_lags, save_vars);
 disp('STA subset generation complete')
+
+%% plot the L,M,and S of specific regions
+target_SUs = [9];
+%stim_deltas = data.stim_location_deltas;
+use_inds = data.valid_data;
+% use_inds = intersect(1:2000, data.valid_data);
+    use_inds(end-num_lags:end) = []; %cut last few indices to avoid artifacts
+rectangle1 = [10 10 12 28];
+rectangle2 = [2 2 8 8];
+rectangle3 = [25 20 20 20];
+rectangle4 = [26 19 20 6];
+get_opponency(data, target_SUs, use_inds, apply_ETshifts, stim_deltas', num_lags, save_vars, rectangle1, rectangle2, rectangle3, rectangle4);
+
 %% now we plot the best lag of our STAs by depth
 %TODO: add stas_depth code that shows select STAs in order of laminar
 %arrangement

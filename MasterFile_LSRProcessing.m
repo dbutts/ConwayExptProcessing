@@ -19,8 +19,8 @@ pl2path = '/mnt/bc9/Data/'; % you can load the plexon file directly from the ser
 cd(dirpath)
 
 % this is the name of the experiment you want to run
-filenameP = '240606_152532_Vincent';
-monkey_name = 'Vincent';
+filenameP = '240715_152545_Jacomo';
+monkey_name = 'Jocamo';
 
 outputdir = [dirpath filenameP '/Analysis/'];
 disp('setup complete')
@@ -33,14 +33,14 @@ opts.ChnOffset=0;
 opts.batch_size = 5e9; % batch size prevents memory overflow errors. default = 300000000 for IT
 opts.monkey_name = monkey_name;
 
-%
+%%
 [datPath, droptestcheck] = Step0_KilosortLaminar(dirpath,filenameP,pl2path,opts); %this will take some time to run!
 % 
 disp(['Plexon-Kofiko offset in seconds: ' num2str(droptestcheck)]) % this will tell us if the plexon time alignment issue is present
 if abs(droptestcheck)>0.1; warning("Danger - Plexon might have dropped frames! Check pl2 file."); else; disp('Experiment kilosorted and ready for curation!'); end
 disp('Kilosorting complete')
 
-%% Once this prints "DONE", go curate the file in Phy!
+ %% Once this prints "DONE", go curate the file in Phy!
 
 %% now kilosort the data for the other arrays
     % %% Utah 1 - Serial 0071
@@ -57,18 +57,18 @@ disp('Kilosorting complete')
     % opts.curchannels = [65:96]; outputFolder = [dirpath filenameP '/kilosorting_UT1_65to96/'];
     % [datPaths.UT1c, ~] = Step0_KilosortArray(dirpath,filenameP,pl2path,outputFolder,opts);
     %% Utah 2 - Serial 0072
-    opts.ArrayLabel = 'UT2'; %load channel map
-    opts.chInfo = load('/home/conwaylab/Git/ConwayExptProcessing/Dependencies/Kilotools_FB_2023/Kilosort_config/Vinny/V_UT2_chanMap_nogroup.mat');
-    opts.ChnOffset=160;
-
-    opts.curchannels = [1:32]; outputFolder = [dirpath filenameP '/kilosorting_UT2_1to32/'];
-    [datPaths.UT2a, ~] = Step0_KilosortArray(dirpath,filenameP,pl2path,outputFolder,opts);
-
-    opts.curchannels = [33:64]; outputFolder = [dirpath filenameP '/kilosorting_UT2_33to64/'];
-    [datPaths.UT2b, ~] = Step0_KilosortArray(dirpath,filenameP,pl2path,outputFolder,opts);
-
-    opts.curchannels = [65:96]; outputFolder = [dirpath filenameP '/kilosorting_UT2_65to96/'];
-    [datPaths.UT2c, ~] = Step0_KilosortArray(dirpath,filenameP,pl2path,outputFolder,opts);
+    % opts.ArrayLabel = 'UT2'; %load channel map
+    % opts.chInfo = load('/home/conwaylab/Git/ConwayExptProcessing/Dependencies/Kilotools_FB_2023/Kilosort_config/Vinny/V_UT2_chanMap_nogroup.mat');
+    % opts.ChnOffset=160;
+    % 
+    % opts.curchannels = [1:32]; outputFolder = [dirpath filenameP '/kilosorting_UT2_1to32/'];
+    % [datPaths.UT2a, ~] = Step0_KilosortArray(dirpath,filenameP,pl2path,outputFolder,opts);
+    % 
+    % opts.curchannels = [33:64]; outputFolder = [dirpath filenameP '/kilosorting_UT2_33to64/'];
+    % [datPaths.UT2b, ~] = Step0_KilosortArray(dirpath,filenameP,pl2path,outputFolder,opts);
+    % 
+    % opts.curchannels = [65:96]; outputFolder = [dirpath filenameP '/kilosorting_UT2_65to96/'];
+    % [datPaths.UT2c, ~] = Step0_KilosortArray(dirpath,filenameP,pl2path,outputFolder,opts);
 
      %% NForm array
 %     opts.ArrayLabel = 'NF'; %load channel map
@@ -109,7 +109,7 @@ disp('Kilosorting complete')
 disp('Drop test check starting')
 [fs, n, ts, fn, ~] = plx_ad_v([pl2path filenameP '.pl2'], ['SPKC001'] );
 [~, n_aux, ts_aux, fn_aux, ~] = plx_ad_v([pl2path filenameP '.pl2'], ['AI01'] );
-droptestcheck = [n/40000- n_aux/1000];
+droptestcheck = [n_aux/1000-n/40000];
 disp(['Plexon-Kofiko offset in seconds: ' num2str(droptestcheck)]) % this will tell us if the plexon time alignment issue is present
 if abs(droptestcheck)>0.1; warning("Danger - Plexon might have dropped frames! Check pl2 file."); else; disp('Experiment kilosorted and ready for curation!'); end
 disp('Drop test check complete')
@@ -118,24 +118,23 @@ disp('Drop test check complete')
 disp('Kofiko alignment starting')
 which_computer = 2; % (default=2) 2 = LSR, room 2A58
 
-
 ks.use_online = 0; % set to 1 to use on-line sorting, should be 0 if you want to use kilosort
 ks.onlinechans = [1:64]; % which channels of on-line sorted spikes should we go through? 
 
-ks.stitched=1; % if you combined kilosort outputs for multiple arrays
-ks.arraylabel ='Utah';
-%ks.filepath = [dirpath filenameP filesep 'kilosorting_laminar' filesep]; % point this at array folders or the "stiched" folder if you want to sort data from multiple arrays
-ks.filepath = [dirpath filenameP filesep 'kilosorting_stitched' filesep]; % point this at array folders or the "stiched" folder if you want to sort data from multiple arrays
+ks.stitched=0; % if you combined kilosort outputs for multiple arrays
+ks.arraylabel ='lam';
+ks.filepath = [dirpath filenameP filesep 'kilosorting_laminar' filesep]; % point this at array folders or the "stiched" folder if you want to sort data from multiple arrays
+%ks.filepath = [dirpath filenameP filesep 'kilosorting_stitched' filesep]; % point this at array folders or the "stiched" folder if you want to sort data from multiple arrays
 ks.pl2path = pl2path;
 
-opts.eye_tracker = 3; % (default=3) 0=eyescan, 1=monoc eyelink, 2=binoc eyelink, 3=monocular dDPI 
-opts.is_cloud = 1; % (default=1) indicates processing for cloud data. set to 0 to skip cloud-specific variables and align task data or other paradigms 
+opts.eye_tracker = 3;   % (default=3) 0=eyescan, 1=monoc eyelink, 2=binoc eyelink, 3=monocular dDPI 
+opts.is_cloud = 1;      % (default=1) indicates processing for cloud data. set to 0 to skip cloud-specific variables and align task data or other paradigms 
 opts.trialwindow = [0 4]; % 4 second trials
 opts.trl_fix_thresh = 0.5; % include trials with at least 3 seconds of fixation
 opts.monkey_name = monkey_name;
 
 if abs(droptestcheck)>0.1;
-    opts.spk_offset = droptestcheck; % cTODO: check if this is also true for negative values
+    opts.spk_offset = droptestcheck;
 else
     opts.spk_offset = 0;
 end
@@ -148,29 +147,7 @@ end
 % ExtractAndAlign saves FullExpt_ks1_lam_v08.mat in Analysis directory, and
 % can be loaded or its outputs (in memory can be used directly
 disp('Kofiko alignment complete')
-%% next, package the data
-disp('Data packaging starting')
-%load([outputdir filenameP '_FullExpt_ks1_lam_v09.mat'])
 
-% first package the hartley stimuli
-data_hartleys = PackageCloudData_v9( ExptTrials, ExptInfo, 6, [], stimpath, outputdir );
-disp('Data packaging complete')
-
-%% Generate hartleys 
-disp('Hartley generation starting')
-% get_hartleys(input data, SUs we want to plot, lag at which we want to
-% plot)
-% to plot all SUs target_SUs = size(data_hartleys.Robs, 1)
-% to plot specific SUs target_SUs = [ 1 33 45 ]
-target_SUs = [1:5];
-lag = 4;
-save_vars.to_save = 1; % saves the STAs as pdf when set to 1
-save_vars.outputdir = outputdir;
-save_vars.titlestr = filenameP; 
-
-get_hartleys(data_hartleys, target_SUs, lag, save_vars, data);
-
-disp('Hartley generation complete')
 %% Package cloud data
 disp('Cloud packaging starting')
 % now package cloud data
@@ -187,24 +164,86 @@ stas = get_sta(data);
 disp('STA generation complete')
 
 brake
-%% if you want to generate STAs for only a subset of the data, use this code instead:
+ %% if you want to generate STAs for only a subset of the data, use this code instead:
 disp('STA subset generation starting')
-target_SUs = [7 11 12 13 17]; % Change selection to a specific number of SUs Total number of SUs = size(data.Robs, 1)
+n_all = size(data.Robs, 1)+size(data.RobsMU, 1);
+target_SUs = [1:n_all]; % Change selection to a specific number of SUs Total number of SUs = size(data.Robs, 1)+size(data.RobsMU, 1)
 apply_ETshifts = 0;
-stim_deltas = 0; 
+stim_deltas = ones(size(data.ETtrace))'; 
+% stim_deltas(1,:) = stim_deltas(1,:).*10;
+% stim_deltas(2,:) = stim_deltas(2,:).*20;
 num_lags = 6;
 %stim_deltas = data.stim_location_deltas;
-use_inds = intersect(find(data.cloud_area==60), data.valid_data);
-%use_inds = intersect(1:48000, data.valid_data);
+%use_inds = data.valid_data;
+use_inds = intersect(find(data.cloud_binary<2), data.valid_data);
     use_inds(end-num_lags:end) = []; %cut last few indices to avoid artifacts
 
 save_vars.to_save = 1; % saves the STAs as pdf when set to 1
 save_vars.outputdir = outputdir;
 %save_vars.titlestr = [filenameP '_Plexon_Cloud60_']; 
-save_vars.titlestr = [filenameP '_Cloud60_']; 
+save_vars.titlestr = [filenameP '_FullClouds_']; 
 
 stas = get_sta(data, target_SUs, use_inds, apply_ETshifts, stim_deltas', num_lags, save_vars);
 disp('STA subset generation complete')
+
+%% and if you want to run a forward correlation on the same info, set up the info in the same way
+disp('Forward Correlation subset generation starting')
+n_all = size(data.Robs, 1)+size(data.RobsMU, 1);
+target_SUs = [9]; %[1:n_all]; % Change selection to a specific number of SUs Total number of SUs = size(data.Robs, 1)+size(data.RobsMU, 1)
+apply_ETshifts = 0;
+stim_deltas = ones(size(data.ETtrace))'; 
+% stim_deltas(1,:) = stim_deltas(1,:).*10;
+% stim_deltas(2,:) = stim_deltas(2,:).*20;
+num_lags = 6;
+thresh=0.15;
+%stim_deltas = data.stim_location_deltas;
+%use_inds = data.valid_data;
+use_inds = intersect(find(data.cloud_binary==2), data.valid_data);
+    use_inds(end-num_lags:end) = []; %cut last few indices to avoid artifacts
+
+save_vars.to_save = 1; % saves the STAs as pdf when set to 1
+save_vars.outputdir = outputdir;
+%save_vars.titlestr = [filenameP '_BaseClouds_']; 
+save_vars.titlestr = [filenameP '_MatchedClouds_v2_']; 
+
+[fwdc_L, fwdc_M, fwdc_diff] = get_fwdc(data, target_SUs, use_inds, apply_ETshifts, stim_deltas', thresh, num_lags, save_vars);
+disp('Forward Correlation subset generation complete')
+%% plot the L,M,and S of specific regions
+target_SUs = [9];
+%stim_deltas = data.stim_location_deltas;
+use_inds = data.valid_data;
+% use_inds = intersect(1:2000, data.valid_data);
+    use_inds(end-num_lags:end) = []; %cut last few indices to avoid artifacts
+rectangle1 = [10 10 12 28];
+rectangle2 = [2 2 8 8];
+rectangle3 = [25 20 20 20];
+rectangle4 = [26 19 20 6];
+get_opponency(data, target_SUs, use_inds, apply_ETshifts, stim_deltas', num_lags, save_vars, rectangle1, rectangle2, rectangle3, rectangle4);
+
+%% next, package the data, starting with Hartleys
+disp('Data packaging starting')
+%load([outputdir filenameP '_FullExpt_ks1_lam_v09.mat'])
+
+% first package the hartley stimuli
+data_hartleys = PackageCloudData_v9( ExptTrials, ExptInfo, 6, [], stimpath, outputdir );
+disp('Data packaging complete')
+
+%% Generate hartleys 
+disp('Hartley generation starting')
+% get_hartleys(input data, SUs we want to plot, lag at which we want to
+% plot)
+% to plot all SUs target_SUs = size(data_hartleys.Robs, 1)
+% to plot specific SUs target_SUs = [ 1 33 45 ]
+target_SUs = [1:67];
+lag = 4;
+save_vars.to_save = 1; % saves the STAs as pdf when set to 1
+save_vars.outputdir = outputdir;
+save_vars.titlestr = filenameP; 
+
+% data=[]; % if you want to skip plotting STA info alongside hartley tuning plots
+get_hartleys(data_hartleys, target_SUs, lag, save_vars, data);
+
+disp('Hartley generation complete')
 %% now we plot the best lag of our STAs by depth
 %TODO: add stas_depth code that shows select STAs in order of laminar
 %arrangement
