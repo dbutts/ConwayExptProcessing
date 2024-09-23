@@ -705,8 +705,8 @@ if isfield(exptdata_mod{end,1}, 'm_aiTiledStimulusRect')
 else
 	num_stim_locs = 1;
 end
-stim_locs = zeros(length(exptdata_mod), num_stim_locs, 4);
-for nn = 1:length(exptdata_mod)
+stim_locs = zeros(size(exptdata_mod,1), num_stim_locs, 4);
+for nn = 1:size(exptdata_mod,1)
 	if isfield(exptdata_mod{end,1}, 'm_aiTiledStimulusRect')
 		stim_locs(nn, :, :) = exptdata_mod{nn, 1}.m_aiTiledStimulusRect;
 	else
