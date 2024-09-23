@@ -1,6 +1,6 @@
-function stas = get_regional_response( data, targets, use_inds, to_shift, stim_deltas, num_lags, save_vars, type1, parameters1, type2, parameters2, type3, parameters3, type4, parameters4)
+function get_regional_response(data, stas, target_SUs, apply_ETshifts, num_lags, save_vars, type1, parameters1, type2, parameters2, type3, parameters3, type4, parameters4)
 %
-% Usage: stas = get_sta( data, <targets>, <to_shift>, <stim_deltas> )
+% Usage: stas = get_sta( data, <targets>, <apply_ETshifts>, <stim_deltas> )
 %
 % PLAN COMING BACK:
 % -- Make STA function that uses the shifted stim and spikes (and valid data)
@@ -11,49 +11,49 @@ binned_SU = [single(data.Robs'), single(data.RobsMU')];
 spk_ch = [data.Robs_probe_ID; data.RobsMU_probe_ID];
 nSU=size(data.Robs,1); 
 
-
-if nargin < 2 
-    targets = 1:size(binned_SU,2); % default to plotting all SUs and MUs
-end
-
-if nargin <3 || isempty(use_inds)
-    use_inds = data.valid_data;
-    use_inds(end-10:end) = []; %cut last few indices to avoid artifacts
-end
-
-if nargin < 4 || isempty(to_shift)
-    to_shift = 0; 
-end
-
-if nargin < 5
-    NT=size(data.ETtrace,2);
-    stim_deltas = zeros(2,NT); 
-end
-
-if nargin < 6 || isempty(num_lags)
-    num_lags = 6;
-end
-
-if nargin < 7 || isempty(save_vars)
-    save_vars.to_save=0;
-end
-
-stim_shift=permute(data.stim,[4 1 2 3]);
-
-if to_shift==1
-    stim_shift = shift_stim( stim_shift, data.ETtrace, stim_deltas );
+% 
+% if nargin < 2 
+%     target_SUs = 1:size(binned_SU,2); % default to plotting all SUs and MUs
+% end
+% 
+% if nargin <3 || isempty(use_inds)
+%     use_inds = data.valid_data;
+%     use_inds(end-10:end) = []; %cut last few indices to avoid artifacts
+% end
+% 
+% if nargin < 4 || isempty(apply_ETshifts)
+%     apply_ETshifts = 0; 
+% end
+% 
+% if nargin < 5
+%     NT=size(data.ETtrace,2);
+%     stim_deltas = zeros(2,NT); 
+% end
+% 
+% if nargin < 6 || isempty(num_lags)
+%     num_lags = 6;
+% end
+% 
+% if nargin < 7 || isempty(save_vars)
+%     save_vars.to_save=0;
+% end
+% 
+% stim_shift=permute(data.stim,[4 1 2 3]);
+% 
+if apply_ETshifts==1
+    % stim_shift = shift_stim( stim_shift, data.ETtrace, stim_deltas );
     shiftstr = 'with shifts';
-elseif to_shift==0
-    stim_shift = shift_stim( stim_shift, zeros(size(data.ETtrace)), stim_deltas );
+elseif apply_ETshifts==0
+    % stim_shift = shift_stim( stim_shift, zeros(size(data.ETtrace)), stim_deltas );
     shiftstr = 'no shifts';
 else
     shiftstr = 'no shifts';
 end
-
-%reshaping stimuli to get STAs with matrix multiplication, which is faster
-stim2 = single(reshape(stim_shift,size(stim_shift,1),3*60*60))./127;
-
-stas=zeros(max(targets),num_lags,3*60*60);
+% 
+% %reshaping stimuli to get STAs with matrix multiplication, which is faster
+% stim2 = single(reshape(stim_shift,size(stim_shift,1),3*60*60))./127;
+% 
+% stas=zeros(max(target_SUs),num_lags,3*60*60);
 
 area1 = zeros(5,4);
 area2 = zeros(5,4);
@@ -83,21 +83,24 @@ area4 = zeros(5,4);
 % rec4_Ly = [];
 
 disp('Now plotting!')
-for cc=targets
+for cc=target_SUs
 	tic
-    % cameron added 2 lines: 
-    indexed_spikes = binned_SU(use_inds,cc);
-    total_spikes = sum(indexed_spikes == 1);
-
+    % % cameron added 2 lines: 
+    % indexed_spikes = binned_SU(use_inds,cc);
+    % total_spikes = sum(indexed_spikes == 1);
+    
 	STA = figure;
-	for curlag=1:num_lags
-		cur_STA1(curlag,:) = binned_SU(use_inds+curlag,cc)' * stim2(use_inds,:);
-	end
+	% for curlag=1:num_lags
+	% 	cur_STA1(curlag,:) = binned_SU(use_inds+curlag,cc)' * stim2(use_inds,:);
+	% end
+
+    % stas(cc,:, :)=cur_STA1;
+    cur_STA1 = stas(cc,:,:);
 	curlim=max(abs(cur_STA1(:)')); 
         if curlim==0; curlim=0.1; end % avoids plotting bugs if a bad STA is included in a large set of plots
 
-    stas(cc,:, :)=cur_STA1;
 	for curlag=1:num_lags
+        cur_STA1 = squeeze(cur_STA1);
 		cur_STA2=reshape(cur_STA1(curlag,:),60,180);
 		%curlim=150;%
 		cur_STA2(:,[60 120])=curlim; % plots vertical lines dividing up the plots
@@ -160,18 +163,18 @@ for cc=targets
         cur_StA_M = cur_StA3*[0.0351, -0.4625, 0]'; % from 01_2022 calib
 		cur_STA_M2=reshape(cur_StA_M,60,60);
 
-		if curlag == 1
+        if curlag == 1
 			xlabel('Lum          L-M          S'); 
-            if cc<=nSU;
+            if cc<=nSU
                 titlestr = sprintf('SU %0d: ch# %d; %s', cc, spk_ch(cc), shiftstr);
             else
                 titlestr = sprintf('MU %0d: ch# %d; %s', cc-nSU, spk_ch(cc), shiftstr);
             end
 			%title(['SU ' num2str(cc) ': ch#', num2str(spk_ch(cc)), 'spkID' num2str(spk_ID(cc))]); 
             title(titlestr)
-            % cameron added 1 line:
-            subtitle("Total exp time: " + length(use_inds)/240 + " seconds" + newline + "end" ...
-                + newline + "total spikes: " + total_spikes);
+            % % cameron added 1 line:
+            % subtitle("Total exp time: " + length(use_inds)/240 + " seconds" + newline + "end" ...
+            %     + newline + "total spikes: " + total_spikes);
         end
 
         subplot(6,3,2+(curlag-1)*3)
@@ -211,30 +214,30 @@ for cc=targets
 	%    pause
     if save_vars.to_save==1
         % save the STA as pdf saveas(figure, filename)
-    	saveas(STA,[save_vars.outputdir save_vars.titlestr ' SU' num2str(cc) '_STA.pdf'])
+    	saveas(STA,[save_vars.outputdir save_vars.titlestr ' SU' num2str(cc) '_plot.pdf'])
         % save the STA as a jpg
         % saveas(STA,[save_vars.outputdir save_vars.titlestr ' SU' num2str(cc) '_STA.jpg'])
     end
 end
 
 activations = figure;
-ylimits = [-4000,2200];
+ylimits = [-300,500];
 
 labels = ["Lum red area","L-M","S","L","M"];
 % make_plots([lumy1, rec1_LMy, rec1_Sy, rec1_Ly, rec1_My], ydim, 1, labels)
-make_plots(area1, ylimits, 1, labels)
+make_plots(area1, area2, ylimits, 1, labels)
 
 labels = ["Lum blue area", "L-M", "S", "L", "M"];
 % make_plots([rec2_lumy, rec2_LMy, rec2_Sy, rec2_Ly, rec2_My], ydim, 6, labels)
-make_plots(area2, ylimits, 6, labels)
+make_plots(area2, area2, ylimits, 6, labels)
 
 labels = ["Lum green area", "L-M", "S", "L", "M"];
 % make_plots([rec3_lumy, rec3_LMy, rec3_Sy, rec3_Ly, rec3_My], ydim, 11, labels)
-make_plots(area3, ylimits, 11, labels)
+make_plots(area3, area2, ylimits, 11, labels)
 
 labels = ["Lum yellow area", "L-M", "S", "L", "M"];
 % make_plots([rec4_lumy, rec4_LMy, rec4_Sy, rec4_Ly, rec4_My], ydim, 16, labels)
-make_plots(area4, ylimits, 16, labels)
+make_plots(area4, area2, ylimits, 16, labels)
 
 % plot(1:size(area1(1,:),2), area1(1,:))
 % title('circle lum')
@@ -307,16 +310,17 @@ make_plots(area4, ylimits, 16, labels)
     %     sgtitle('Activation in each rectangle')
     % end
 
-    function make_plots(area, ylimits, startingplot, labels)
+    function make_plots(area, area2, ylimits, startingplot, labels)
         for i = 1:5
             subplot(4,5,startingplot+i-1)
-            plot(1:size(area, 2), area(i,:))
+            plot(1:size(area, 2), area(i,:)-area2(i,:))
             ylim(ylimits);
             title(labels(i));
             ylabel('STA value');
             xlabel('lag number'); 
+            xlim([1,5])
         end
-        sgtitle('Activation in each region')
+        sgtitle('Blue normalized activation in each region')
     end
 
 end

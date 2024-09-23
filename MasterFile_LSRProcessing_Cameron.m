@@ -226,9 +226,9 @@ type3 = ["polygon","g"];
 parameters3 = [12 21 17 20 13 8; 15 15 27 37 37 30]; % [x1 x2... ; y1 y2...] clockwise
 type4 = ["polygon","y"];
 parameters4 = [23 34 48 37 25; 23 17 21 22 27];
-save_vars.titlestr = [filenameP '_regional_response_']; 
+save_vars.titlestr = [filenameP '_blue_normalized_response_']; 
 
-get_regional_response(data, target_SUs, use_inds, apply_ETshifts, stim_deltas', num_lags, save_vars, ...
+get_regional_response(data, stas, target_SUs, apply_ETshifts, num_lags, save_vars, ...
     type1, parameters1, type2, parameters2, type3, parameters3, type4, parameters4);
 
 %% now we plot the best lag of our STAs by depth
