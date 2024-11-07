@@ -238,7 +238,7 @@ get_regional_response(data, stas, target_SUs, apply_ETshifts, num_lags, save_var
 
 %% Delete large temporary files
 disp('Deleting temporary files started')
-dirpath2 = ['/home/conwaylab/Data/',filenameP,'/kilosorting_laminar/'];
+dirpath2 = ['/home/bizon/Data/',filenameP,'/kilosorting_laminar/'];
 cd(dirpath2)
 dat = [filenameP, '.dat'];
 % Move .dat, SampToSecsMap.mat, and res2.mat file to trash

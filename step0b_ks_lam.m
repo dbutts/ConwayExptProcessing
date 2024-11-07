@@ -186,6 +186,8 @@ elseif contains(hostName, 'mt', 'IgnoreCase', 1)
     rootH = '/home/fellixbartsch/kilodata'; % path to temporary binary file (same size as data, should be on fast SSD)
 elseif contains(hostName, 'conwaylab', 'IgnoreCase', 1) 
     rootH = '/home/conwaylab/kilodata';
+elseif contains(hostName, 'dl', 'IgnoreCase', 1) 
+    rootH = '/home/bizon/kilodata';
 end
 
 % pathToYourConfigFile = 'D:\GitHub\KiloSort2\configFiles'; % take from Github folder and put it somewhere else (together with the master_file)
