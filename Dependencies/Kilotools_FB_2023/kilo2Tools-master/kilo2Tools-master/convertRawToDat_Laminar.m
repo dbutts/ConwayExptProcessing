@@ -369,6 +369,9 @@ switch rawFileType
         [ad.ADFreq, ~,  ad.FragTs, ad.FragCounts] = plx_ad(rawFullPath, 'SPKC001');
     case 'pl2'
         ad = PL2Ad(rawFullPath, 'SPKC001');
+        if length(ad.Values)<1
+            ad = PL2Ad(rawFullPath, 'SPKC01');
+        end
     otherwise
         error('bad filetype. Time to reconsider your life choices');
 end

@@ -25,7 +25,14 @@ disp('setup complete')
 
 %% First run the drop test check and see if plexon dropped any measurements
 disp('Drop test check starting')
-[fs, n, ts, fn, ~] = plx_ad_v([pl2path filenameP '.pl2'], ['SPKC001'] );
+try
+    [fs, n, ts, fn, ~] = plx_ad_v([pl2path filenameP '.pl2'], ['SPKC001'] );
+end
+if n<2
+    try
+        [fs, n, ts, fn, ~] = plx_ad_v([pl2path filenameP '.pl2'], ['SPKC01'] );
+    end
+end
 [~, n_aux, ts_aux, fn_aux, ~] = plx_ad_v([pl2path filenameP '.pl2'], ['AI01'] );
 droptestcheck = [n/40000- n_aux/1000];
 disp(['Plexon-Kofiko offset in seconds: ' num2str(droptestcheck)]) % this will tell us if the plexon time alignment issue is present
