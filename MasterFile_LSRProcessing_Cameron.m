@@ -9,6 +9,7 @@ addpath('/home/bizon/Git/ConwayExptProcessing/Dependencies/Kilosort2/')
 addpath('/home/bizon/Git/ConwayExptProcessing/Dependencies/Kilotools_FB_2023/')
 addpath('/home/bizon/Git/ConwayExptProcessing/Dependencies/Plexon-Matlab Offline Files SDK/')
 % addpath('/home/bizon/Git/ConwayExptProcessing/Dependencies/Kilotools_FB_2023/kilo2Tools-master/npy-matlab/npy-matlab')
+addpath('/home/bizon/Git/ConwayExptProcessing/Dependencies/Kilotools_FB_2023/kilo2Tools-master/kilo2Tools-master/')
 addpath('/home/bizon/Git/ConwayExptProcessing')
 addpath('/home/bizon/Git/ConwayExptProcessing/Tools')
 
@@ -17,11 +18,11 @@ stimpath = '/home/bizon/Processing/Cloudstims_calib_04_2024/';
 
 % Switch into data directory
 dirpath = '/home/bizon/Data/';
-pl2path = '/mnt/bc9/Data/'; % you can load the plexon file directly from the server, which may make loading data slower but save you data transfer complications
+pl2path = '/home/bizon/Data/'; %'/mnt/bc9/Data/'; % you can load the plexon file directly from the server, which may make loading data slower but save you data transfer complications
 cd(dirpath)
 
 % this is the name of the experiment you want to run
-filenameP = '240715_152545_Jacomo';
+filenameP = '241106_154950_Jacomo';
 monkey_name = 'Jacamo';
 
 outputdir = [dirpath filenameP '/Analysis/'];
