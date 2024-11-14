@@ -66,7 +66,8 @@ if nargin < 2
 		case 0, dirpath = '/Users/dbutts/Data/Conway/';
 		case 1, dirpath = 'C:\SpkSort2023\AAActiveData\';
         case 2, dirpath = '/home/conwaylab/Data/';
-        case 3, dispath = 'D:\PlexonData\'
+        case 3, dirpath = 'D:\PlexonData\';
+        case 4,  dirpath = 'home/bixon/Data/';
 		otherwise
 			disp('which_computer is not specified')
 	end
@@ -123,6 +124,15 @@ load(configFilePath)
 %% test for misalignment
 %/{
 [SPKC_adfreq, SPKC_n, SPKC_ts, SPKC_fn, SPKC_ad_test] = plx_ad_v(plxFilePath, 'SPKC001');
+try
+    [SPKC_adfreq, SPKC_n, SPKC_ts, SPKC_fn, SPKC_ad_test] = plx_ad_v(plxFilePath, 'SPKC001');
+end
+if SPKC_n<2
+    try
+        [SPKC_adfreq, SPKC_n, SPKC_ts, SPKC_fn, SPKC_ad_test] = plx_ad_v(plxFilePath, 'SPKC001');
+    end
+end
+
 [ET_adfreq, ET_n, ET_ts, ET_fn, PlexET_ad_test] = plx_ad_v(plxFilePath, 'AI07');
 [LFP_adfreq, LFP_n, LFP_ts, LFP_fn, LFP_ad_test] = plx_ad_v(plxFilePath, ['FP' num2str(1,'%03.f')]);
 ET_n./LFP_n;
@@ -160,7 +170,7 @@ if useofflinesorting==1
 	if ks.stitched==1
 		load([ks.filepath 'KS_stitched.mat'])
 	else
-		spk_times = readNPY([ks.filepath 'spike_times_seconds.npy']) + opts.spk_offset;
+		spk_times = readNPY([ks.filepath 'spike_times_seconds.npy']) + opts.spk_offset; % reads in times of spikes
 		spk_clusters = readNPY([ks.filepath 'spike_clusters.npy']);
 		spk_info = tdfread([ks.filepath 'cluster_info.tsv']);
 	end
@@ -175,12 +185,16 @@ if useofflinesorting==1
 		else
 			spk_labels_MU = [spk_labels_MU,cc];
 		end
-	end
-	bad_chans_SU = find(spk_info.n_spikes(spk_labels_SU)<2000); spk_labels_SU(bad_chans_SU)=[];
+    end
+    % remove SUs and MUs with less than 2000 spikes - this improves model
+    % performance and prevents unecissary use of processing power for bad
+    % units
+	bad_chans_SU = find(spk_info.n_spikes(spk_labels_SU)<2000); spk_labels_SU(bad_chans_SU)=[]; 
 	bad_chans_MU = find(spk_info.n_spikes(spk_labels_MU)<2000); spk_labels_MU(bad_chans_MU)=[];
-	spk_ID_SU = (spk_clustIDs(spk_labels_SU));
-	spk_channels_SU = spk_info.ch(spk_labels_SU);
-	spk_ID_MU = (spk_clustIDs(spk_labels_MU));
+
+	spk_ID_SU = (spk_clustIDs(spk_labels_SU)); % IDs of useful SUs
+	spk_channels_SU = spk_info.ch(spk_labels_SU); 
+	spk_ID_MU = (spk_clustIDs(spk_labels_MU)); % IDs of useful MUs
 	spk_channels_MU = spk_info.ch(spk_labels_MU);
 	nSU=length(spk_ID_SU);
 	nMU=length(spk_ID_MU);
@@ -631,10 +645,16 @@ end
 fprintf('Done with rudimentary microsaccade detect\n\n')
 
 %% PROCESS LFPs
-LFPcc=1;
+LFPcc=1; chan=1;
+[LFP_adfreq_test, LFP_n_test, LFP_ts_test, LFP_fn_test, ~] = plx_ad_v(thisSessionFile, ['FP' num2str(chan,'%03.f')]); % try to read first LFP with 3 significant digits. If it works, LFP_n_test will be > 2 
+
 if ~skipLFP
 	for chan=LFPchans
-		[LFP_adfreq, LFP_n, LFP_ts, LFP_fn, LFP_ad(:,LFPcc)] = plx_ad_v(thisSessionFile, ['FP' num2str(chan,'%03.f')]);
+        if LFP_n_test >2
+		    [LFP_adfreq, LFP_n, LFP_ts, LFP_fn, LFP_ad(:,LFPcc)] = plx_ad_v(thisSessionFile, ['FP' num2str(chan,'%03.f')]); % read in LFP traces from pl2 file
+        else
+		    [LFP_adfreq, LFP_n, LFP_ts, LFP_fn, LFP_ad(:,LFPcc)] = plx_ad_v(thisSessionFile, ['FP' num2str(chan,'%02.f')]); % read in LFP traces from pl2 file
+        end
 		LFPcc=LFPcc+1;
 	end
 	LFP_ad=LFP_ad';  

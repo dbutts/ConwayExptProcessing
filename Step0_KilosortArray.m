@@ -29,11 +29,21 @@ opts.ycoords = opts.chInfo.ycoords(opts.curchannels);
 opts.kcoords = opts.chInfo.kcoords(opts.curchannels);
         
 %%
+% try
+%     [fs, n, ts, fn, ~] = plx_ad_v([pl2path filenameP '.pl2'], ['SPKC001'] );
+% catch
+%     [fs, n, ts, fn, ~] = plx_ad_v([pl2path filenameP '.pl2'], ['SPKC01'] );
+% end
+
 try
     [fs, n, ts, fn, ~] = plx_ad_v([pl2path filenameP '.pl2'], ['SPKC001'] );
-catch
-    [fs, n, ts, fn, ~] = plx_ad_v([pl2path filenameP '.pl2'], ['SPKC01'] );
 end
+if n<2
+    try
+        [fs, n, ts, fn, ~] = plx_ad_v([pl2path filenameP '.pl2'], ['SPKC01'] );
+    end
+end
+
 [~, n_aux, ts_aux, fn_aux, ~] = plx_ad_v([pl2path filenameP '.pl2'], ['AI01'] );
 if n<2; error('error reading laminar probe'); end
 %%

@@ -22,7 +22,7 @@ pl2path = '/home/bizon/Data/'; %'/mnt/bc9/Data/'; % you can load the plexon file
 cd(dirpath)
 
 % this is the name of the experiment you want to run
-filenameP = '241106_154950_Jacomo';
+filenameP = '241108_173946_Jacomo';
 monkey_name = 'Jacamo';
 
 outputdir = [dirpath filenameP '/Analysis/'];
@@ -40,8 +40,15 @@ opts.monkey_name = monkey_name;
 [datPath, droptestcheck] = Step0_KilosortLaminar(dirpath,filenameP,pl2path,opts); %this will take some time to run!
 % 
 disp(['Plexon-Kofiko offset in seconds: ' num2str(droptestcheck)]) % this will tell us if the plexon time alignment issue is present
-if abs(droptestcheck)>0.1; warning("Danger - Plexon might have dropped frames! Check pl2 file."); else; disp('Experiment kilosorted and ready for curation!'); end
+if abs(droptestcheck)>0.1; warning("Danger - Plexon might have dropped frames! Check pl2 file."); else; disp('Experiment kilosorted go curate in phy!'); end
 disp('Kilosorting complete')
+
+disp('In terminal type:')
+disp('conda activate phy2')
+disp('In terminal type:')
+disp(['cd ' dirpath filenameP '/kilosorting_laminar'])
+disp('In terminal type:')
+disp('phy template-gui params.py')
 
 %% Once this prints "DONE", go curate the file in Phy!
 
@@ -60,18 +67,18 @@ disp('Kilosorting complete')
     % opts.curchannels = [65:96]; outputFolder = [dirpath filenameP '/kilosorting_UT1_65to96/'];
     % [datPaths.UT1c, ~] = Step0_KilosortArray(dirpath,filenameP,pl2path,outputFolder,opts);
     %% Utah 2 - Serial 0072
-    opts.ArrayLabel = 'UT2'; %load channel map
-    opts.chInfo = load('/home/conwaylab/Git/ConwayExptProcessing/Dependencies/Kilotools_FB_2023/Kilosort_config/Vinny/V_UT2_chanMap_nogroup.mat');
-    opts.ChnOffset=160;
-
-    opts.curchannels = [1:32]; outputFolder = [dirpath filenameP '/kilosorting_UT2_1to32/'];
-    [datPaths.UT2a, ~] = Step0_KilosortArray(dirpath,filenameP,pl2path,outputFolder,opts);
-
-    opts.curchannels = [33:64]; outputFolder = [dirpath filenameP '/kilosorting_UT2_33to64/'];
-    [datPaths.UT2b, ~] = Step0_KilosortArray(dirpath,filenameP,pl2path,outputFolder,opts);
-
-    opts.curchannels = [65:96]; outputFolder = [dirpath filenameP '/kilosorting_UT2_65to96/'];
-    [datPaths.UT2c, ~] = Step0_KilosortArray(dirpath,filenameP,pl2path,outputFolder,opts);
+    % opts.ArrayLabel = 'UT2'; %load channel map
+    % opts.chInfo = load('/home/conwaylab/Git/ConwayExptProcessing/Dependencies/Kilotools_FB_2023/Kilosort_config/Vinny/V_UT2_chanMap_nogroup.mat');
+    % opts.ChnOffset=160;
+    % 
+    % opts.curchannels = [1:32]; outputFolder = [dirpath filenameP '/kilosorting_UT2_1to32/'];
+    % [datPaths.UT2a, ~] = Step0_KilosortArray(dirpath,filenameP,pl2path,outputFolder,opts);
+    % 
+    % opts.curchannels = [33:64]; outputFolder = [dirpath filenameP '/kilosorting_UT2_33to64/'];
+    % [datPaths.UT2b, ~] = Step0_KilosortArray(dirpath,filenameP,pl2path,outputFolder,opts);
+    % 
+    % opts.curchannels = [65:96]; outputFolder = [dirpath filenameP '/kilosorting_UT2_65to96/'];
+    % [datPaths.UT2c, ~] = Step0_KilosortArray(dirpath,filenameP,pl2path,outputFolder,opts);
 
      %% NForm array
 %     opts.ArrayLabel = 'NF'; %load channel map
@@ -127,22 +134,22 @@ disp('Drop test check complete')
 
 %% now, align kofiko information about stimuli with plexon data about spikes, LFPs, and eye traces
 disp('Kofiko alignment starting')
-which_computer = 2; % (default=2) 2 = LSR, room 2A58
+which_computer = 4; % 4 = Cameron's bizon, other options within ExtractAndAlignData.m
 
 
 ks.use_online = 0; % set to 1 to use on-line sorting, should be 0 if you want to use kilosort
 ks.onlinechans = [1:64]; % which channels of on-line sorted spikes should we go through? 
 
-ks.stitched=1; % if you combined kilosort outputs for multiple arrays
-ks.arraylabel ='Utah';
-%ks.filepath = [dirpath filenameP filesep 'kilosorting_laminar' filesep]; % point this at array folders or the "stiched" folder if you want to sort data from multiple arrays
-ks.filepath = [dirpath filenameP filesep 'kilosorting_stitched' filesep]; % point this at array folders or the "stiched" folder if you want to sort data from multiple arrays
+ks.stitched=0; % if you combined kilosort outputs for multiple arrays 0=one array/probe 1=more than one array/probe
+ks.arraylabel ='laminar'; % ='laminar or ='Utah'; goes into metadata
+ks.filepath = [dirpath filenameP filesep 'kilosorting_laminar' filesep]; % point this at array folders or the "stiched" folder if you want to sort data from multiple arrays
+% ks.filepath = [dirpath filenameP filesep 'kilosorting_stitched' filesep]; % point this at array folders or the "stiched" folder if you want to sort data from multiple arrays
 ks.pl2path = pl2path;
 
 opts.eye_tracker = 3; % (default=3) 0=eyescan, 1=monoc eyelink, 2=binoc eyelink, 3=monocular dDPI 
 opts.is_cloud = 1; % (default=1) indicates processing for cloud data. set to 0 to skip cloud-specific variables and align task data or other paradigms 
-opts.trialwindow = [0 4]; % 4 second trials
-opts.trl_fix_thresh = 0.5; % include trials with at least 3 seconds of fixation
+opts.trialwindow = [0 4]; % change trial window for both clouds and mturk
+opts.trl_fix_thresh = 0.8; % include trials with at least 3 seconds of fixation - flag is used in package data step
 opts.monkey_name = monkey_name;
 
 if abs(droptestcheck)>0.1;
