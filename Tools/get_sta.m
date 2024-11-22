@@ -63,6 +63,7 @@ for cc=targets
     total_spikes = sum(indexed_spikes == 1);
 
 	STA = figure;
+    set(STA, 'Position', [100, 100, 800, 600]); % set the width amd height of STA
 	for curlag=1:num_lags
 		cur_STA1(curlag,:) = binned_SU(use_inds+curlag,cc)' * stim2(use_inds,:);
 	end

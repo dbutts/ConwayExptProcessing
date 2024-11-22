@@ -22,7 +22,7 @@ pl2path = '/home/bizon/Data/'; %'/mnt/bc9/Data/'; % you can load the plexon file
 cd(dirpath)
 
 % this is the name of the experiment you want to run
-filenameP = '241108_173946_Jacomo';
+filenameP = '241121_130513_Jacomo';
 monkey_name = 'Jacamo';
 
 outputdir = [dirpath filenameP '/Analysis/'];
@@ -37,7 +37,7 @@ opts.batch_size = 5e9; % batch size prevents memory overflow errors. default = 3
 opts.monkey_name = monkey_name;
 
 %
-[datPath, droptestcheck] = Step0_KilosortLaminar(dirpath,filenameP,pl2path,opts); %this will take some time to run!
+[datPath, droptestcheck] = Step0_KilosortLaminar(dirpath,filenameP,pl2path,opts); %this will take some time to run! Packages and then kilosorts laminar probe data
 % 
 disp(['Plexon-Kofiko offset in seconds: ' num2str(droptestcheck)]) % this will tell us if the plexon time alignment issue is present
 if abs(droptestcheck)>0.1; warning("Danger - Plexon might have dropped frames! Check pl2 file."); else; disp('Experiment kilosorted go curate in phy!'); end
@@ -46,13 +46,13 @@ disp('Kilosorting complete')
 disp('In terminal type:')
 disp('conda activate phy2')
 disp('In terminal type:')
-disp(['cd ' dirpath filenameP '/kilosorting_laminar'])
+disp(['cd ' dirpath filenameP filesep 'kilosorting_laminar' filesep])
 disp('In terminal type:')
 disp('phy template-gui params.py')
 
 %% Once this prints "DONE", go curate the file in Phy!
 
-%% now kilosort the data for the other arrays
+%% If you have multiple arrays, now kilosort the data for the other arrays
     % %% Utah 1 - Serial 0071
     % opts.ArrayLabel = 'UT1'; %load channel map
     % opts.chInfo = load('/home/conwaylab/Git/ConwayExptProcessing/Dependencies/Kilotools_FB_2023/Kilosort_config/Vinny/V_UT1_chanMap_nogroup.mat');
@@ -99,7 +99,7 @@ disp('phy template-gui params.py')
     %%
     disp('Done with arrays!! Now ready to combine kilosorting files.')
 
-    %% to combine kilosort outputs for multiple arrays
+    %% If you have multiple arrays, combine kilosort outputs for multiple arrays
 
     strStitchPath = [dirpath filenameP '/kilosorting_stitched/'];
     [spk_info, spk_times, spk_clusters] = fn_kiloappend([dirpath filenameP '/kilosorting_laminar/'],0);
@@ -147,9 +147,9 @@ ks.filepath = [dirpath filenameP filesep 'kilosorting_laminar' filesep]; % point
 ks.pl2path = pl2path;
 
 opts.eye_tracker = 3; % (default=3) 0=eyescan, 1=monoc eyelink, 2=binoc eyelink, 3=monocular dDPI 
-opts.is_cloud = 1; % (default=1) indicates processing for cloud data. set to 0 to skip cloud-specific variables and align task data or other paradigms 
-opts.trialwindow = [0 4]; % change trial window for both clouds and mturk
-opts.trl_fix_thresh = 0.8; % include trials with at least 3 seconds of fixation - flag is used in package data step
+opts.is_cloud = 0; % (default=1) indicates processing for cloud data. set to 0 to skip cloud-specific variables and align task data or other paradigms. cloud data processing generates iCSDs and LFPs
+opts.trialwindow = [-0.5 6]; % change trial window for both clouds and mturk - cloud trial window [0 4] - mturk1 trial window [-0.5 6]
+opts.trl_fix_thresh = 3/(opts.trialwindow(2)-opts.trialwindow(1)); % include trials with at least 3 seconds of fixation - flag is used in package data step
 opts.monkey_name = monkey_name;
 
 if abs(droptestcheck)>0.1;
@@ -167,28 +167,28 @@ end
 % can be loaded or its outputs (in memory can be used directly
 disp('Kofiko alignment complete')
 %% next, package the data
-disp('Data packaging starting')
-%load([outputdir filenameP '_FullExpt_ks1_lam_v09.mat'])
-
-% first package the hartley stimuli
-data_hartleys = PackageCloudData_v9( ExptTrials, ExptInfo, 6, [], stimpath, outputdir );
-disp('Data packaging complete')
+% disp('Data packaging starting')
+% %load([outputdir filenameP '_FullExpt_ks1_lam_v09.mat'])
+% 
+% % first package the hartley stimuli
+% data_hartleys = PackageCloudData_v9( ExptTrials, ExptInfo, 6, [], stimpath, outputdir );
+% disp('Data packaging complete')
 
 %% Generate hartleys 
-disp('Hartley generation starting')
-% get_hartleys(input data, SUs we want to plot, lag at which we want to
-% plot)
-% to plot all SUs target_SUs = size(data_hartleys.Robs, 1)
-% to plot specific SUs target_SUs = [ 1 33 45 ]
-target_SUs = [1:5];
-lag = 4;
-save_vars.to_save = 1; % saves the STAs as pdf when set to 1
-save_vars.outputdir = outputdir;
-save_vars.titlestr = filenameP; 
-
-get_hartleys(data_hartleys, target_SUs, lag, save_vars, data);
-
-disp('Hartley generation complete')
+% disp('Hartley generation starting')
+% % get_hartleys(input data, SUs we want to plot, lag at which we want to
+% % plot)
+% % to plot all SUs target_SUs = size(data_hartleys.Robs, 1)
+% % to plot specific SUs target_SUs = [ 1 33 45 ]
+% target_SUs = [1:5];
+% lag = 4;
+% save_vars.to_save = 1; % saves the STAs as pdf when set to 1
+% save_vars.outputdir = outputdir;
+% save_vars.titlestr = filenameP; 
+% 
+% get_hartleys(data_hartleys, target_SUs, lag, save_vars, data);
+% 
+% disp('Hartley generation complete')
 %% Package cloud data
 disp('Cloud packaging starting')
 % now package cloud data
@@ -204,16 +204,15 @@ disp('STA generation starting')
 stas = get_sta(data);
 disp('STA generation complete')
 
-brake
 %% if you want to generate STAs for only a subset of the data, use this code instead:
 disp('STA subset generation starting')
-target_SUs = [9]; % Change selection to a specific number of SUs Total number of SUs = size(data.Robs, 1)
-apply_ETshifts = 0;
+target_SUs = [3 5 8 10 13 17 18 size(data.Robs, 1)+4 ]; % Change selection to a specific number of SUs Total number of SUs = 1:(size(data.Robs, 1)+size(data.RobsMU, 1)); To show MUs need to do (size(data.Robs, 1) + MU_number
+apply_ETshifts = 1; % 1= account for eye position 0 = don't account for eye position
 stim_deltas = 0; 
 num_lags = 6;
 %stim_deltas = data.stim_location_deltas;
 use_inds = intersect(find(data.cloud_area==60), data.valid_data);
-%use_inds = intersect(1:48000, data.valid_data);
+%use_inds = intersect(1:48000, data.valid_data); % cut off part of the experiment for sta generation
     use_inds(end-num_lags:end) = []; %cut last few indices to avoid artifacts
 
 save_vars.to_save = 1; % saves the STAs as pdf when set to 1

@@ -304,7 +304,7 @@ clear g_strctStatistics.ExptTrials;
 
 %%
 try
-	[events.count, events.timeStamps, events.strobeNumber] = plx_event_ts(plxFilePath, eventChannelNumber);
+	[events.count, events.timeStamps, events.strobeNumber] = plx_event_ts(plxFilePath, eventChannelNumber); % extracts sync strobes
 	% [events] = PL2EventTs(plxFilePath, eventChannelNumber);
 catch
 	[~,sessionName] = fileparts(plxFilePath);
@@ -325,12 +325,12 @@ catch
 end
 
 firstStrobePlexonTS = events.timeStamps(find(events.strobeNumber(events.strobeNumber == syncStrobeID),1));
-plexonStrobeIDX = find(events.strobeNumber == syncStrobeID);
+plexonStrobeIDX = find(events.strobeNumber == syncStrobeID); % contains the strobes that plexon recieved from control computer
 lastStrobePlexonTS = events.timeStamps(find(events.strobeNumber(events.strobeNumber == syncStrobeID),1,'last'));
 plexonStrobeAllTS = events.timeStamps(plexonStrobeIDX);
 firstStrobeKofikoTS = g_strctDAQParams.LastStrobe.TimeStamp(find(g_strctDAQParams.LastStrobe.Buffer == syncStrobeID, 1,'first'));
 lastStrobeKofikoTS = g_strctDAQParams.LastStrobe.TimeStamp(find(g_strctDAQParams.LastStrobe.Buffer == syncStrobeID, 1,'last'));
-kofikoStrobeIDX = find(g_strctDAQParams.LastStrobe.Buffer == syncStrobeID);
+kofikoStrobeIDX = find(g_strctDAQParams.LastStrobe.Buffer == syncStrobeID); % contains strobes that kofiko (control computer) sent
 
 kofikoStrobeAllTS = g_strctDAQParams.LastStrobe.TimeStamp(kofikoStrobeIDX);
 
