@@ -128,7 +128,7 @@ if save_images
 	saveas(CSDfig2,[savedir exptname '_iCSD_zoom.png'])
 end
 
-%%
+%% Plot the LFP 
 lfps2=squeeze(nanmean(all_lfps(:,:,cur_lfp_inds), 3));
 LFPfig=figure;
 imagesc(lfps2)
