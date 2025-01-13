@@ -66,8 +66,7 @@ if nargin < 2
 		case 0, dirpath = '/Users/dbutts/Data/Conway/';
 		case 1, dirpath = 'C:\SpkSort2023\AAActiveData\';
         case 2, dirpath = '/home/conwaylab/Data/';
-        case 3, dirpath = 'D:\PlexonData\';
-        case 4,  dirpath = 'home/bixon/Data/';
+        case 3, dispath = 'D:\PlexonData\'
 		otherwise
 			disp('which_computer is not specified')
 	end
@@ -123,18 +122,17 @@ load(configFilePath)
 
 %% test for misalignment
 %/{
-[SPKC_adfreq, SPKC_n, SPKC_ts, SPKC_fn, SPKC_ad_test] = plx_ad_v(plxFilePath, 'SPKC001');
 try
     [SPKC_adfreq, SPKC_n, SPKC_ts, SPKC_fn, SPKC_ad_test] = plx_ad_v(plxFilePath, 'SPKC001');
+    [LFP_adfreq, LFP_n_test, LFP_ts, LFP_fn, LFP_ad_test] = plx_ad_v(plxFilePath, ['FP' num2str(1,'%03.f')]);
 end
 if SPKC_n<2
     try
-        [SPKC_adfreq, SPKC_n, SPKC_ts, SPKC_fn, SPKC_ad_test] = plx_ad_v(plxFilePath, 'SPKC001');
+        [SPKC_adfreq, SPKC_n, SPKC_ts, SPKC_fn, SPKC_ad_test] = plx_ad_v(plxFilePath, 'SPKC01');
+        [LFP_adfreq, LFP_n, LFP_ts, LFP_fn, LFP_ad_test] = plx_ad_v(plxFilePath, ['FP' num2str(1,'%02.f')]);
     end
 end
-
 [ET_adfreq, ET_n, ET_ts, ET_fn, PlexET_ad_test] = plx_ad_v(plxFilePath, 'AI07');
-[LFP_adfreq, LFP_n, LFP_ts, LFP_fn, LFP_ad_test] = plx_ad_v(plxFilePath, ['FP' num2str(1,'%03.f')]);
 ET_n./LFP_n;
 ET_n-LFP_n;
 if abs(ET_n-LFP_n)>100
@@ -170,7 +168,7 @@ if useofflinesorting==1
 	if ks.stitched==1
 		load([ks.filepath 'KS_stitched.mat'])
 	else
-		spk_times = readNPY([ks.filepath 'spike_times_seconds.npy']) + opts.spk_offset; % reads in times of spikes
+		spk_times = readNPY([ks.filepath 'spike_times_seconds.npy']) + opts.spk_offset;
 		spk_clusters = readNPY([ks.filepath 'spike_clusters.npy']);
 		spk_info = tdfread([ks.filepath 'cluster_info.tsv']);
 	end
@@ -185,16 +183,12 @@ if useofflinesorting==1
 		else
 			spk_labels_MU = [spk_labels_MU,cc];
 		end
-    end
-    % remove SUs and MUs with less than 2000 spikes - this improves model
-    % performance and prevents unecissary use of processing power for bad
-    % units
-	bad_chans_SU = find(spk_info.n_spikes(spk_labels_SU)<2000); spk_labels_SU(bad_chans_SU)=[]; 
+	end
+	bad_chans_SU = find(spk_info.n_spikes(spk_labels_SU)<2000); spk_labels_SU(bad_chans_SU)=[];
 	bad_chans_MU = find(spk_info.n_spikes(spk_labels_MU)<2000); spk_labels_MU(bad_chans_MU)=[];
-
-	spk_ID_SU = (spk_clustIDs(spk_labels_SU)); % IDs of useful SUs
-	spk_channels_SU = spk_info.ch(spk_labels_SU); 
-	spk_ID_MU = (spk_clustIDs(spk_labels_MU)); % IDs of useful MUs
+	spk_ID_SU = (spk_clustIDs(spk_labels_SU));
+	spk_channels_SU = spk_info.ch(spk_labels_SU);
+	spk_ID_MU = (spk_clustIDs(spk_labels_MU));
 	spk_channels_MU = spk_info.ch(spk_labels_MU);
 	nSU=length(spk_ID_SU);
 	nMU=length(spk_ID_MU);
@@ -304,7 +298,7 @@ clear g_strctStatistics.ExptTrials;
 
 %%
 try
-	[events.count, events.timeStamps, events.strobeNumber] = plx_event_ts(plxFilePath, eventChannelNumber); % extracts sync strobes
+	[events.count, events.timeStamps, events.strobeNumber] = plx_event_ts(plxFilePath, eventChannelNumber);
 	% [events] = PL2EventTs(plxFilePath, eventChannelNumber);
 catch
 	[~,sessionName] = fileparts(plxFilePath);
@@ -325,12 +319,12 @@ catch
 end
 
 firstStrobePlexonTS = events.timeStamps(find(events.strobeNumber(events.strobeNumber == syncStrobeID),1));
-plexonStrobeIDX = find(events.strobeNumber == syncStrobeID); % contains the strobes that plexon recieved from control computer
+plexonStrobeIDX = find(events.strobeNumber == syncStrobeID);
 lastStrobePlexonTS = events.timeStamps(find(events.strobeNumber(events.strobeNumber == syncStrobeID),1,'last'));
 plexonStrobeAllTS = events.timeStamps(plexonStrobeIDX);
 firstStrobeKofikoTS = g_strctDAQParams.LastStrobe.TimeStamp(find(g_strctDAQParams.LastStrobe.Buffer == syncStrobeID, 1,'first'));
 lastStrobeKofikoTS = g_strctDAQParams.LastStrobe.TimeStamp(find(g_strctDAQParams.LastStrobe.Buffer == syncStrobeID, 1,'last'));
-kofikoStrobeIDX = find(g_strctDAQParams.LastStrobe.Buffer == syncStrobeID); % contains strobes that kofiko (control computer) sent
+kofikoStrobeIDX = find(g_strctDAQParams.LastStrobe.Buffer == syncStrobeID);
 
 kofikoStrobeAllTS = g_strctDAQParams.LastStrobe.TimeStamp(kofikoStrobeIDX);
 
@@ -454,6 +448,21 @@ elseif ET_Eyelink == 3  % monocular dDPI
 	PlexET_ad_calib=PlexET_ad;
 	PlexET_ad_calib(3,:) = PlexET_ad_calib(3,:)*(g_strctEyeCalib.GainX.Buffer(end)./opts.plx_analogscale); % assumes a standard dDPI gain of 250, which works out to a ~5-fold gain on the analog signal - at least as far as i can tell. -FB 
 	PlexET_ad_calib(4,:) = PlexET_ad_calib(4,:)*(g_strctEyeCalib.GainY.Buffer(end)./opts.plx_analogscale);
+
+elseif ET_Eyelink == 4  % binocular dDPI 
+	[~, ~, ~, ~, PlexET_ad(1,:)] = plx_ad_v(thisSessionFile, 'AI01'); % Synchronization signal
+	[~, ~, ~, ~, PlexET_ad(2,:)] = plx_ad_v(thisSessionFile, 'AI02');
+	[~, ~, ~, ~, PlexET_ad(3,:)] = plx_ad_v(thisSessionFile, 'AI03'); % L pupil
+	[~, ~, ~, ~, PlexET_ad(4,:)] = plx_ad_v(thisSessionFile, 'AI04'); % R pupil
+	[~, ~, ~, ~, PlexET_ad(5,:)] = plx_ad_v(thisSessionFile, 'AI05'); % R X
+	[~, ~, ~, ~, PlexET_ad(6,:)] = plx_ad_v(thisSessionFile, 'AI06'); % R Y
+	[~, ~, ~, ~, PlexET_ad(7,:)] = plx_ad_v(thisSessionFile, 'AI07'); % L X
+	[ET_adfreq, ET_n, ET_ts, ET_fn, PlexET_ad(8,:)] = plx_ad_v(thisSessionFile, 'AI08'); % L Y
+	PlexET_ad_calib=PlexET_ad;
+	PlexET_ad_calib(5,:) = PlexET_ad_calib(5,:)*(g_strctEyeCalib.GainX.Buffer(end)./opts.plx_analogscale); % assumes a standard dDPI gain of 250, which works out to a ~5-fold gain on the analog signal - at least as far as i can tell. -FB 
+	PlexET_ad_calib(6,:) = PlexET_ad_calib(6,:)*(g_strctEyeCalib.GainY.Buffer(end)./opts.plx_analogscale);
+	PlexET_ad_calib(7,:) = PlexET_ad_calib(7,:)*(g_strctEyeCalib.GainX.Buffer(end)./opts.plx_analogscale);
+	PlexET_ad_calib(8,:) = PlexET_ad_calib(8,:)*(g_strctEyeCalib.GainY.Buffer(end)./opts.plx_analogscale);
 
 elseif ET_Eyelink == 0 % eyescan
 	[~, ~, ~, ~, PlexET_ad(1,:)] = plx_ad_v(thisSessionFile, 'AI07');
@@ -645,15 +654,15 @@ end
 fprintf('Done with rudimentary microsaccade detect\n\n')
 
 %% PROCESS LFPs
-LFPcc=1; chan=1;
-[LFP_adfreq_test, LFP_n_test, LFP_ts_test, LFP_fn_test, ~] = plx_ad_v(thisSessionFile, ['FP' num2str(chan,'%03.f')]); % try to read first LFP with 3 significant digits. If it works, LFP_n_test will be > 2 
 
+LFPcc=1;
 if ~skipLFP
 	for chan=LFPchans
-        if LFP_n_test >2
-		    [LFP_adfreq, LFP_n, LFP_ts, LFP_fn, LFP_ad(:,LFPcc)] = plx_ad_v(thisSessionFile, ['FP' num2str(chan,'%03.f')]); % read in LFP traces from pl2 file
+        if LFP_n_test<2
+		        [LFP_adfreq, LFP_n, LFP_ts, LFP_fn, LFP_ad(:,LFPcc)] = plx_ad_v(thisSessionFile, ['FP' num2str(chan,'%02.f')]);  
         else
-		    [LFP_adfreq, LFP_n, LFP_ts, LFP_fn, LFP_ad(:,LFPcc)] = plx_ad_v(thisSessionFile, ['FP' num2str(chan,'%02.f')]); % read in LFP traces from pl2 file
+		    [LFP_adfreq, LFP_n, LFP_ts, LFP_fn, LFP_ad(:,LFPcc)] = plx_ad_v(thisSessionFile, ['FP' num2str(chan,'%03.f')]);        
+
         end
 		LFPcc=LFPcc+1;
 	end
