@@ -15,11 +15,11 @@ stimpath = '/home/conwaylab/Processing/Cloudstims_calib_04_2024/';
 
 % Switch into data directory
 dirpath = '/home/conwaylab/Data/';
-pl2path = '/mnt/bc9/Data/'; % you can load the plexon file directly from the server, which may make loading data slower but save you data transfer complications
+pl2path = '/mnt/isilon/DATA/monkey_ephys/Jocamo/2024_Singleprobe/'; % you can load the plexon file directly from the server, which may make loading data slower but save you data transfer complications
 cd(dirpath)
 
 % this is the name of the experiment you want to run
-filenameP = '240715_152545_Jacomo';
+filenameP = '241126_123958_Jacomo';
 monkey_name = 'Jocamo';
 
 outputdir = [dirpath filenameP '/Analysis/'];
@@ -134,10 +134,10 @@ ks.filepath = [dirpath filenameP filesep 'kilosorting_laminar' filesep]; % point
 %ks.filepath = [dirpath filenameP filesep 'kilosorting_stitched' filesep]; % point this at array folders or the "stiched" folder if you want to sort data from multiple arrays
 ks.pl2path = pl2path;
 
-opts.eye_tracker = 3;   % (default=3) 0=eyescan, 1=monoc eyelink, 2=binoc eyelink, 3=monocular dDPI 
+opts.eye_tracker = 4;   % (default=3) 0=eyescan, 1=monoc eyelink, 2=binoc eyelink, 3=monocular dDPI, 4=binocular dDPI
 opts.is_cloud = 1;      % (default=1) indicates processing for cloud data. set to 0 to skip cloud-specific variables and align task data or other paradigms 
 opts.trialwindow = [0 4]; % 4 second trials
-opts.trl_fix_thresh = 0.5; % include trials with at least 3 seconds of fixation
+opts.trl_fix_thresh = 0.6; % include trials with at least 3 seconds of fixation
 opts.monkey_name = monkey_name;
 
 if abs(droptestcheck)>0.1;
