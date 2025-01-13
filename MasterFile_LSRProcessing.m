@@ -182,7 +182,7 @@ stim_deltas = ones(size(data.ETtrace))';
 num_lags = 6;
 %stim_deltas = data.stim_location_deltas;
 %use_inds = data.valid_data;
-use_inds = intersect(find(data.cloud_binary<2), data.valid_data);
+use_inds = intersect(find(data.cloud_binary<2), data.valid_data); % 0 = full 1 = matched 2 = hybrid
     use_inds(end-num_lags:end) = []; %cut last few indices to avoid artifacts
 
 save_vars.to_save = 1; % saves the STAs as pdf when set to 1

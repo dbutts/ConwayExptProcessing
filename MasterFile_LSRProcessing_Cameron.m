@@ -22,7 +22,7 @@ pl2path = '/home/bizon/Data/'; %'/mnt/bc9/Data/'; % you can load the plexon file
 cd(dirpath)
 
 % this is the name of the experiment you want to run
-filenameP = '241121_130513_Jacomo';
+filenameP = '241217_124159_Jacomo';
 monkey_name = 'Jacamo';
 
 outputdir = [dirpath filenameP '/Analysis/'];
@@ -45,9 +45,7 @@ disp('Kilosorting complete')
 
 disp('In terminal type:')
 disp('conda activate phy2')
-disp('In terminal type:')
 disp(['cd ' dirpath filenameP filesep 'kilosorting_laminar' filesep])
-disp('In terminal type:')
 disp('phy template-gui params.py')
 
 %% Once this prints "DONE", go curate the file in Phy!
@@ -97,36 +95,36 @@ disp('phy template-gui params.py')
 %     opts.curchannels = [97:128]; outputFolder = [dirpath filenameP '/kilosorting_NF_97to128/'];
 %     [datPaths.UT1, ~] = Step0_KilosortArray(dirpath,filenameP,pl2path,outputFolder,opts);   
     %%
-    disp('Done with arrays!! Now ready to combine kilosorting files.')
+    % disp('Done with arrays!! Now ready to combine kilosorting files.')
 
     %% If you have multiple arrays, combine kilosort outputs for multiple arrays
 
-    strStitchPath = [dirpath filenameP '/kilosorting_stitched/'];
-    [spk_info, spk_times, spk_clusters] = fn_kiloappend([dirpath filenameP '/kilosorting_laminar/'],0);
-
-%    [spk_info, spk_times, spk_clusters] = fn_kiloappend([dirpath filenameP '/kilosorting_UT2_1to32/'],160);
-    [spk_info, spk_times, spk_clusters] = fn_kiloappend([dirpath filenameP '/kilosorting_UT2_1to32/'],160, spk_info, spk_times, spk_clusters);
-    [spk_info, spk_times, spk_clusters] = fn_kiloappend([dirpath filenameP '/kilosorting_UT2_33to64/'],192, spk_info, spk_times, spk_clusters);
-    [spk_info, spk_times, spk_clusters] = fn_kiloappend([dirpath filenameP '/kilosorting_UT2_65to96/'],224, spk_info, spk_times, spk_clusters);
-
-    if ~exist(strStitchPath,'dir');
-        mkdir(strStitchPath);
-    end
-    save([strStitchPath 'KS_stitched.mat'], "spk_clusters", "spk_times", "spk_info")
-
-    disp('saving ks_stich - done')
+%     strStitchPath = [dirpath filenameP '/kilosorting_stitched/'];
+%     [spk_info, spk_times, spk_clusters] = fn_kiloappend([dirpath filenameP '/kilosorting_laminar/'],0);
+% 
+% %    [spk_info, spk_times, spk_clusters] = fn_kiloappend([dirpath filenameP '/kilosorting_UT2_1to32/'],160);
+%     [spk_info, spk_times, spk_clusters] = fn_kiloappend([dirpath filenameP '/kilosorting_UT2_1to32/'],160, spk_info, spk_times, spk_clusters);
+%     [spk_info, spk_times, spk_clusters] = fn_kiloappend([dirpath filenameP '/kilosorting_UT2_33to64/'],192, spk_info, spk_times, spk_clusters);
+%     [spk_info, spk_times, spk_clusters] = fn_kiloappend([dirpath filenameP '/kilosorting_UT2_65to96/'],224, spk_info, spk_times, spk_clusters);
+% 
+%     if ~exist(strStitchPath,'dir');
+%         mkdir(strStitchPath);
+%     end
+%     save([strStitchPath 'KS_stitched.mat'], "spk_clusters", "spk_times", "spk_info")
+% 
+%     disp('saving ks_stich - done')
 %% if you are rerunning the stuff below, uncomment this cell to quickly rerun the drop test check and see if plexon dropped any measurements
 disp('Drop test check starting')
 try
-    [fs, n, ts, fn, ~] = plx_ad_v([pl2path filenameP '.pl2'], ['SPKC001'] );
+    [fs, n, ts, fn, ~] = plx_ad_v([pl2path filenameP '.pl2'], ['SPKC001'] ); % raw voltages probes with >100 channels 
 end
 if n<2
     try
-        [fs, n, ts, fn, ~] = plx_ad_v([pl2path filenameP '.pl2'], ['SPKC01'] );
+        [fs, n, ts, fn, ~] = plx_ad_v([pl2path filenameP '.pl2'], ['SPKC01'] ); % raw voltages probes with <100 channels
     end
 end
 
-[~, n_aux, ts_aux, fn_aux, ~] = plx_ad_v([pl2path filenameP '.pl2'], ['AI01'] );
+[~, n_aux, ts_aux, fn_aux, ~] = plx_ad_v([pl2path filenameP '.pl2'], ['AI01'] ); % AIO1 is analog input for strobes / LFPs
 droptestcheck = [n/40000- n_aux/1000];
 disp(['Plexon-Kofiko offset in seconds: ' num2str(droptestcheck)]) % this will tell us if the plexon time alignment issue is present
 if abs(droptestcheck)>0.1; warning("Danger - Plexon might have dropped frames! Check pl2 file."); else; disp('Experiment kilosorted and ready for curation!'); end
@@ -140,15 +138,15 @@ which_computer = 4; % 4 = Cameron's bizon, other options within ExtractAndAlignD
 ks.use_online = 0; % set to 1 to use on-line sorting, should be 0 if you want to use kilosort
 ks.onlinechans = [1:64]; % which channels of on-line sorted spikes should we go through? 
 
-ks.stitched=0; % if you combined kilosort outputs for multiple arrays 0=one array/probe 1=more than one array/probe
+ks.stitched = 0; % if you combined kilosort outputs for multiple arrays 0=one array/probe 1=more than one array/probe
 ks.arraylabel ='laminar'; % ='laminar or ='Utah'; goes into metadata
 ks.filepath = [dirpath filenameP filesep 'kilosorting_laminar' filesep]; % point this at array folders or the "stiched" folder if you want to sort data from multiple arrays
 % ks.filepath = [dirpath filenameP filesep 'kilosorting_stitched' filesep]; % point this at array folders or the "stiched" folder if you want to sort data from multiple arrays
 ks.pl2path = pl2path;
 
 opts.eye_tracker = 3; % (default=3) 0=eyescan, 1=monoc eyelink, 2=binoc eyelink, 3=monocular dDPI 
-opts.is_cloud = 0; % (default=1) indicates processing for cloud data. set to 0 to skip cloud-specific variables and align task data or other paradigms. cloud data processing generates iCSDs and LFPs
-opts.trialwindow = [-0.5 6]; % change trial window for both clouds and mturk - cloud trial window [0 4] - mturk1 trial window [-0.5 6]
+opts.is_cloud = 1; % (default=1) indicates processing for cloud data. set to 0 to skip cloud-specific variables and align task data or other paradigms. cloud data processing generates iCSDs and LFPs
+opts.trialwindow = [0 4]; % change trial window for both clouds and mturk - cloud trial window [0 4] - mturk1 trial window [-0.5 6]
 opts.trl_fix_thresh = 3/(opts.trialwindow(2)-opts.trialwindow(1)); % include trials with at least 3 seconds of fixation - flag is used in package data step
 opts.monkey_name = monkey_name;
 
@@ -212,7 +210,9 @@ stim_deltas = 0;
 num_lags = 6;
 %stim_deltas = data.stim_location_deltas;
 use_inds = intersect(find(data.cloud_area==60), data.valid_data);
-%use_inds = intersect(1:48000, data.valid_data); % cut off part of the experiment for sta generation
+% %use_inds = intersect(1:48000, data.valid_data); % cut off part of the experiment for sta generation
+%     use_inds(end-num_lags:end) = []; %cut last few indices to avoid artifacts
+use_inds = intersect(find(data.cloud_binary<2), data.valid_data); % 0 = full 1 = matched 2 = hybrid
     use_inds(end-num_lags:end) = []; %cut last few indices to avoid artifacts
 
 save_vars.to_save = 1; % saves the STAs as pdf when set to 1
