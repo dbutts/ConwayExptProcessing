@@ -1,4 +1,4 @@
-function [ stim ] = mk_spatialcloudRGB_copy( stimw, stimh, num_frames, spatial_scale, seedn )
+function [ stim ] = mk_spatialcloudRGB_wrapping( stimw, stimh, num_frames, spatial_scale, seedn )
 %mk_spatialcloudRGB creates spatial cloud stimulus with three color
 %channels
 if nargin==5; rng(seedn); end
