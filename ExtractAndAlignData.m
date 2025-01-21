@@ -449,9 +449,9 @@ elseif ET_Eyelink == 3  % monocular dDPI
 	PlexET_ad_calib(3,:) = PlexET_ad_calib(3,:)*(g_strctEyeCalib.GainX.Buffer(end)./opts.plx_analogscale); % assumes a standard dDPI gain of 250, which works out to a ~5-fold gain on the analog signal - at least as far as i can tell. -FB 
 	PlexET_ad_calib(4,:) = PlexET_ad_calib(4,:)*(g_strctEyeCalib.GainY.Buffer(end)./opts.plx_analogscale);
 
-elseif ET_Eyelink == 4  % binocular dDPI 
+elseif ET_Eyelink == 4  % binocular dDPI - rigC inputs verified 1/13/25
 	[~, ~, ~, ~, PlexET_ad(1,:)] = plx_ad_v(thisSessionFile, 'AI01'); % Synchronization signal
-	[~, ~, ~, ~, PlexET_ad(2,:)] = plx_ad_v(thisSessionFile, 'AI02');
+	[~, ~, ~, ~, PlexET_ad(2,:)] = plx_ad_v(thisSessionFile, 'AI02'); % Nothing - only arcing from sync signal
 	[~, ~, ~, ~, PlexET_ad(3,:)] = plx_ad_v(thisSessionFile, 'AI03'); % L pupil
 	[~, ~, ~, ~, PlexET_ad(4,:)] = plx_ad_v(thisSessionFile, 'AI04'); % R pupil
 	[~, ~, ~, ~, PlexET_ad(5,:)] = plx_ad_v(thisSessionFile, 'AI05'); % R X

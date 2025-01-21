@@ -22,7 +22,7 @@ pl2path = '/home/bizon/Data/'; %'/mnt/bc9/Data/'; % you can load the plexon file
 cd(dirpath)
 
 % this is the name of the experiment you want to run
-filenameP = '241217_124159_Jacomo';
+filenameP = '250116_174135_Jacomo';
 monkey_name = 'Jacamo';
 
 outputdir = [dirpath filenameP '/Analysis/'];
@@ -135,7 +135,7 @@ disp('Kofiko alignment starting')
 which_computer = 4; % 4 = Cameron's bizon, other options within ExtractAndAlignData.m
 
 
-ks.use_online = 0; % set to 1 to use on-line sorting, should be 0 if you want to use kilosort
+ks.use_online = 1; % set to 1 to use on-line sorting, should be 0 if you want to use kilosort
 ks.onlinechans = [1:64]; % which channels of on-line sorted spikes should we go through? 
 
 ks.stitched = 0; % if you combined kilosort outputs for multiple arrays 0=one array/probe 1=more than one array/probe
@@ -144,10 +144,10 @@ ks.filepath = [dirpath filenameP filesep 'kilosorting_laminar' filesep]; % point
 % ks.filepath = [dirpath filenameP filesep 'kilosorting_stitched' filesep]; % point this at array folders or the "stiched" folder if you want to sort data from multiple arrays
 ks.pl2path = pl2path;
 
-opts.eye_tracker = 3; % (default=3) 0=eyescan, 1=monoc eyelink, 2=binoc eyelink, 3=monocular dDPI 
-opts.is_cloud = 1; % (default=1) indicates processing for cloud data. set to 0 to skip cloud-specific variables and align task data or other paradigms. cloud data processing generates iCSDs and LFPs
-opts.trialwindow = [0 4]; % change trial window for both clouds and mturk - cloud trial window [0 4] - mturk1 trial window [-0.5 6]
-opts.trl_fix_thresh = 3/(opts.trialwindow(2)-opts.trialwindow(1)); % include trials with at least 3 seconds of fixation - flag is used in package data step
+opts.eye_tracker = 4; % (default=3) 0=eyescan, 1=monoc eyelink, 2=binoc eyelink, 3=monocular dDPI 
+opts.is_cloud = 0; % (default=1) indicates processing for cloud data. set to 0 to skip cloud-specific variables and align task data or other paradigms. cloud data processing generates iCSDs and LFPs
+opts.trialwindow = [0 3]; % change trial window for both clouds and mturk - cloud trial window [0 4] - mturk1 trial window [-0.5 6]
+opts.trl_fix_thresh = 2/(opts.trialwindow(2)-opts.trialwindow(1)); % include trials with at least 2 seconds of fixation - flag is used in package data step
 opts.monkey_name = monkey_name;
 
 if abs(droptestcheck)>0.1;
