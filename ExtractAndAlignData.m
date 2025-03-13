@@ -419,7 +419,7 @@ end
 %% former location of online-sorted spike processing
 
 %% Process Eye-tracking data
-load([dirpath, exptname, '.mat'], 'g_strctEyeCalib');
+load([dirpath, exptname, '.mat'], 'g_strctEyeCalib'); % Used to load the gains later
 load([dirpath, exptname, '.mat'], 'g_strctStimulusServer');
 
 if ET_Eyelink == 1      % monoc eyelink,

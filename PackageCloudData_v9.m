@@ -116,7 +116,7 @@ trialdur = metadata_struct.trialdur;
 for switch_stimtype=0:8
 
 	targ_trials=[];  
-	for tt=1:length(exptdata)
+	for tt=1:length(exptdata) % tt = number of trials
 		%    if strcmp(exptdata{tt, 1}.m_strTrialType, 'Dense Noise');
         if ~isfield(exptdata{tt,1},'m_bMonkeyFixatedOverride'); exptdata{tt, 1}.m_bMonkeyFixatedOverride=0; end
 		if strcmp(exptdata{tt, 1}.m_strTrialType, 'Dual Stim') && ...
@@ -180,21 +180,21 @@ end
 
 %% Random assortment of setup things -- before going into trial-by-trial processing
 %ntrls = min([size(exptdata_mod,1),500]); % only using the first 500
-ntrls = size(exptdata_mod,1);
+ntrls = size(exptdata_mod,1); % find number of trials
 NT=trlbins*ntrls;
 
 if any([strfind(exptname,'220203'), strfind(exptname,'220205'), strfind(exptname,'220207')])
-	trlsecs=2.67;
+	trlsecs=2.67; % number of seconds in each trial
 	edges = linspace(0,trlsecs,trlbins); edges_hist=linspace(0,trlsecs,trlbins+1);
 	cur_trial_ETsamples = [0:.001:2.669];
 else
-	trlsecs = 4;
+	trlsecs = 4; 
 	edges = linspace(0,trlsecs,trlbins); edges_hist=linspace(0,trlsecs,trlbins+1);  
 	cur_trial_ETsamples = [0:.001:3.999];
 end
 
 if metadata_struct.ET_Eyelink == 3
-	numETtraces = 2;
+	numETtraces = 2; % number of eye traces
 	ET_trace_raw_1khz = zeros(ntrls*trlsecs*1000, 3);
 else
 	numETtraces = size(exptdata_mod{end, 7}.ET_trace, 1);
