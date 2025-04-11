@@ -1,8 +1,17 @@
 %% read in plexon filepath
 clear;
-pl2path = '/home/bizon/Data/'; %'plexon .pl2 path
-filenameP = '250110_114356_Jacomo'; % '250218_173539_Jacomo 241210_154655_Jacomo' experiment name
-addpath(genpath('/home/bizon/Git/ConwayExptProcessing')) % add folder to path
+bizon = false;
+filenameP = '250403_193219_Jacomo'; % '250218_173539_Jacomo 241210_154655_Jacomo' experiment name
+
+if bizon % for running on bizon
+    pl2path = '/home/bizon/Data/'; %'plexon .pl2 path
+    addpath(genpath('/home/bizon/Git/ConwayExptProcessing')) % add folder to path
+end
+if ~bizon % for running on Cameron's mac laptop
+    pl2path = '/Users/maycaj/Documents/V1_MonkeyTurk2/Data/';
+    addpath(genpath('/Users/maycaj/Documents/GitHub/ConwayExptProcessing')) % add folder to path
+end
+
 thisSessionFile = [pl2path filenameP '.pl2'];
 %% read from plexon file
 [~, ~, ~, ~, PlexET_ad(1,:)] = plx_ad_v(thisSessionFile, 'AI05'); % XR
@@ -12,7 +21,7 @@ thisSessionFile = [pl2path filenameP '.pl2'];
 
 [~, ~, ~, ~, PlexET_ad(5,:)] = plx_ad_v(thisSessionFile, 'AI01'); % sync strobes
 
-eyetrace = PlexET_ad(1:5,:)*(90/1000); % convert to arcmin *gains/(analog scale)
+eyetrace = PlexET_ad(1:5,:)*(170/1000); % convert to arcmin *gains/(analog scale); Save PlexET_ad for use in plexon-calibration Jupiter notebook
 
 
 %% plot eyetraces only during fixation - Cameron
@@ -153,6 +162,7 @@ for ii = start_window:num_windows % iterate over windows
         xlim([0, max(time2plot)-min(time2plot)])
         ylim(ylimEye); % plot with same limits as original traces
         end
+    disp('Subplot 8')
     subplot(8,1,8) % plot square differences
         diff_cor = L_cor - R_cor;
         if ~quick_plot
