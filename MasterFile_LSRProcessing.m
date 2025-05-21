@@ -40,8 +40,8 @@ disp(['Plexon-Kofiko offset in seconds: ' num2str(droptestcheck)]) % this will t
 if abs(droptestcheck)>0.1; warning("Danger - Plexon might have dropped frames! Check pl2 file."); else; disp('Experiment kilosorted and ready for curation!'); end
 disp('Kilosorting complete')
 
- %% Once this prints "DONE", go curate the file in Phy!
-
+%% Once this prints "DONE", go curate the file in Phy!
+%{
 %% now kilosort the data for the other arrays
     % %% Utah 1 - Serial 0071
     % opts.ArrayLabel = 'UT1'; %load channel map
@@ -105,6 +105,7 @@ disp('Kilosorting complete')
     save([strStitchPath 'KS_stitched.mat'], "spk_clusters", "spk_times", "spk_info")
 
     disp('saving ks_stich - done')
+%}    
 %% if you are rerunning the stuff below, uncomment this cell to quickly rerun the drop test check and see if plexon dropped any measurements
 disp('Drop test check starting')
 try
@@ -154,6 +155,9 @@ end
 % ExtractAndAlign saves FullExpt_ks1_lam_v08.mat in Analysis directory, and
 % can be loaded or its outputs (in memory can be used directly
 disp('Kofiko alignment complete')
+
+%% Extract fixation info for easier alignment between DDPI and Plexon
+ETdata = extract_fixinfo( ExptTrials, ExptInfo, {'Fivedot', 'Dotgrid'}, outputdir);
 
 %% Package cloud data
 disp('Cloud packaging starting')

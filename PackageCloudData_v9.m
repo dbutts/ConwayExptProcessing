@@ -561,121 +561,6 @@ use_inds_artifact(abs(ET_trace(use_inds_artifact,2))>25)=[];
 
 use_inds=setdiff(tvec,unique([bad_inds_fix,bad_inds_sac,bad_inds_artifact]));
 %}
-%%
-
-%% DAB: This stuff below was half-commented out and probably useless (%%%%)
-%figure;
-%subplot(3,1,1); imagesc(binned_SU1)
-%subplot(3,1,2); imagesc(binned_SU2)
-%subplot(3,1,3); imagesc(binned_SU3)
-%figure; 
-%imagesc(binned_SUSort)
-%%
-%%%% spksums=sum(binned_SU1);
-%figure; histogram(spksums)
-%%%% goodspkinds=find(spksums>3000);
-%%
-%%%% binned_SU=double(binned_SU1);
-
-%{
-%% quick STA test
-cur_use_inds=find(stimtype>=2);
-cur_use_inds(end-10:end)=[];
-curlag=3;
-
-figure;
-stim2=reshape(stimulus,length(stimulus),3*25*25);
-for cc=1:25;%[1 2 3 4 5 10 11 13 16:18 20 24];%
-    cur_STA=binned_SU(cur_use_inds+curlag,cc)'*stim2(cur_use_inds,:);
-    cur_StA2=reshape(cur_STA,3,25,25);
-    curlim=max(abs(cur_StA2(:)));
-    subplot(3,1,1)
-    imagesc(squeeze(cur_StA2(1,:,:))); caxis([-curlim curlim]); title('Luminance axis'); pbaspect([1 1 1])
-    subplot(3,1,2)
-    imagesc(squeeze(cur_StA2(2,:,:))); caxis([-curlim curlim]); title('L-M axis'); pbaspect([1 1 1])
-    subplot(3,1,3)
-    imagesc(squeeze(cur_StA2(3,:,:))); caxis([-curlim curlim]); title('S axis'); pbaspect([1 1 1])
-    figtitle(['unit ' num2str(cc) '   lag ' num2str(curlag)])
-    colormap(gray)
-    pause
-end
-
-trololo
-%}
-%{
-%% quick STA to check (does not have eye correction)
-cur_use_inds=intersect(find(stimtype==8),use_inds_fix);
-cur_use_inds(end-10:end)=[];
-
-stim2=(single(reshape(stim,size(stim,1),3*60*60))./127);
-%stim3=reshape(stimET,size(stim,1),3*60*60);
-
-%%
-for cc=targchans
-    tic
-    figure;
-
-    for curlag=1:6
-        cur_STA1(curlag,:)=binned_SU(cur_use_inds+curlag,cc)'*stim2(cur_use_inds,:);
-    end
-    
-    for curlag=1:6
-    cur_StA2=reshape(cur_STA1(curlag,:),60,180);
-    %curlim=150;%
-    curlim=max(abs(cur_STA1(:)'));
-
-    cur_StA2(:,[60 120])=curlim;
-    subplot(6,1,curlag)
-    imagesc(cur_StA2); clim([-curlim curlim]); pbaspect([3 1 1])
-
-    colormap(gray); xlabel(['Lag ' num2str(curlag)]);
-    if curlag==1; ylabel('S          L-M          Lum'); title(['Unit ' num2str(cc) ]); end
-    end
-%    figtitle(['Probe ' num2str(Robs_probe_ID(cc)) '   Unit ' num2str(cc) ])
-
-    toc
-%    pause
-end  
-%}
-%% for bar stimulus STAs
-%{
-%binned_SU1=double(Robs');
-binned_SU=double(binned_SU1);
-stim3=double(stimET');
-%stim3b=double(stimET(2:2:end,:));
-%% STA across several lags
-cur_use_inds=intersect(2:2:length(stim3),use_inds_fix);
-%cur_use_inds=intersect(2:2:78420,valid_data);
-cur_use_inds(end-10:end)=[];
-
-for cc=1:134
-    tic
-    for curlag=1:10
-%    cur_StA2=reshape(cur_STA{curlag},3,25,25);
-%    cur_StA3=reshape(permute(cur_StA2,[3 2 1]),25,75);
-%   cur_StA2=reshape(cur_STA{curlag},60,180);
-%    cur_StA2(curlag,:)=double(binned_SU(cur_use_inds+curlag,cc))'*stim3(cur_use_inds,:);
-    cur_StA2(curlag,:)=binned_SU(cur_use_inds+curlag,cc)'*stim3(cur_use_inds,:);
-    
-    %curlim=max(abs(cell2mat(cur_STA(:)')));
-    curlim=max(abs(cur_StA2(:)'));
-    imagesc(cur_StA2); caxis([-curlim curlim]); %pbaspect([1 3 1])
-    colormap(gray); xlabel(['Lag ' num2str(curlag)]);
-    if curlag==1; ylabel('S          L-M          Lum'); end
-    end
-    title(['SU Unit ' num2str(cc)])
-    toc
-    pause
-end  
-%%
-%use_SUs=[1 2 4 10 13 17 20 24];
-%binned_sua=binned_SU(:,use_SUs);
-% good_SU=[1 3 5 6 7];
-% ok_SU=[4 8:10 15];
-binned_SU=binned_SU(:,iso_SUs);
-figure; imagesc(binned_SU)
-
-%}
 
 %%
 
@@ -742,6 +627,7 @@ stimscale = (stim_location(3)-stim_location(1))/60;
 fixlocs1 = [fix_location(1)-fix_size:fix_location(1)+fix_size];
 fixlocs2 = [fix_location(2)-fix_size:fix_location(2)+fix_size];
 
+%{
 %if nofix
 %	fixdot = [];
 %else
@@ -797,7 +683,7 @@ fixlocs2 = [fix_location(2)-fix_size:fix_location(2)+fix_size];
 %		fixdot=[0,0;0,0];
 %	end
 %end
-
+%}
 %% Strange case of fixdotET
 if ~skipET
 	if targ_ETstimtype == 1
@@ -919,16 +805,13 @@ data.useLeye = useLeye;
 data.useReye = useReye;
 data.sacc_inds = sacc_inds;
 
-%data.stim = stim;
-data.stimtype = stimtype;
-% data.stimET = [];
-
 data.trial_start_ts = trial_start_ts;
 data.block_inds = block_inds;
 data.valid_data = valid_data;
 data.blockID = blockID;  % only relevant to some conditions (?) but otherwise blank
 data.trialID = trialID;  % likewise
 
+data.stimtype = stimtype;
 data.Robs = Robs;
 data.RobsMU = RobsMU;
 data.RobsMU_probe_ID = RobsMU_probe_ID;
@@ -964,43 +847,6 @@ end
 % SAVE
 disp('Saving...') 
 save( cur_filename, '-struct', 'data', '-v7.3')
-
-%%%%%%%%%%% ORIGINAL SAVING FIASCO %%%%%%%%%%%%%%%%%%%%
-%switch targ_stimtype
-%    case 8
-%        if ~skipET
-%            if targ_ETstimtype==1;
-%            save(cur_filename, 'exptname', 'exptdate', 'dt','electrode_info','stim_location','ETstim_location', 'pixel_size', 'fix_location', 'fix_size','fixdot',...
-%                'stim', 'stimET', 'stimETori', 'stimtype', 'stimtypeET', 'stimloc', 'stimscale','valid_data', 'cloud_scale', 'cloud_binary', 'block_inds', 'blockID', 'trialID', 'sacc_inds', 'ETtrace', 'ETtrace_raw', 'ETtrace_plex_calib', 'ETgains', 'trial_start_ts', 'useLeye', 'useReye',...
-%                'Robs', 'Robs_probe_ID', 'Robs_rating', 'spk_times', 'spk_IDs', 'datafilts', 'RobsMU',  'RobsMU_probe_ID', 'RobsMU_rating', 'datafiltsMU', '-v7.3' )
-%            else
-%            save(cur_filename, 'exptname', 'exptdate', 'dt','electrode_info','stim_location','ETstim_location', 'pixel_size', 'fix_location', 'fix_size','fixdot','fixdotET',...
-%                'stim', 'stimET', 'stimtype', 'stimtypeET','stimloc',  'stimscale','valid_data', 'cloud_scale', 'cloud_binary', 'block_inds', 'blockID', 'trialID', 'sacc_inds', 'ETtrace', 'ETtrace_raw', 'ETtrace_plex_calib', 'ETgains', 'trial_start_ts', 'useLeye', 'useReye',...
-%                'Robs', 'Robs_probe_ID', 'Robs_rating', 'spk_times', 'spk_IDs', 'datafilts', 'RobsMU',  'RobsMU_probe_ID', 'RobsMU_rating', 'datafiltsMU', '-v7.3' )
-%            end
-%        else
-%            save(cur_filename, 'exptname', 'exptdate', 'dt','electrode_info','stim_location','ETstim_location', 'pixel_size', 'fix_location', 'fix_size','fixdot',...
-%                'stim', 'stimtype', 'stimscale','stimloc', 'valid_data', 'block_inds', 'cloud_scale', 'cloud_binary', 'blockID', 'trialID', 'sacc_inds', 'ETtrace', 'ETtrace_raw', 'ETtrace_plex_calib', 'ETgains', 'trial_start_ts', 'useLeye', 'useReye',...
-%                'Robs', 'Robs_probe_ID', 'Robs_rating', 'spk_times', 'spk_IDs', 'datafilts', 'RobsMU',  'RobsMU_probe_ID', 'RobsMU_rating', 'datafiltsMU', '-v7.3' )
-%        end
-%        save(cur_filename_targchans, 'targchans')
-%    case 6
-%        if ~skipET
-%            if targ_ETstimtype==1;
-%            save(cur_filename, 'exptname', 'exptdate', 'dt','electrode_info','stim_location','ETstim_location', 'pixel_size', 'fix_location', 'fix_size','fixdot',...
-%                'stim', 'stimET', 'stimETori', 'stimtype', 'hartley_metas', 'stimtypeET', 'stimscale','valid_data', 'block_inds', 'sacc_inds', 'ETtrace', 'ETtrace_raw', 'ETgains', 'trial_start_ts', 'useLeye', 'useReye',...
-%                'Robs', 'Robs_probe_ID', 'Robs_rating', 'spk_times', 'spk_IDs', 'datafilts', 'RobsMU',  'RobsMU_probe_ID', 'RobsMU_rating', 'datafiltsMU', '-v7.3' )
-%            else
-%            save(cur_filename, 'exptname', 'exptdate', 'dt','electrode_info','stim_location','ETstim_location', 'pixel_size', 'fix_location', 'fix_size','fixdot',...
-%                'stim', 'stimET', 'stimtype', 'hartley_metas', 'stimtypeET', 'stimscale','valid_data', 'block_inds', 'sacc_inds', 'ETtrace', 'ETtrace_raw',  'ETgains', 'trial_start_ts', 'useLeye', 'useReye',...
-%                'Robs', 'Robs_probe_ID', 'Robs_rating', 'spk_times', 'spk_IDs', 'datafilts', 'RobsMU',  'RobsMU_probe_ID', 'RobsMU_rating', 'datafiltsMU', '-v7.3' )
-%            end
-%        else
-%            save(cur_filename, 'exptname', 'exptdate', 'dt','electrode_info','stim_location','ETstim_location', 'pixel_size', 'fix_location', 'fix_size','fixdot',...
-%                'stim', 'stimtype', 'hartley_metas', 'stimscale','valid_data', 'block_inds', 'sacc_inds', 'ETtrace', 'ETtrace_raw', 'ETgains', 'trial_start_ts', 'useLeye', 'useReye',...
-%                'Robs', 'Robs_probe_ID', 'Robs_rating', 'spk_times', 'spk_IDs', 'datafilts', 'RobsMU',  'RobsMU_probe_ID', 'RobsMU_rating', 'datafiltsMU', '-v7.3' )
-%        end
-%end
 
 disp('Done saving output for modeling.') 
 
