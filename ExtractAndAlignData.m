@@ -446,7 +446,7 @@ elseif ET_Eyelink == 3  % monocular dDPI
 	[~, ~, ~, ~, PlexET_ad(3,:)] = plx_ad_v(thisSessionFile, 'AI07');
 	[ET_adfreq, ET_n, ET_ts, ET_fn, PlexET_ad(4,:)] = plx_ad_v(thisSessionFile, 'AI08');
 	PlexET_ad_calib=PlexET_ad;
-	PlexET_ad_calib(3,:) = PlexET_ad_calib(3,:)*(g_strctEyeCalib.GainX.Buffer(end)./opts.plx_analogscale); % assumes a standard dDPI gain of 250, which works out to a ~5-fold gain on the analog signal - at least as far as i can tell. -FB 
+	PlexET_ad_calib(3,:) = PlexET_ad_calib(3,:)*(g_strctEyeCalib.GainX.Buffer(end)./opts.plx_analogscale); 
 	PlexET_ad_calib(4,:) = PlexET_ad_calib(4,:)*(g_strctEyeCalib.GainY.Buffer(end)./opts.plx_analogscale);
 
 elseif ET_Eyelink == 4  % binocular dDPI - rigC inputs verified 1/13/25
@@ -459,7 +459,7 @@ elseif ET_Eyelink == 4  % binocular dDPI - rigC inputs verified 1/13/25
 	[~, ~, ~, ~, PlexET_ad(7,:)] = plx_ad_v(thisSessionFile, 'AI07'); % L X
 	[ET_adfreq, ET_n, ET_ts, ET_fn, PlexET_ad(8,:)] = plx_ad_v(thisSessionFile, 'AI08'); % L Y
 	PlexET_ad_calib=PlexET_ad;
-	PlexET_ad_calib(5,:) = PlexET_ad_calib(5,:)*(g_strctEyeCalib.GainX.Buffer(end)./opts.plx_analogscale); % assumes a standard dDPI gain of 250, which works out to a ~5-fold gain on the analog signal - at least as far as i can tell. -FB 
+	PlexET_ad_calib(5,:) = PlexET_ad_calib(5,:)*(g_strctEyeCalib.GainX.Buffer(end)./opts.plx_analogscale); % Gain is dependent on the gains set in Kofiko (can see these logged in control computer's .txt file); Analog scale is always 1000 from what I have seen -CM
 	PlexET_ad_calib(6,:) = PlexET_ad_calib(6,:)*(g_strctEyeCalib.GainY.Buffer(end)./opts.plx_analogscale);
 	PlexET_ad_calib(7,:) = PlexET_ad_calib(7,:)*(g_strctEyeCalib.GainX.Buffer(end)./opts.plx_analogscale);
 	PlexET_ad_calib(8,:) = PlexET_ad_calib(8,:)*(g_strctEyeCalib.GainY.Buffer(end)./opts.plx_analogscale);

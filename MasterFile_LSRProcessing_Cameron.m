@@ -17,12 +17,12 @@ addpath('/home/bizon/Git/ConwayExptProcessing/Tools')
 stimpath = '/home/bizon/Processing/Cloudstims_calib_04_2024/';
 
 % Switch into data directory
-dirpath = '/home/bizon/Data/';
-pl2path = '/home/bizon/Data/'; %'/mnt/bc9/Data/'; % you can load the plexon file directly from the server, which may make loading data slower but save you data transfer complications
+dirpath = '/home/bizon/Data/V1_Fovea/';
+pl2path = '/home/bizon/Data/V1_Fovea/'; %'/mnt/bc9/Data/'; % you can load the plexon file directly from the server, which may make loading data slower but save you data transfer complications
 cd(dirpath)
 
 % this is the name of the experiment you want to run
-filenameP = '250303_175423_Jacomo';
+filenameP = '250514_143405_Jacomo';
 monkey_name = 'Jacamo';
 
 outputdir = [dirpath filenameP '/Analysis/'];
@@ -135,7 +135,7 @@ disp('Kofiko alignment starting')
 which_computer = 4; % 4 = Cameron's bizon, other options within ExtractAndAlignData.m
 
 
-ks.use_online = 1; % set to 1 to use on-line sorting, should be 0 if you want to use kilosort
+ks.use_online = 0; % set to 1 to use on-line sorting or no sorting at all, should be 0 if you want to use kilosort
 ks.onlinechans = [1:64]; % which channels of on-line sorted spikes should we go through? 
 
 ks.stitched = 0; % if you combined kilosort outputs for multiple arrays 0=one array/probe 1=more than one array/probe
@@ -145,9 +145,9 @@ ks.filepath = [dirpath filenameP filesep 'kilosorting_laminar' filesep]; % point
 ks.pl2path = pl2path;
 
 opts.eye_tracker = 4; % (default=3) 0=eyescan, 1=monoc eyelink, 2=binoc eyelink, 3=monocular dDPI, 4=binocular dDPI 
-opts.is_cloud = 0; % (default=1) indicates processing for cloud data. set to 0 to skip cloud-specific variables and align task data or other paradigms. cloud data processing generates iCSDs and LFPs
+opts.is_cloud = 1; % (default=1) indicates processing for cloud data. set to 0 to skip cloud-specific variables and align task data or other paradigms. cloud data processing generates iCSDs and LFPs
 opts.trialwindow = [0 4]; % change trial window for both clouds and mturk - cloud trial window [0 4] - mturk1 trial window [-0.5 6]
-opts.trl_fix_thresh = 2/(opts.trialwindow(2)-opts.trialwindow(1)); % include trials with at least 2 seconds of fixation - flag is used in package data step
+opts.trl_fix_thresh = 3/(opts.trialwindow(2)-opts.trialwindow(1)); % include trials with at least 3 seconds of fixation - flag is used in package data step
 opts.monkey_name = monkey_name;
 
 if abs(droptestcheck)>0.1;
@@ -204,14 +204,11 @@ disp('STA generation complete')
 
 %% if you want to generate STAs for only a subset of the data, use this code instead:
 disp('STA subset generation starting')
-target_SUs = [3 5 8 10 13 17 18 size(data.Robs, 1)+4 ]; % Change selection to a specific number of SUs Total number of SUs = 1:(size(data.Robs, 1)+size(data.RobsMU, 1)); To show MUs need to do (size(data.Robs, 1) + MU_number
-apply_ETshifts = 1; % 1= account for eye position 0 = don't account for eye position
+target_SUs = 11:16; % Change selection to a specific number of SUs Total number of SUs = 1:(size(data.Robs, 1)+size(data.RobsMU, 1)); To show MUs need to do (size(data.Robs, 1) + MU_number
+apply_ETshifts = 0; % 1= account for eye position 0 = don't account for eye position
 stim_deltas = 0; 
 num_lags = 6;
-%stim_deltas = data.stim_location_deltas;
 use_inds = intersect(find(data.cloud_area==60), data.valid_data);
-% %use_inds = intersect(1:48000, data.valid_data); % cut off part of the experiment for sta generation
-%     use_inds(end-num_lags:end) = []; %cut last few indices to avoid artifacts
 use_inds = intersect(find(data.cloud_binary<2), data.valid_data); % 0 = full 1 = matched 2 = hybrid
     use_inds(end-num_lags:end) = []; %cut last few indices to avoid artifacts
 
@@ -220,39 +217,12 @@ save_vars.outputdir = outputdir;
 %save_vars.titlestr = [filenameP '_Plexon_Cloud60_']; 
 save_vars.titlestr = [filenameP '_Cloud60_']; 
 
-stas = get_sta(data, target_SUs, use_inds, apply_ETshifts, stim_deltas', num_lags, save_vars);
+stas = get_sta(data, target_SUs); %, use_inds, apply_ETshifts, stim_deltas', num_lags, save_vars);
 disp('STA subset generation complete')
-
-%% plot the L,M,and S of rectangular regions
-target_SUs = [9];
-rectangle1 = [10 10 12 28]; % [x y w h]
-rectangle2 = [2 2 8 8];
-rectangle3 = [25 20 20 20];
-rectangle4 = [26 19 20 6];
-get_rec_opponency(data, target_SUs, use_inds, apply_ETshifts, stim_deltas', num_lags, save_vars, rectangle1, rectangle2, rectangle3, rectangle4);
-
-%% plot the L,M, and S of circular regions
-target_SUs = [9];
-type1 = ["circle", "r"]; %[type, color]
-parameters1 = [35, 28, 5]; %[xcenter ycenter radius]
-type2 = ["rectangle","b"];
-parameters2 = [10, 2, 30, 10]; % [x y width height]
-type3 = ["polygon","g"];
-parameters3 = [12 21 17 20 13 8; 15 15 27 37 37 30]; % [x1 x2... ; y1 y2...] clockwise
-type4 = ["polygon","y"];
-parameters4 = [23 34 48 37 25; 23 17 21 22 27];
-save_vars.titlestr = [filenameP '_blue_normalized_response_']; 
-
-get_regional_response(data, stas, target_SUs, apply_ETshifts, num_lags, save_vars, ...
-    type1, parameters1, type2, parameters2, type3, parameters3, type4, parameters4);
-
-%% now we plot the best lag of our STAs by depth
-%TODO: add stas_depth code that shows select STAs in order of laminar
-%arrangement
 
 %% Delete large temporary files
 disp('Deleting temporary files started')
-dirpath2 = ['/home/bizon/Data/',filenameP,'/kilosorting_laminar/'];
+dirpath2 = [dirpath,filenameP,'/kilosorting_laminar/'];
 cd(dirpath2)
 dat = [filenameP, '.dat'];
 % Move .dat, SampToSecsMap.mat, and res2.mat file to trash

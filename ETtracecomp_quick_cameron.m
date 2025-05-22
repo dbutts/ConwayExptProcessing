@@ -1,17 +1,8 @@
 %% read in plexon filepath
 clear;
-bizon = false;
-filenameP = '250403_193219_Jacomo'; % '250218_173539_Jacomo 241210_154655_Jacomo' experiment name
-
-if bizon % for running on bizon
-    pl2path = '/home/bizon/Data/'; %'plexon .pl2 path
-    addpath(genpath('/home/bizon/Git/ConwayExptProcessing')) % add folder to path
-end
-if ~bizon % for running on Cameron's mac laptop
-    pl2path = '/Users/maycaj/Documents/V1_MonkeyTurk2/Data/';
-    addpath(genpath('/Users/maycaj/Documents/GitHub/ConwayExptProcessing')) % add folder to path
-end
-
+pl2path = '/home/bizon/Data/'; %'plexon .pl2 path
+filenameP = '250110_114356_Jacomo'; % '250218_173539_Jacomo 241210_154655_Jacomo' experiment name
+addpath(genpath('/home/bizon/Git/ConwayExptProcessing')) % add folder to path
 thisSessionFile = [pl2path filenameP '.pl2'];
 %% read from plexon file
 [~, ~, ~, ~, PlexET_ad(1,:)] = plx_ad_v(thisSessionFile, 'AI05'); % XR
@@ -21,16 +12,16 @@ thisSessionFile = [pl2path filenameP '.pl2'];
 
 [~, ~, ~, ~, PlexET_ad(5,:)] = plx_ad_v(thisSessionFile, 'AI01'); % sync strobes
 
-eyetrace = PlexET_ad(1:5,:)*(170/1000); % convert to arcmin *gains/(analog scale); Save PlexET_ad for use in plexon-calibration Jupiter notebook
+eyetrace = PlexET_ad(1:5,:)*(90/1000); % convert to arcmin *gains/(analog scale)
 
 
 %% plot eyetraces only during fixation - Cameron
 winSize = 1:length(eyetrace); % 1:length(eyetrace) or 1000;  % the size of the window
 num_windows = floor(length(eyetrace)/range(winSize)); % how many windows
 start_window =  1; % First window
-x_analysis = false; % true = run analysis in x direction, false = run analysis in y direction
-quick_plot = true; % whether or not to not plot saccades and correction - long time in larger datasets
-speedThres = 3; % assumed speed of each saccade
+x_analysis = true; % true = run analysis in x direction, false = run analysis in y direction
+quick_plot = false; % whether or not to not plot saccades and correction - long time in larger datasets
+speedThres = 100000; % 3 % assumed speed of each saccade - set to very high number to ignore saccades 
 saccadeLen = 10; % assumed length of each saccade
 x_fixation = [-25,25]; % need to set x and y during each experiment
 y_fixation = [-25,25]; 
@@ -138,6 +129,7 @@ for ii = start_window:num_windows % iterate over windows
                 R_cor(indx-min(time2plot)) = eyetrace(2, indx);
             end
         end
+        % Set values to NaN that are outside of our window
         if x_analysis
             L_cor(L_cor < x_fixation(1)) = NaN;
             L_cor(L_cor > x_fixation(2)) = NaN;
@@ -153,7 +145,7 @@ for ii = start_window:num_windows % iterate over windows
             plot(L_cor); hold on
             plot(R_cor); hold off
             legend({'Left Eye','Right Eye'})
-            xlabel('Divided by saccades')
+            xlabel('Divided by saccades and restricted to (0,0)')
             if x_analysis
                 ylabel('X trace (Arcmin)')
             else 
@@ -173,6 +165,8 @@ for ii = start_window:num_windows % iterate over windows
                 ylabel('Y difference (arcmin)')
             end
         end
+        % only include valid (not NaN) values in root means squared
+        % calculation
         validL = ~isnan(L_cor);
         validR = ~isnan(R_cor);
         validIndicies = validL & validR;
