@@ -376,26 +376,8 @@ end
 RECstart = kofikoStrobeAllTS(1);
 RECend = kofikoStrobeAllTS(end);
 
-if opts.extractfixinfo
-    ETdata = extract_fixinfo( ExptTrials, ExptInfo, {'Fivedot','FiveDot', 'Dotgrid'}, output_directory);
-end
 
-if opts.is_cloud % only include cloud trials; this discards Fivedot, Handmapper, etc trials
-    targ_trials=[];
-    for tt=1:length(ExptTrials)
-	    if strcmp(ExptTrials{tt, 1}.m_strTrialType, 'Dual Stim')
-		    % if strcmp(ExptTrials{tt, 1}.m_strTrialType, 'Fivedot');
-		    if (ExptTrials{tt, 2} >= RECstart) && (ExptTrials{tt, 2} <= RECend) 
-			    targ_trials = [targ_trials, tt];
-		    else
-			    fprintf('   Invalid Dual-Stim trial detected (#%d) -- eliminating.\n', tt)
-		    end
-	    end
-    end
-    
-    %% Reduce trials to valid subset
-    ExptTrials=ExptTrials(targ_trials,:);
-end
+
 
 %% Ensure trials are in correct order
 ntrials=length(ExptTrials);
@@ -961,6 +943,9 @@ for iTrials = 1:ntrials   %trialsInThisSession{iSessions}
 	end
 end 
 %%
+if opts.extractfixinfo
+    ETdata = extract_fixinfo( ExptTrials, ExptInfo, {'Fivedot','FiveDot', 'Dotgrid'}, output_directory);
+end
 
 %%
 fprintf('Done combining information.\n')
@@ -988,6 +973,23 @@ load([dirpath exptname '.mat'], 'g_astrctAllParadigms')
 ExptInfo.g_astrctAllParadigms = g_astrctAllParadigms{1};  % this is only one cell array -- what is it?
 ExptInfo.g_strctEyeCalib = g_strctEyeCalib;
 ExptInfo.g_strctDAQParams = g_strctDAQParams;  % don't know if needed, but just in case
+
+if opts.is_cloud % only include cloud trials; this discards Fivedot, Handmapper, etc trials
+    targ_trials=[];
+    for tt=1:length(ExptTrials)
+	    if strcmp(ExptTrials{tt, 1}.m_strTrialType, 'Dual Stim')
+		    % if strcmp(ExptTrials{tt, 1}.m_strTrialType, 'Fivedot');
+		    if (ExptTrials{tt, 2} >= RECstart) && (ExptTrials{tt, 2} <= RECend) 
+			    targ_trials = [targ_trials, tt];
+		    else
+			    fprintf('   Invalid Dual-Stim trial detected (#%d) -- eliminating.\n', tt)
+		    end
+	    end
+    end
+    
+    % Reduce trials to valid subset
+    ExptTrials=ExptTrials(targ_trials,:);
+end
 
 fprintf('Saving %s in %s....\n', outfile, output_directory)
 save([output_directory outfile], 'ExptTrials', 'ExptInfo', '-v7.3')  % HDF5 output

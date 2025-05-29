@@ -3,26 +3,41 @@ clear all
 
 disp('Setup starting')
 
-addpath('/home/conwaylab/Git/ConwayExptProcessing/Dependencies/iCSD/')
-addpath('/home/conwaylab/Git/ConwayExptProcessing/Dependencies/iCSD/CSD_functions/')
-addpath('/home/conwaylab/Git/ConwayExptProcessing/Dependencies/Kilosort2/')
-addpath('/home/conwaylab/Git/ConwayExptProcessing/Dependencies/Kilotools_FB_2023/')
-addpath('/home/conwaylab/Git/ConwayExptProcessing/Dependencies/Plexon-Matlab Offline Files SDK/')
-addpath('/home/conwaylab/Git/ConwayExptProcessing/Dependencies/Kilotools_FB_2023/kilo2Tools-master/npy-matlab/npy-matlab')
-addpath('/home/bizon/Git/ConwayExptProcessing/Dependencies/Kilotools_FB_2023/kilo2Tools-master/kilo2Tools-master/')
-addpath('/home/bizon/Git/ConwayExptProcessing')
-addpath('/home/bizon/Git/ConwayExptProcessing/Tools')
+bizon = true;
 
-%directory for pregenerated stimulus files
-stimpath = '/home/conwaylab/Processing/Cloudstims_calib_04_2024/';
+if bizon
+    addpath('/home/bizon/Git/ConwayExptProcessing/Dependencies/iCSD/')
+    addpath('/home/bizon/Git/ConwayExptProcessing/Dependencies/iCSD/CSD_functions/')
+    addpath('/home/bizon/Git/ConwayExptProcessing/Dependencies/Kilosort2/')
+    addpath('/home/bizon/Git/ConwayExptProcessing/Dependencies/Kilotools_FB_2023/')
+    addpath('/home/bizon/Git/ConwayExptProcessing/Dependencies/Plexon-Matlab Offline Files SDK/')
+    addpath('/home/bizon/Git/ConwayExptProcessing/Dependencies/Kilotools_FB_2023/kilo2Tools-master/kilo2Tools-master/')
+    addpath('/home/bizon/Git/ConwayExptProcessing')
+    addpath('/home/bizon/Git/ConwayExptProcessing/Tools')
+    addpath('/home/bizon/Git/ConwayExptProcessing/Dependencies/Kilotools_FB_2023/kilo2Tools-master/npy-matlab/npy-matlab')
+    
+    % Switch into data directory
+    dirpath = '/home/bizon/Data/V1_Fovea/';
+    pl2path = '/home/bizon/Data/V1_Fovea/'; %'/mnt/bc9/Data/'; % you can load the plexon file directly from the server, which may make loading data slower but save you data transfer complications
+    stimpath = '/home/bizon/Processing/Cloudstims_calib_04_2024/';
+else
+    addpath('/home/conwaylab/Git/ConwayExptProcessing/Dependencies/iCSD/')
+    addpath('/home/conwaylab/Git/ConwayExptProcessing/Dependencies/iCSD/CSD_functions/')
+    addpath('/home/conwaylab/Git/ConwayExptProcessing/Dependencies/Kilosort2/')
+    addpath('/home/conwaylab/Git/ConwayExptProcessing/Dependencies/Kilotools_FB_2023/')
+    addpath('/home/conwaylab/Git/ConwayExptProcessing/Dependencies/Plexon-Matlab Offline Files SDK/')
+    addpath('/home/conwaylab/Git/ConwayExptProcessing/Dependencies/Kilotools_FB_2023/kilo2Tools-master/npy-matlab/npy-matlab')
 
-% Switch into data directory
-dirpath = '/home/conwaylab/Data/';
-pl2path = '/mnt/isilon/DATA/monkey_ephys/Jocamo/2024_Singleprobe/'; % you can load the plexon file directly from the server, which may make loading data slower but save you data transfer complications
+    % Switch into data directory
+    dirpath = '/home/conwaylab/Data/';
+    pl2path = '/mnt/isilon/DATA/monkey_ephys/Jocamo/2024_Singleprobe/'; % you can load the plexon file directly from the server, which may make loading data slower but save you data transfer complications
+    stimpath = '/home/conwaylab/Processing/Cloudstims_calib_04_2024/';
+end
+
 cd(dirpath)
 
 % this is the name of the experiment you want to run
-filenameP = '241126_123958_Jacomo';
+filenameP = '250527_150710_Jacomo';
 monkey_name = 'Jocamo';
 
 outputdir = [dirpath filenameP '/Analysis/'];
@@ -158,6 +173,7 @@ end
 
 % ExtractAndAlign saves FullExpt_ks1_lam_v08.mat in Analysis directory, and
 % can be loaded or its outputs (in memory can be used directly
+% This step also makes the fixinfo file
 disp('Kofiko alignment complete')
 
 %% Package cloud data
@@ -220,17 +236,6 @@ save_vars.titlestr = [filenameP '_MatchedClouds_v2_'];
 
 [fwdc_L, fwdc_M, fwdc_diff] = get_fwdc(data, target_SUs, use_inds, apply_ETshifts, stim_deltas', thresh, num_lags, save_vars);
 disp('Forward Correlation subset generation complete')
-%% plot the L,M,and S of specific regions
-target_SUs = [9];
-%stim_deltas = data.stim_location_deltas;
-use_inds = data.valid_data;
-% use_inds = intersect(1:2000, data.valid_data);
-    use_inds(end-num_lags:end) = []; %cut last few indices to avoid artifacts
-rectangle1 = [10 10 12 28];
-rectangle2 = [2 2 8 8];
-rectangle3 = [25 20 20 20];
-rectangle4 = [26 19 20 6];
-get_opponency(data, target_SUs, use_inds, apply_ETshifts, stim_deltas', num_lags, save_vars, rectangle1, rectangle2, rectangle3, rectangle4);
 
 %% next, package the data, starting with Hartleys
 disp('Data packaging starting')
