@@ -196,6 +196,9 @@ end
 if metadata_struct.ET_Eyelink == 3
 	numETtraces = 2; % number of eye traces
 	ET_trace_raw_1khz = zeros(ntrls*trlsecs*1000, 3);
+elseif metadata_struct.ET_Eyelink == 4 %%% Added by [Ramon Bartolo, 20250522] to handle binocular dDPI
+    numETtraces = 4; %number of eye traces for binocular dDPI
+	ET_trace_raw_1khz = zeros(ntrls*trlsecs*1000, numETtraces);
 else
 	numETtraces = size(exptdata_mod{end, 7}.ET_trace, 1);
 	ET_trace_raw_1khz = zeros(ntrls*trlsecs*1000, numETtraces);
@@ -346,7 +349,7 @@ for tt = 1:ntrls
 	%    cur_trial_ETsamples=[0:.001:3.999];
 	cur_trial_ET_trace_full(:,1)=(exptdata_mod{tt, 7}.ET_trace(1,:)' )*(g_strctEyeCalib.GainX.Buffer(end)./1000);
 	cur_trial_ET_trace_full(:,2)=(exptdata_mod{tt, 7}.ET_trace(2,:)' )*(g_strctEyeCalib.GainY.Buffer(end)./1000);
-	
+
 	if numETtraces > 2
     	cur_trial_ET_trace_full(:,3)=(exptdata_mod{tt, 7}.ET_trace(3,:)' )*(g_strctEyeCalib.GainX.Buffer(end)./1000);
     	cur_trial_ET_trace_full(:,4)=(exptdata_mod{tt, 7}.ET_trace(4,:)' )*(g_strctEyeCalib.GainY.Buffer(end)./1000);
@@ -354,6 +357,22 @@ for tt = 1:ntrls
 	if metadata_struct.ET_Eyelink == 3
 		cur_trial_ET_trace_full(:,1)=(exptdata_mod{tt, 7}.ET_trace(3,:)' - median(exptdata_mod{tt, 7}.ET_trace(3,:)'))*(g_strctEyeCalib.GainX.Buffer(end)./1000);
 		cur_trial_ET_trace_full(:,2)=(exptdata_mod{tt, 7}.ET_trace(4,:)' - median(exptdata_mod{tt, 7}.ET_trace(4,:)'))*(g_strctEyeCalib.GainY.Buffer(end)./1000);    
+    end 
+    
+    %%% Added by [Ramon Bartolo, 20250522] to handle binocular dDPI
+    if metadata_struct.ET_Eyelink == 4 && size(exptdata_mod{tt, 7}.ET_trace,1)==8
+        %%% on exptdata_mod.ET_trace from binocular dDPI data:
+        %%% row 1: strobe
+        %%% row 2: null (strobe artifact)
+        %%% row 3: L pupil size
+        %%% row 4: R pupil size
+        %%% rows 5-6: XY (R)
+        %%% rows 7-8: XY (L)
+        cur_trial_ET_trace_full=[]; cur_trial_ET_trace = [];
+        cur_trial_ET_trace_full(:,1)=(exptdata_mod{tt, 7}.ET_trace(5,:)' )*(g_strctEyeCalib.GainX.Buffer(end)./1000); %X right eye
+	    cur_trial_ET_trace_full(:,2)=(exptdata_mod{tt, 7}.ET_trace(6,:)' )*(g_strctEyeCalib.GainY.Buffer(end)./1000); %Y right eye
+		cur_trial_ET_trace_full(:,3)=(exptdata_mod{tt, 7}.ET_trace(7,:)' )*(g_strctEyeCalib.GainX.Buffer(end)./1000); %X left eye
+    	cur_trial_ET_trace_full(:,4)=(exptdata_mod{tt, 7}.ET_trace(8,:)' )*(g_strctEyeCalib.GainY.Buffer(end)./1000); %Y left eye
 	end 
 
 	% % if needing to interpolate time positions
@@ -402,7 +421,16 @@ for tt = 1:ntrls
 	
 		cur_trial_ETsamples_kofiko = exptdata_mod{tt, 1}.m_afEyePositiontimes - exptdata_mod{tt, 1}.m_afEyePositiontimes(1);
 		cur_trial_ET_trace(1,:)=interp1(cur_trial_ETsamples_kofiko, exptdata_mod{tt, 1}.m_afEyeXPositionScreenCoordinates' - exptdata_mod{tt, 1}.m_pt2iFixationSpot(1), linspace(0,4,240))';
-		cur_trial_ET_trace(2,:)=interp1(cur_trial_ETsamples_kofiko, exptdata_mod{tt, 1}.m_afEyeYPositionScreenCoordinates' - exptdata_mod{tt, 1}.m_pt2iFixationSpot(2), linspace(0,4,240))';    
+		cur_trial_ET_trace(2,:)=interp1(cur_trial_ETsamples_kofiko, exptdata_mod{tt, 1}.m_afEyeYPositionScreenCoordinates' - exptdata_mod{tt, 1}.m_pt2iFixationSpot(2), linspace(0,4,240))';
+
+    elseif metadata_struct.ET_Eyelink == 4 %%% Added by [Ramon Bartolo, 20250522] to handle binocular dDPI
+		ET_trace_raw_1khz([1:trlsecs*1000]+trlsecs*1000*(tt-1),1:4)=cur_trial_ET_trace_full;
+		ET_trace_raw_1khz([1:trlsecs*1000]+trlsecs*1000*(tt-1),5:6) = exptdata_mod{tt, 7}.ET_trace(3:4,:)'; %adding pupil sizes
+	    
+		cur_trial_ETsamples_kofiko = exptdata_mod{tt, 1}.m_afEyePositiontimes - exptdata_mod{tt, 1}.m_afEyePositiontimes(1);
+		cur_trial_ET_trace(1,:)=interp1(cur_trial_ETsamples_kofiko, exptdata_mod{tt, 1}.m_afEyeXPositionScreenCoordinates' - exptdata_mod{tt, 1}.m_pt2iFixationSpot(1), linspace(0,4,240))';
+		cur_trial_ET_trace(2,:)=interp1(cur_trial_ETsamples_kofiko, exptdata_mod{tt, 1}.m_afEyeYPositionScreenCoordinates' - exptdata_mod{tt, 1}.m_pt2iFixationSpot(2), linspace(0,4,240))';
+
 	else
 		ET_trace_raw_1khz([1:trlsecs*1000]+trlsecs*1000*(tt-1),:)=cur_trial_ET_trace_full;
 		% ET_ad_up(1,:) = smooth(cur_trial_ET_trace_full(:,1)', eye_smooth(1), 'sgolay', sgolay_deg(1));

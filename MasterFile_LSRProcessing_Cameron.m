@@ -22,7 +22,7 @@ pl2path = '/home/bizon/Data/V1_Fovea/'; %'/mnt/bc9/Data/'; % you can load the pl
 cd(dirpath)
 
 % this is the name of the experiment you want to run
-filenameP = '250514_143405_Jacomo';
+filenameP = '250527_150710_Jacomo';
 monkey_name = 'Jacamo';
 
 outputdir = [dirpath filenameP '/Analysis/'];
@@ -147,7 +147,7 @@ ks.pl2path = pl2path;
 opts.eye_tracker = 4; % (default=3) 0=eyescan, 1=monoc eyelink, 2=binoc eyelink, 3=monocular dDPI, 4=binocular dDPI 
 opts.is_cloud = 1; % (default=1) indicates processing for cloud data. set to 0 to skip cloud-specific variables and align task data or other paradigms. cloud data processing generates iCSDs and LFPs
 opts.trialwindow = [0 4]; % change trial window for both clouds and mturk - cloud trial window [0 4] - mturk1 trial window [-0.5 6]
-opts.trl_fix_thresh = 3/(opts.trialwindow(2)-opts.trialwindow(1)); % include trials with at least 3 seconds of fixation - flag is used in package data step
+opts.trl_fix_thresh = 0.6; % include trials with at least 3 seconds of fixation - flag is used in package data step
 opts.monkey_name = monkey_name;
 
 if abs(droptestcheck)>0.1;
@@ -164,6 +164,10 @@ end
 % ExtractAndAlign saves FullExpt_ks1_lam_v08.mat in Analysis directory, and
 % can be loaded or its outputs (in memory can be used directly
 disp('Kofiko alignment complete')
+
+%% Extract fixation info for easier alignment between DDPI and Plexon
+ETdata = extract_fixinfo( ExptTrials, ExptInfo, {'Fivedot', 'Dotgrid'}, outputdir);
+
 %% next, package the data
 % disp('Data packaging starting')
 % %load([outputdir filenameP '_FullExpt_ks1_lam_v09.mat'])
@@ -202,22 +206,21 @@ disp('STA generation starting')
 stas = get_sta(data);
 disp('STA generation complete')
 
-%% if you want to generate STAs for only a subset of the data, use this code instead:
+ %% if you want to generate STAs for only a subset of the data, use this code instead:
 disp('STA subset generation starting')
-target_SUs = 11:16; % Change selection to a specific number of SUs Total number of SUs = 1:(size(data.Robs, 1)+size(data.RobsMU, 1)); To show MUs need to do (size(data.Robs, 1) + MU_number
-apply_ETshifts = 0; % 1= account for eye position 0 = don't account for eye position
-stim_deltas = 0; 
+n_all = size(data.Robs, 1)+size(data.RobsMU, 1);
+target_SUs = [1:n_all]; % Change selection to a specific number of SUs Total number of SUs = size(data.Robs, 1)+size(data.RobsMU, 1)
+apply_ETshifts = 0;
+stim_deltas = ones(size(data.ETtrace))'; 
 num_lags = 6;
-use_inds = intersect(find(data.cloud_area==60), data.valid_data);
 use_inds = intersect(find(data.cloud_binary<2), data.valid_data); % 0 = full 1 = matched 2 = hybrid
     use_inds(end-num_lags:end) = []; %cut last few indices to avoid artifacts
 
 save_vars.to_save = 1; % saves the STAs as pdf when set to 1
 save_vars.outputdir = outputdir;
-%save_vars.titlestr = [filenameP '_Plexon_Cloud60_']; 
-save_vars.titlestr = [filenameP '_Cloud60_']; 
+save_vars.titlestr = [filenameP '_FullClouds_']; 
 
-stas = get_sta(data, target_SUs); %, use_inds, apply_ETshifts, stim_deltas', num_lags, save_vars);
+stas = get_sta(data, target_SUs, use_inds, apply_ETshifts, stim_deltas', num_lags, save_vars);
 disp('STA subset generation complete')
 
 %% Delete large temporary files
