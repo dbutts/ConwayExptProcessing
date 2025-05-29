@@ -137,6 +137,7 @@ ks.pl2path = pl2path;
 
 opts.eye_tracker = 4;   % (default=3) 0=eyescan, 1=monoc eyelink, 2=binoc eyelink, 3=monocular dDPI, 4=binocular dDPI
 opts.is_cloud = 1;      % (default=1) indicates processing for cloud data. set to 0 to skip cloud-specific variables and align task data or other paradigms 
+opts.extractfixinfo = 1;% (default=1) extracts fixinfo file containing fivedot and dotgrid info
 opts.trialwindow = [0 4]; % 4 second trials
 opts.trl_fix_thresh = 0.6; % include trials with at least 3 seconds of fixation
 opts.monkey_name = monkey_name;
@@ -147,7 +148,7 @@ else
     opts.spk_offset = 0;
 end
 
-[ExptTrials, ExptInfo] = ExtractAndAlignData( filenameP, dirpath, which_computer, ks, opts ); 
+[ExptTrials, ExptInfo, ETdata] = ExtractAndAlignData( filenameP, dirpath, which_computer, ks, opts ); 
 % to see options (including a different datadirectory, type 'help ExtractAndAlignData'
 % this will automatically generate and save CSD/LFP, but you can call the
 % function again and analyze them
@@ -155,9 +156,6 @@ end
 % ExtractAndAlign saves FullExpt_ks1_lam_v08.mat in Analysis directory, and
 % can be loaded or its outputs (in memory can be used directly
 disp('Kofiko alignment complete')
-
-%% Extract fixation info for easier alignment between DDPI and Plexon
-ETdata = extract_fixinfo( ExptTrials, ExptInfo, {'Fivedot', 'Dotgrid'}, outputdir);
 
 %% Package cloud data
 disp('Cloud packaging starting')

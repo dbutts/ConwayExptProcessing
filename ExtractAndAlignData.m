@@ -1,4 +1,4 @@
-function [ExptTrials, ExptInfo] = ExtractAndAlignData( exptname, dirpath, which_computer, ks, opts )
+function [ExptTrials, ExptInfo, ETdata] = ExtractAndAlignData( exptname, dirpath, which_computer, ks, opts )
 %
 % Usage: ExtractAndAlignData( exptname, dirpath, <which_computer>, <eye_tracker> )
 %
@@ -31,6 +31,10 @@ end
 
 if ~isfield(opts, 'is_cloud')
     opts.is_cloud = 1; % default) indicates processing for cloud data. set to 0 to skip cloud-specific variables and align task data or other paradigms 
+end
+
+if ~isfield(opts, 'extractfixinfo')
+    opts.extractfixinfo = 1; % default) saves out fivedot/dotgrid trial onsets and fixation locations (for calibrating dDPI signal). set to 0 to skip this process.
 end
 
 if ~isfield(opts, 'spk_offset') 
@@ -78,6 +82,10 @@ end
 
 %ExperimentFolder = dirpath;  % EXPERIMENT FOLDER
 %filenameP = exptname;
+
+ExptInfo.exptname = exptname;
+ExptInfo.monkey_name = opts.monkey_name;
+ExptInfo.array_label = ks.arraylabel;
 
 %% Extract Bevil's data
 
@@ -367,6 +375,10 @@ end
 % Use timing of beginning and end of Kofiko time stamps to remove erroneous trial information  
 RECstart = kofikoStrobeAllTS(1);
 RECend = kofikoStrobeAllTS(end);
+
+if opts.extractfixinfo
+    ETdata = extract_fixinfo( ExptTrials, ExptInfo, {'Fivedot','FiveDot', 'Dotgrid'}, output_directory);
+end
 
 if opts.is_cloud % only include cloud trials; this discards Fivedot, Handmapper, etc trials
     targ_trials=[];
@@ -959,9 +971,6 @@ cd(currentDirectory);
 outfile = sprintf( '%s_FullExpt_ks%d_%s_v09.mat', exptname, useofflinesorting, ks.arraylabel );
 
 % Save other variables to continue the process
-ExptInfo.exptname = exptname;
-ExptInfo.monkey_name = opts.monkey_name;
-ExptInfo.array_label = ks.arraylabel;
 ExptInfo.nSU = nSU;
 ExptInfo.nMU = nMU;
 ExptInfo.spk_ID_SU = spk_ID_SU; 
