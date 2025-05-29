@@ -9,6 +9,9 @@ addpath('/home/conwaylab/Git/ConwayExptProcessing/Dependencies/Kilosort2/')
 addpath('/home/conwaylab/Git/ConwayExptProcessing/Dependencies/Kilotools_FB_2023/')
 addpath('/home/conwaylab/Git/ConwayExptProcessing/Dependencies/Plexon-Matlab Offline Files SDK/')
 addpath('/home/conwaylab/Git/ConwayExptProcessing/Dependencies/Kilotools_FB_2023/kilo2Tools-master/npy-matlab/npy-matlab')
+addpath('/home/bizon/Git/ConwayExptProcessing/Dependencies/Kilotools_FB_2023/kilo2Tools-master/kilo2Tools-master/')
+addpath('/home/bizon/Git/ConwayExptProcessing')
+addpath('/home/bizon/Git/ConwayExptProcessing/Tools')
 
 %directory for pregenerated stimulus files
 stimpath = '/home/conwaylab/Processing/Cloudstims_calib_04_2024/';
