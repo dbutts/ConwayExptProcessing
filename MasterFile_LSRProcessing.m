@@ -37,7 +37,7 @@ end
 cd(dirpath)
 
 % this is the name of the experiment you want to run
-filenameP = '250527_150710_Jacomo';
+filenameP = '250529_152043_Jacomo';
 monkey_name = 'Jocamo';
 
 outputdir = [dirpath filenameP '/Analysis/'];
@@ -51,12 +51,19 @@ opts.ChnOffset=0;
 opts.batch_size = 5e9; % batch size prevents memory overflow errors. default = 300000000 for IT
 opts.monkey_name = monkey_name;
 
-%%
 [datPath, droptestcheck] = Step0_KilosortLaminar(dirpath,filenameP,pl2path,opts); %this will take some time to run!
-% 
+
 disp(['Plexon-Kofiko offset in seconds: ' num2str(droptestcheck)]) % this will tell us if the plexon time alignment issue is present
 if abs(droptestcheck)>0.1; warning("Danger - Plexon might have dropped frames! Check pl2 file."); else; disp('Experiment kilosorted and ready for curation!'); end
-disp('Kilosorting complete')
+disp('Kilosorting complete, go curate in phy')
+
+
+disp('In terminal type:')
+disp('conda activate phy2')
+disp(['cd ' dirpath filenameP filesep 'kilosorting_laminar' filesep])
+disp('phy template-gui params.py')
+
+%% Once this prints "DONE", go curate the file in Phy!
 
 %% Once this prints "DONE", go curate the file in Phy!
 %{
@@ -142,9 +149,9 @@ disp('Drop test check complete')
 
 %% now, align kofiko information about stimuli with plexon data about spikes, LFPs, and eye traces
 disp('Kofiko alignment starting')
-which_computer = 2; % (default=2) 2 = LSR, room 2A58
+which_computer = 2; % (default=2) 2 = Caneron's Bizon
 
-ks.use_online = 0; % set to 1 to use on-line sorting, should be 0 if you want to use kilosort
+ks.use_online = 0; % set to 1 to use on-line sorting or no sorting at all. Should be 0 if you want to use kilosort
 ks.onlinechans = [1:64]; % which channels of on-line sorted spikes should we go through? 
 
 ks.stitched=0; % if you combined kilosort outputs for multiple arrays
@@ -185,6 +192,8 @@ data = PackageCloudData_v9( ExptTrials, ExptInfo, [], [], stimpath, outputdir );
 % data = PackageCloudData_v9( ExptTrials, ExptInfo );
 
 disp('Cloud packaging complete')
+%% Check to see if all of the relevant files were saved
+checkOutput(outputdir,filenameP)
 
 %% finally, generate STAs for all recorded cells
 disp('STA generation starting')
@@ -193,81 +202,87 @@ disp('STA generation complete')
 
 brake
  %% if you want to generate STAs for only a subset of the data, use this code instead:
-disp('STA subset generation starting')
-n_all = size(data.Robs, 1)+size(data.RobsMU, 1);
-target_SUs = [1:n_all]; % Change selection to a specific number of SUs Total number of SUs = size(data.Robs, 1)+size(data.RobsMU, 1)
-apply_ETshifts = 0;
-stim_deltas = ones(size(data.ETtrace))'; 
-% stim_deltas(1,:) = stim_deltas(1,:).*10;
-% stim_deltas(2,:) = stim_deltas(2,:).*20;
-num_lags = 6;
-%stim_deltas = data.stim_location_deltas;
-%use_inds = data.valid_data;
-use_inds = intersect(find(data.cloud_binary<2), data.valid_data); % 0 = full 1 = matched 2 = hybrid
-    use_inds(end-num_lags:end) = []; %cut last few indices to avoid artifacts
-
-save_vars.to_save = 1; % saves the STAs as pdf when set to 1
-save_vars.outputdir = outputdir;
-%save_vars.titlestr = [filenameP '_Plexon_Cloud60_']; 
-save_vars.titlestr = [filenameP '_FullClouds_']; 
-
-stas = get_sta(data, target_SUs, use_inds, apply_ETshifts, stim_deltas', num_lags, save_vars);
-disp('STA subset generation complete')
+% disp('STA subset generation starting')
+% n_all = size(data.Robs, 1)+size(data.RobsMU, 1);
+% target_SUs = [35:n_all]; % Change selection to a specific number of SUs Total number of SUs = size(data.Robs, 1)+size(data.RobsMU, 1)
+% apply_ETshifts = 0;
+% stim_deltas = ones(size(data.ETtrace))'; 
+% % stim_deltas(1,:) = stim_deltas(1,:).*10;
+% % stim_deltas(2,:) = stim_deltas(2,:).*20;
+% num_lags = 6;
+% %stim_deltas = data.stim_location_deltas;
+% %use_inds = data.valid_data;
+% use_inds = intersect(find(data.cloud_binary<2), data.valid_data); % 0 = full 1 = matched 2 = hybrid
+%     use_inds(end-num_lags:end) = []; %cut last few indices to avoid artifacts
+% 
+% save_vars.to_save = 0; % saves the STAs as pdf when set to 1
+% save_vars.outputdir = outputdir;
+% %save_vars.titlestr = [filenameP '_Plexon_Cloud60_']; 
+% save_vars.titlestr = [filenameP '_FullClouds_']; 
+% 
+% stas = get_sta(data, target_SUs, use_inds, apply_ETshifts, stim_deltas', num_lags, save_vars);
+% disp('STA subset generation complete')
 
 %% and if you want to run a forward correlation on the same info, set up the info in the same way
-disp('Forward Correlation subset generation starting')
-n_all = size(data.Robs, 1)+size(data.RobsMU, 1);
-target_SUs = [9]; %[1:n_all]; % Change selection to a specific number of SUs Total number of SUs = size(data.Robs, 1)+size(data.RobsMU, 1)
-apply_ETshifts = 0;
-stim_deltas = ones(size(data.ETtrace))'; 
-% stim_deltas(1,:) = stim_deltas(1,:).*10;
-% stim_deltas(2,:) = stim_deltas(2,:).*20;
-num_lags = 6;
-thresh=0.15;
-%stim_deltas = data.stim_location_deltas;
-%use_inds = data.valid_data;
-use_inds = intersect(find(data.cloud_binary==2), data.valid_data);
-    use_inds(end-num_lags:end) = []; %cut last few indices to avoid artifacts
-
-save_vars.to_save = 1; % saves the STAs as pdf when set to 1
-save_vars.outputdir = outputdir;
-%save_vars.titlestr = [filenameP '_BaseClouds_']; 
-save_vars.titlestr = [filenameP '_MatchedClouds_v2_']; 
-
-[fwdc_L, fwdc_M, fwdc_diff] = get_fwdc(data, target_SUs, use_inds, apply_ETshifts, stim_deltas', thresh, num_lags, save_vars);
-disp('Forward Correlation subset generation complete')
+% disp('Forward Correlation subset generation starting')
+% n_all = size(data.Robs, 1)+size(data.RobsMU, 1);
+% target_SUs = [9]; %[1:n_all]; % Change selection to a specific number of SUs Total number of SUs = size(data.Robs, 1)+size(data.RobsMU, 1)
+% apply_ETshifts = 0;
+% stim_deltas = ones(size(data.ETtrace))'; 
+% % stim_deltas(1,:) = stim_deltas(1,:).*10;
+% % stim_deltas(2,:) = stim_deltas(2,:).*20;
+% num_lags = 6;
+% thresh=0.15;
+% %stim_deltas = data.stim_location_deltas;
+% %use_inds = data.valid_data;
+% use_inds = intersect(find(data.cloud_binary==2), data.valid_data);
+%     use_inds(end-num_lags:end) = []; %cut last few indices to avoid artifacts
+% 
+% save_vars.to_save = 1; % saves the STAs as pdf when set to 1
+% save_vars.outputdir = outputdir;
+% %save_vars.titlestr = [filenameP '_BaseClouds_']; 
+% save_vars.titlestr = [filenameP '_MatchedClouds_v2_']; 
+% 
+% [fwdc_L, fwdc_M, fwdc_diff] = get_fwdc(data, target_SUs, use_inds, apply_ETshifts, stim_deltas', thresh, num_lags, save_vars);
+% disp('Forward Correlation subset generation complete')
 
 %% next, package the data, starting with Hartleys
-disp('Data packaging starting')
-%load([outputdir filenameP '_FullExpt_ks1_lam_v09.mat'])
-
-% first package the hartley stimuli
-data_hartleys = PackageCloudData_v9( ExptTrials, ExptInfo, 6, [], stimpath, outputdir );
-disp('Data packaging complete')
+% disp('Data packaging starting')
+% %load([outputdir filenameP '_FullExpt_ks1_lam_v09.mat'])
+% 
+% % first package the hartley stimuli
+% data_hartleys = PackageCloudData_v9( ExptTrials, ExptInfo, 6, [], stimpath, outputdir );
+% disp('Data packaging complete')
 
 %% Generate hartleys 
-disp('Hartley generation starting')
-% get_hartleys(input data, SUs we want to plot, lag at which we want to
-% plot)
-% to plot all SUs target_SUs = size(data_hartleys.Robs, 1)
-% to plot specific SUs target_SUs = [ 1 33 45 ]
-target_SUs = [1:67];
-lag = 4;
-save_vars.to_save = 1; % saves the STAs as pdf when set to 1
-save_vars.outputdir = outputdir;
-save_vars.titlestr = filenameP; 
-
-% data=[]; % if you want to skip plotting STA info alongside hartley tuning plots
-get_hartleys(data_hartleys, target_SUs, lag, save_vars, data);
-
-disp('Hartley generation complete')
+% disp('Hartley generation starting')
+% % get_hartleys(input data, SUs we want to plot, lag at which we want to plot)
+% % to plot all SUs target_SUs = size(data_hartleys.Robs, 1)
+% % to plot specific SUs target_SUs = [ 1 33 45 ]
+% target_SUs = [1:67];
+% lag = 4;
+% save_vars.to_save = 1; % saves the STAs as pdf when set to 1
+% save_vars.outputdir = outputdir;
+% save_vars.titlestr = filenameP; 
+% 
+% % data=[]; % if you want to skip plotting STA info alongside hartley tuning plots
+% get_hartleys(data_hartleys, target_SUs, lag, save_vars, data);
+% 
+% disp('Hartley generation complete')
 %% now we plot the best lag of our STAs by depth
 %TODO: add stas_depth code that shows select STAs in order of laminar
 %arrangement
 
+%% Move files to server (very slow, probably better to do manually)
+% remoteBase = '/run/user/1000/gvfs/smb-share:server=lsr-isilon.nei.nih.gov,share=lsr-conway';
+% remotePath = fullfile(remoteBase, 'projects', 'V1_Fovea', 'processing', filenameP);
+% copyfile(outputdir, [remotePath '/Analysis']);
+% copyfile([dirpath filenameP '/kilosorting_laminar'],[remotePath '/kilosorting_laminar'])
+
+
 %% Delete large temporary files
 disp('Deleting temporary files started')
-dirpath2 = ['/home/conwaylab/Data/',filenameP,'/kilosorting_laminar/'];
+dirpath2 = ['/home/bizon/Data/V1_Fovea/',filenameP,'/kilosorting_laminar/'];
 cd(dirpath2)
 dat = [filenameP, '.dat'];
 % Move .dat, SampToSecsMap.mat, and res2.mat file to trash
