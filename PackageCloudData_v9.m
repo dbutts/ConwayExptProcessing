@@ -122,7 +122,8 @@ for switch_stimtype=0:8
 		if strcmp(exptdata{tt, 1}.m_strTrialType, 'Dual Stim') && ...
 			(exptdata{tt, 1}.m_bMonkeyFixated == 1 | exptdata{tt, 1}.m_bMonkeyFixatedOverride == 1) && ...
             (trlonset_diffs(tt) > trialdur) && ...
-			(exptdata{tt, 1}.DualstimPrimaryuseRGBCloud == switch_stimtype) % &&...
+			(exptdata{tt, 1}.DualstimPrimaryuseRGBCloud == switch_stimtype) &&...
+            (exptdata{tt, 1}.m_aiStimulusArea > 0)
 			% exptdata{tt, 1}.DualstimSecondaryUseCloud==targ_ETstimtype; % && exptdata{tt, 1}.m_aiStimulusRect(1)==975;
 			targ_trials=[targ_trials,tt];
 		end
@@ -140,26 +141,6 @@ for switch_stimtype=0:8
 	end
 
 end
-
-%%
-%{
-for tt=1:length(exptdata)
-figure(1);
-plot(exptdata{tt, 1}.m_afEyeXPositionScreenCoordinates-(exptdata{tt, 1}.m_pt2iFixationSpot(1))); hold on
-plot(exptdata{tt, 1}.m_afEyeYPositionScreenCoordinates-(exptdata{tt, 1}.m_pt2iFixationSpot(2))); hold off
-
-title(num2str(exptdata{tt, 1}.m_bMonkeyFixated));
-%exptdata{4353, 1}.m_afEyeXPositionScreenCoordinates  
-
-figure(2);
-plot(exptdata{tt, 5}');
-
-pause
-end
-%}
-
-% DAN commented out: This now comes in the experiment info metadata
-%load([metadata_struct.expt_folder exptname '.mat'], 'g_astrctAllParadigms')
 
 try
     DualstimETbars = int8(squeeze((metadata_struct.g_astrctAllParadigms.DualstimETbars-128)/127)');
@@ -619,21 +600,30 @@ else
 	num_stim_locs = 1;
 end
 stim_locs = zeros(size(exptdata_mod,1), num_stim_locs, 4);
+stim_area = zeros(size(exptdata_mod,1), 1);
+
 for nn = 1:size(exptdata_mod,1)
 	if isfield(exptdata_mod{end,1}, 'm_aiTiledStimulusRect')
 		stim_locs(nn, :, :) = exptdata_mod{nn, 1}.m_aiTiledStimulusRect;
 	else
 		stim_locs(nn, :, :) = exptdata_mod{nn, 1}.m_aiStimulusRect;
-	end
+    end
+    stim_area(nn) = exptdata_mod{nn, 1}.m_aiStimulusArea;
 end
+
+if unique(stim_area)>1;
+    disp('Caution: multiple stimulus areas detected. Check stim_area for consistency!')
+end
+
+L = mode(stim_area); % identify the stim area with the most trials. hopefully this will always be 60. if not, we can code in targeting for multiple stim sizes.
+
+% try % old way to calculate stim area introduced 
+%     L = stim_locs(1,3,1)-stim_locs(1,1,1);
+% catch
+%     L = stim_locs(1,1,3)-stim_locs(1,1,1);
+% end
 
 % Determine median stim location and use that -- but then record shifts relative to that
-try
-    L = stim_locs(1,3,1)-stim_locs(1,1,1);
-catch
-    L = stim_locs(1,1,3)-stim_locs(1,1,1);
-end
-
 tcx = median(stim_locs(:,:,1));
 tcy = median(stim_locs(:,:,2));
 stim_location = [tcx' tcy' tcx'+L tcy'+L];
@@ -816,6 +806,7 @@ data.dt = dt;
 data.electrode_info = electrode_info;
 data.stim_location = stim_location;
 data.stim_location_deltas = delta_stimlocs;
+data.stim_area = stim_area;
 data.ETstim_location = ETstim_location;
 data.pixel_size = pixel_size;
 
