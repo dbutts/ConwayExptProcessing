@@ -23,6 +23,15 @@ opts.outputFolder = outputFolder;
 %opts.specificChannels = [];  % user can select which plexon channels to use for
 %                               conversion. remember, this must be in plexon-numbering.
 %%
+% try
+%     [fs, n, ts, fn, ~] = plx_ad_v([pl2path filenameP filesep filenameP '.pl2'], ['SPKC001'] );
+% end
+% if n<2
+%     try
+%         [fs, n, ts, fn, ~] = plx_ad_v([pl2path filenameP filesep filenameP '.pl2'], ['SPKC01'] );
+%     end
+% end
+% [~, n_aux, ts_aux, fn_aux, ~] = plx_ad_v([pl2path filenameP filesep filenameP '.pl2'], ['AI01'] );
 try
     [fs, n, ts, fn, ~] = plx_ad_v([pl2path filenameP '.pl2'], ['SPKC001'] );
 end
@@ -38,6 +47,7 @@ droptestcheck = [n_aux/1000-n/40000];
 %%
 if ~opts.preconverted
     %convert pl2 file into dat format
+    %[samples, datPath] = convertRawToDat_Laminar([pl2path filenameP filesep filenameP '.pl2'],opts);
     [samples, datPath] = convertRawToDat_Laminar([pl2path filenameP '.pl2'],opts);
 else
     datPath = [dirpath filenameP '/kilosorting_laminar/' filenameP '.dat'];
