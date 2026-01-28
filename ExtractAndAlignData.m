@@ -1,4 +1,4 @@
-function [ExptTrials, ExptInfo, ETdata] = ExtractAndAlignData( exptname, dirpath, which_computer, ks, opts )
+function [ExptTrials, ExptInfo] = ExtractAndAlignData( exptname, dirpath, which_computer, ks, opts )
 %
 % Usage: ExtractAndAlignData( exptname, dirpath, <which_computer>, <eye_tracker> )
 %
@@ -31,10 +31,6 @@ end
 
 if ~isfield(opts, 'is_cloud')
     opts.is_cloud = 1; % default) indicates processing for cloud data. set to 0 to skip cloud-specific variables and align task data or other paradigms 
-end
-
-if ~isfield(opts, 'extractfixinfo')
-    opts.extractfixinfo = 1; % default) saves out fivedot/dotgrid trial onsets and fixation locations (for calibrating dDPI signal). set to 0 to skip this process.
 end
 
 if ~isfield(opts, 'spk_offset') 
@@ -82,10 +78,6 @@ end
 
 %ExperimentFolder = dirpath;  % EXPERIMENT FOLDER
 %filenameP = exptname;
-
-ExptInfo.exptname = exptname;
-ExptInfo.monkey_name = opts.monkey_name;
-ExptInfo.array_label = ks.arraylabel;
 
 %% Extract Bevil's data
 
@@ -376,8 +368,22 @@ end
 RECstart = kofikoStrobeAllTS(1);
 RECend = kofikoStrobeAllTS(end);
 
-
-
+if opts.is_cloud % only include cloud trials; this discards Fivedot, Handmapper, etc trials
+    targ_trials=[];
+    for tt=1:length(ExptTrials)
+	    if strcmp(ExptTrials{tt, 1}.m_strTrialType, 'Dual Stim')
+		    % if strcmp(ExptTrials{tt, 1}.m_strTrialType, 'Fivedot');
+		    if (ExptTrials{tt, 2} >= RECstart) && (ExptTrials{tt, 2} <= RECend) 
+			    targ_trials = [targ_trials, tt];
+		    else
+			    fprintf('   Invalid Dual-Stim trial detected (#%d) -- eliminating.\n', tt)
+		    end
+	    end
+    end
+    
+    %% Reduce trials to valid subset
+    ExptTrials=ExptTrials(targ_trials,:);
+end
 
 %% Ensure trials are in correct order
 ntrials=length(ExptTrials);
@@ -413,7 +419,7 @@ end
 %% former location of online-sorted spike processing
 
 %% Process Eye-tracking data
-load([dirpath, exptname, '.mat'], 'g_strctEyeCalib'); % Used to load the gains later
+load([dirpath, exptname, '.mat'], 'g_strctEyeCalib');
 load([dirpath, exptname, '.mat'], 'g_strctStimulusServer');
 
 if ET_Eyelink == 1      % monoc eyelink,
@@ -440,7 +446,7 @@ elseif ET_Eyelink == 3  % monocular dDPI
 	[~, ~, ~, ~, PlexET_ad(3,:)] = plx_ad_v(thisSessionFile, 'AI07');
 	[ET_adfreq, ET_n, ET_ts, ET_fn, PlexET_ad(4,:)] = plx_ad_v(thisSessionFile, 'AI08');
 	PlexET_ad_calib=PlexET_ad;
-	PlexET_ad_calib(3,:) = PlexET_ad_calib(3,:)*(g_strctEyeCalib.GainX.Buffer(end)./opts.plx_analogscale); 
+	PlexET_ad_calib(3,:) = PlexET_ad_calib(3,:)*(g_strctEyeCalib.GainX.Buffer(end)./opts.plx_analogscale); % assumes a standard dDPI gain of 250, which works out to a ~5-fold gain on the analog signal - at least as far as i can tell. -FB 
 	PlexET_ad_calib(4,:) = PlexET_ad_calib(4,:)*(g_strctEyeCalib.GainY.Buffer(end)./opts.plx_analogscale);
 
 elseif ET_Eyelink == 4  % binocular dDPI - rigC inputs verified 1/13/25
@@ -453,7 +459,7 @@ elseif ET_Eyelink == 4  % binocular dDPI - rigC inputs verified 1/13/25
 	[~, ~, ~, ~, PlexET_ad(7,:)] = plx_ad_v(thisSessionFile, 'AI07'); % L X
 	[ET_adfreq, ET_n, ET_ts, ET_fn, PlexET_ad(8,:)] = plx_ad_v(thisSessionFile, 'AI08'); % L Y
 	PlexET_ad_calib=PlexET_ad;
-	PlexET_ad_calib(5,:) = PlexET_ad_calib(5,:)*(g_strctEyeCalib.GainX.Buffer(end)./opts.plx_analogscale); % Gain is dependent on the gains set in Kofiko (can see these logged in control computer's .txt file); Analog scale is always 1000 from what I have seen -CM
+	PlexET_ad_calib(5,:) = PlexET_ad_calib(5,:)*(g_strctEyeCalib.GainX.Buffer(end)./opts.plx_analogscale); % assumes a standard dDPI gain of 250, which works out to a ~5-fold gain on the analog signal - at least as far as i can tell. -FB 
 	PlexET_ad_calib(6,:) = PlexET_ad_calib(6,:)*(g_strctEyeCalib.GainY.Buffer(end)./opts.plx_analogscale);
 	PlexET_ad_calib(7,:) = PlexET_ad_calib(7,:)*(g_strctEyeCalib.GainX.Buffer(end)./opts.plx_analogscale);
 	PlexET_ad_calib(8,:) = PlexET_ad_calib(8,:)*(g_strctEyeCalib.GainY.Buffer(end)./opts.plx_analogscale);
@@ -943,9 +949,6 @@ for iTrials = 1:ntrials   %trialsInThisSession{iSessions}
 	end
 end 
 %%
-if opts.extractfixinfo
-    ETdata = extract_fixinfo( ExptTrials, ExptInfo, {'Fivedot','FiveDot', 'Dotgrid'}, output_directory);
-end
 
 %%
 fprintf('Done combining information.\n')
@@ -956,6 +959,9 @@ cd(currentDirectory);
 outfile = sprintf( '%s_FullExpt_ks%d_%s_v09.mat', exptname, useofflinesorting, ks.arraylabel );
 
 % Save other variables to continue the process
+ExptInfo.exptname = exptname;
+ExptInfo.monkey_name = opts.monkey_name;
+ExptInfo.array_label = ks.arraylabel;
 ExptInfo.nSU = nSU;
 ExptInfo.nMU = nMU;
 ExptInfo.spk_ID_SU = spk_ID_SU; 
@@ -973,23 +979,6 @@ load([dirpath exptname '.mat'], 'g_astrctAllParadigms')
 ExptInfo.g_astrctAllParadigms = g_astrctAllParadigms{1};  % this is only one cell array -- what is it?
 ExptInfo.g_strctEyeCalib = g_strctEyeCalib;
 ExptInfo.g_strctDAQParams = g_strctDAQParams;  % don't know if needed, but just in case
-
-if opts.is_cloud % only include cloud trials; this discards Fivedot, Handmapper, etc trials
-    targ_trials=[];
-    for tt=1:length(ExptTrials)
-	    if strcmp(ExptTrials{tt, 1}.m_strTrialType, 'Dual Stim')
-		    % if strcmp(ExptTrials{tt, 1}.m_strTrialType, 'Fivedot');
-		    if (ExptTrials{tt, 2} >= RECstart) && (ExptTrials{tt, 2} <= RECend) 
-			    targ_trials = [targ_trials, tt];
-		    else
-			    fprintf('   Invalid Dual-Stim trial detected (#%d) -- eliminating.\n', tt)
-		    end
-	    end
-    end
-    
-    % Reduce trials to valid subset
-    ExptTrials=ExptTrials(targ_trials,:);
-end
 
 fprintf('Saving %s in %s....\n', outfile, output_directory)
 save([output_directory outfile], 'ExptTrials', 'ExptInfo', '-v7.3')  % HDF5 output

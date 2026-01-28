@@ -116,14 +116,13 @@ trialdur = metadata_struct.trialdur;
 for switch_stimtype=0:8
 
 	targ_trials=[];  
-	for tt=1:length(exptdata) % tt = number of trials
+	for tt=1:length(exptdata)
 		%    if strcmp(exptdata{tt, 1}.m_strTrialType, 'Dense Noise');
         if ~isfield(exptdata{tt,1},'m_bMonkeyFixatedOverride'); exptdata{tt, 1}.m_bMonkeyFixatedOverride=0; end
 		if strcmp(exptdata{tt, 1}.m_strTrialType, 'Dual Stim') && ...
 			(exptdata{tt, 1}.m_bMonkeyFixated == 1 | exptdata{tt, 1}.m_bMonkeyFixatedOverride == 1) && ...
             (trlonset_diffs(tt) > trialdur) && ...
-			(exptdata{tt, 1}.DualstimPrimaryuseRGBCloud == switch_stimtype) &&...
-            (exptdata{tt, 1}.m_aiStimulusArea > 0)
+			(exptdata{tt, 1}.DualstimPrimaryuseRGBCloud == switch_stimtype) % &&...
 			% exptdata{tt, 1}.DualstimSecondaryUseCloud==targ_ETstimtype; % && exptdata{tt, 1}.m_aiStimulusRect(1)==975;
 			targ_trials=[targ_trials,tt];
 		end
@@ -141,6 +140,26 @@ for switch_stimtype=0:8
 	end
 
 end
+
+%%
+%{
+for tt=1:length(exptdata)
+figure(1);
+plot(exptdata{tt, 1}.m_afEyeXPositionScreenCoordinates-(exptdata{tt, 1}.m_pt2iFixationSpot(1))); hold on
+plot(exptdata{tt, 1}.m_afEyeYPositionScreenCoordinates-(exptdata{tt, 1}.m_pt2iFixationSpot(2))); hold off
+
+title(num2str(exptdata{tt, 1}.m_bMonkeyFixated));
+%exptdata{4353, 1}.m_afEyeXPositionScreenCoordinates  
+
+figure(2);
+plot(exptdata{tt, 5}');
+
+pause
+end
+%}
+
+% DAN commented out: This now comes in the experiment info metadata
+%load([metadata_struct.expt_folder exptname '.mat'], 'g_astrctAllParadigms')
 
 try
     DualstimETbars = int8(squeeze((metadata_struct.g_astrctAllParadigms.DualstimETbars-128)/127)');
@@ -161,25 +180,25 @@ end
 
 %% Random assortment of setup things -- before going into trial-by-trial processing
 %ntrls = min([size(exptdata_mod,1),500]); % only using the first 500
-ntrls = size(exptdata_mod,1); % find number of trials
+ntrls = size(exptdata_mod,1);
 NT=trlbins*ntrls;
 
 if any([strfind(exptname,'220203'), strfind(exptname,'220205'), strfind(exptname,'220207')])
-	trlsecs=2.67; % number of seconds in each trial
+	trlsecs=2.67;
 	edges = linspace(0,trlsecs,trlbins); edges_hist=linspace(0,trlsecs,trlbins+1);
 	cur_trial_ETsamples = [0:.001:2.669];
 else
-	trlsecs = 4; 
+	trlsecs = 4;
 	edges = linspace(0,trlsecs,trlbins); edges_hist=linspace(0,trlsecs,trlbins+1);  
 	cur_trial_ETsamples = [0:.001:3.999];
 end
 
 if metadata_struct.ET_Eyelink == 3
-	numETtraces = 2; % number of eye traces
+	numETtraces = 2;
 	ET_trace_raw_1khz = zeros(ntrls*trlsecs*1000, 3);
-elseif metadata_struct.ET_Eyelink == 4 %%% Added by [Ramon Bartolo, 20250522] to handle binocular dDPI
-    numETtraces = 4; %number of eye traces for binocular dDPI
-	ET_trace_raw_1khz = zeros(ntrls*trlsecs*1000, numETtraces);
+elseif metadata_struct.ET_Eyelink == 4
+	numETtraces = 4;
+	ET_trace_raw_1khz = zeros(ntrls*trlsecs*1000, 5);
 else
 	numETtraces = size(exptdata_mod{end, 7}.ET_trace, 1);
 	ET_trace_raw_1khz = zeros(ntrls*trlsecs*1000, numETtraces);
@@ -330,32 +349,23 @@ for tt = 1:ntrls
 	%    cur_trial_ETsamples=[0:.001:3.999];
 	cur_trial_ET_trace_full(:,1)=(exptdata_mod{tt, 7}.ET_trace(1,:)' )*(g_strctEyeCalib.GainX.Buffer(end)./1000);
 	cur_trial_ET_trace_full(:,2)=(exptdata_mod{tt, 7}.ET_trace(2,:)' )*(g_strctEyeCalib.GainY.Buffer(end)./1000);
-
-	if numETtraces > 2
-    	cur_trial_ET_trace_full(:,3)=(exptdata_mod{tt, 7}.ET_trace(3,:)' )*(g_strctEyeCalib.GainX.Buffer(end)./1000);
-    	cur_trial_ET_trace_full(:,4)=(exptdata_mod{tt, 7}.ET_trace(4,:)' )*(g_strctEyeCalib.GainY.Buffer(end)./1000);
-	end
-	if metadata_struct.ET_Eyelink == 3
+	
+	if metadata_struct.ET_Eyelink < 3
+	    if numETtraces > 2
+    	    cur_trial_ET_trace_full(:,3)=(exptdata_mod{tt, 7}.ET_trace(3,:)' )*(g_strctEyeCalib.GainX.Buffer(end)./1000);
+    	    cur_trial_ET_trace_full(:,4)=(exptdata_mod{tt, 7}.ET_trace(4,:)' )*(g_strctEyeCalib.GainY.Buffer(end)./1000);
+	    end
+    end
+    if metadata_struct.ET_Eyelink == 3
 		cur_trial_ET_trace_full(:,1)=(exptdata_mod{tt, 7}.ET_trace(3,:)' - median(exptdata_mod{tt, 7}.ET_trace(3,:)'))*(g_strctEyeCalib.GainX.Buffer(end)./1000);
 		cur_trial_ET_trace_full(:,2)=(exptdata_mod{tt, 7}.ET_trace(4,:)' - median(exptdata_mod{tt, 7}.ET_trace(4,:)'))*(g_strctEyeCalib.GainY.Buffer(end)./1000);    
-    end 
-    
-    %%% Added by [Ramon Bartolo, 20250522] to handle binocular dDPI
-    if metadata_struct.ET_Eyelink == 4 && size(exptdata_mod{tt, 7}.ET_trace,1)==8
-        %%% on exptdata_mod.ET_trace from binocular dDPI data:
-        %%% row 1: strobe
-        %%% row 2: null (strobe artifact)
-        %%% row 3: L pupil size
-        %%% row 4: R pupil size
-        %%% rows 5-6: XY (R)
-        %%% rows 7-8: XY (L)
-        cur_trial_ET_trace_full=[]; cur_trial_ET_trace = [];
-        cur_trial_ET_trace_full(:,1)=(exptdata_mod{tt, 7}.ET_trace(5,:)' )*(g_strctEyeCalib.GainX.Buffer(end)./1000); %X right eye
-	    cur_trial_ET_trace_full(:,2)=(exptdata_mod{tt, 7}.ET_trace(6,:)' )*(g_strctEyeCalib.GainY.Buffer(end)./1000); %Y right eye
-		cur_trial_ET_trace_full(:,3)=(exptdata_mod{tt, 7}.ET_trace(7,:)' )*(g_strctEyeCalib.GainX.Buffer(end)./1000); %X left eye
-    	cur_trial_ET_trace_full(:,4)=(exptdata_mod{tt, 7}.ET_trace(8,:)' )*(g_strctEyeCalib.GainY.Buffer(end)./1000); %Y left eye
 	end 
-
+    if metadata_struct.ET_Eyelink == 4
+		cur_trial_ET_trace_full(:,1)=(exptdata_mod{tt, 7}.ET_trace(5,:)' - median(exptdata_mod{tt, 7}.ET_trace(5,:)'))*(g_strctEyeCalib.GainX.Buffer(end)./1000);
+		cur_trial_ET_trace_full(:,2)=(exptdata_mod{tt, 7}.ET_trace(6,:)' - median(exptdata_mod{tt, 7}.ET_trace(6,:)'))*(g_strctEyeCalib.GainY.Buffer(end)./1000);    
+		cur_trial_ET_trace_full(:,3)=(exptdata_mod{tt, 7}.ET_trace(7,:)' - median(exptdata_mod{tt, 7}.ET_trace(7,:)'))*(g_strctEyeCalib.GainX.Buffer(end)./1000);
+		cur_trial_ET_trace_full(:,4)=(exptdata_mod{tt, 7}.ET_trace(8,:)' - median(exptdata_mod{tt, 7}.ET_trace(8,:)'))*(g_strctEyeCalib.GainY.Buffer(end)./1000);    	
+    end 
 	% % if needing to interpolate time positions
 	%         cur_trial_ET_trace(:,1)=interp1(cur_trial_ETsamples,cur_trial_ET_trace_full(:,1),edges,'linear');
 	%         cur_trial_ET_trace(:,2)=interp1(cur_trial_ETsamples,cur_trial_ET_trace_full(:,2),edges,'linear');
@@ -402,16 +412,16 @@ for tt = 1:ntrls
 	
 		cur_trial_ETsamples_kofiko = exptdata_mod{tt, 1}.m_afEyePositiontimes - exptdata_mod{tt, 1}.m_afEyePositiontimes(1);
 		cur_trial_ET_trace(1,:)=interp1(cur_trial_ETsamples_kofiko, exptdata_mod{tt, 1}.m_afEyeXPositionScreenCoordinates' - exptdata_mod{tt, 1}.m_pt2iFixationSpot(1), linspace(0,4,240))';
-		cur_trial_ET_trace(2,:)=interp1(cur_trial_ETsamples_kofiko, exptdata_mod{tt, 1}.m_afEyeYPositionScreenCoordinates' - exptdata_mod{tt, 1}.m_pt2iFixationSpot(2), linspace(0,4,240))';
+		cur_trial_ET_trace(2,:)=interp1(cur_trial_ETsamples_kofiko, exptdata_mod{tt, 1}.m_afEyeYPositionScreenCoordinates' - exptdata_mod{tt, 1}.m_pt2iFixationSpot(2), linspace(0,4,240))';    
 
-    elseif metadata_struct.ET_Eyelink == 4 %%% Added by [Ramon Bartolo, 20250522] to handle binocular dDPI
+    elseif  metadata_struct.ET_Eyelink == 4
 		ET_trace_raw_1khz([1:trlsecs*1000]+trlsecs*1000*(tt-1),1:4)=cur_trial_ET_trace_full;
-		ET_trace_raw_1khz([1:trlsecs*1000]+trlsecs*1000*(tt-1),5:6) = exptdata_mod{tt, 7}.ET_trace(3:4,:)'; %adding pupil sizes
-	    
+		ET_trace_raw_1khz([1:trlsecs*1000]+trlsecs*1000*(tt-1),5) = exptdata_mod{tt, 7}.ET_trace(1,:)';
+	
 		cur_trial_ETsamples_kofiko = exptdata_mod{tt, 1}.m_afEyePositiontimes - exptdata_mod{tt, 1}.m_afEyePositiontimes(1);
 		cur_trial_ET_trace(1,:)=interp1(cur_trial_ETsamples_kofiko, exptdata_mod{tt, 1}.m_afEyeXPositionScreenCoordinates' - exptdata_mod{tt, 1}.m_pt2iFixationSpot(1), linspace(0,4,240))';
-		cur_trial_ET_trace(2,:)=interp1(cur_trial_ETsamples_kofiko, exptdata_mod{tt, 1}.m_afEyeYPositionScreenCoordinates' - exptdata_mod{tt, 1}.m_pt2iFixationSpot(2), linspace(0,4,240))';
-
+		cur_trial_ET_trace(2,:)=interp1(cur_trial_ETsamples_kofiko, exptdata_mod{tt, 1}.m_afEyeYPositionScreenCoordinates' - exptdata_mod{tt, 1}.m_pt2iFixationSpot(2), linspace(0,4,240))';    
+        
 	else
 		ET_trace_raw_1khz([1:trlsecs*1000]+trlsecs*1000*(tt-1),:)=cur_trial_ET_trace_full;
 		% ET_ad_up(1,:) = smooth(cur_trial_ET_trace_full(:,1)', eye_smooth(1), 'sgolay', sgolay_deg(1));
@@ -570,6 +580,121 @@ use_inds_artifact(abs(ET_trace(use_inds_artifact,2))>25)=[];
 
 use_inds=setdiff(tvec,unique([bad_inds_fix,bad_inds_sac,bad_inds_artifact]));
 %}
+%%
+
+%% DAB: This stuff below was half-commented out and probably useless (%%%%)
+%figure;
+%subplot(3,1,1); imagesc(binned_SU1)
+%subplot(3,1,2); imagesc(binned_SU2)
+%subplot(3,1,3); imagesc(binned_SU3)
+%figure; 
+%imagesc(binned_SUSort)
+%%
+%%%% spksums=sum(binned_SU1);
+%figure; histogram(spksums)
+%%%% goodspkinds=find(spksums>3000);
+%%
+%%%% binned_SU=double(binned_SU1);
+
+%{
+%% quick STA test
+cur_use_inds=find(stimtype>=2);
+cur_use_inds(end-10:end)=[];
+curlag=3;
+
+figure;
+stim2=reshape(stimulus,length(stimulus),3*25*25);
+for cc=1:25;%[1 2 3 4 5 10 11 13 16:18 20 24];%
+    cur_STA=binned_SU(cur_use_inds+curlag,cc)'*stim2(cur_use_inds,:);
+    cur_StA2=reshape(cur_STA,3,25,25);
+    curlim=max(abs(cur_StA2(:)));
+    subplot(3,1,1)
+    imagesc(squeeze(cur_StA2(1,:,:))); caxis([-curlim curlim]); title('Luminance axis'); pbaspect([1 1 1])
+    subplot(3,1,2)
+    imagesc(squeeze(cur_StA2(2,:,:))); caxis([-curlim curlim]); title('L-M axis'); pbaspect([1 1 1])
+    subplot(3,1,3)
+    imagesc(squeeze(cur_StA2(3,:,:))); caxis([-curlim curlim]); title('S axis'); pbaspect([1 1 1])
+    figtitle(['unit ' num2str(cc) '   lag ' num2str(curlag)])
+    colormap(gray)
+    pause
+end
+
+trololo
+%}
+%{
+%% quick STA to check (does not have eye correction)
+cur_use_inds=intersect(find(stimtype==8),use_inds_fix);
+cur_use_inds(end-10:end)=[];
+
+stim2=(single(reshape(stim,size(stim,1),3*60*60))./127);
+%stim3=reshape(stimET,size(stim,1),3*60*60);
+
+%%
+for cc=targchans
+    tic
+    figure;
+
+    for curlag=1:6
+        cur_STA1(curlag,:)=binned_SU(cur_use_inds+curlag,cc)'*stim2(cur_use_inds,:);
+    end
+    
+    for curlag=1:6
+    cur_StA2=reshape(cur_STA1(curlag,:),60,180);
+    %curlim=150;%
+    curlim=max(abs(cur_STA1(:)'));
+
+    cur_StA2(:,[60 120])=curlim;
+    subplot(6,1,curlag)
+    imagesc(cur_StA2); clim([-curlim curlim]); pbaspect([3 1 1])
+
+    colormap(gray); xlabel(['Lag ' num2str(curlag)]);
+    if curlag==1; ylabel('S          L-M          Lum'); title(['Unit ' num2str(cc) ]); end
+    end
+%    figtitle(['Probe ' num2str(Robs_probe_ID(cc)) '   Unit ' num2str(cc) ])
+
+    toc
+%    pause
+end  
+%}
+%% for bar stimulus STAs
+%{
+%binned_SU1=double(Robs');
+binned_SU=double(binned_SU1);
+stim3=double(stimET');
+%stim3b=double(stimET(2:2:end,:));
+%% STA across several lags
+cur_use_inds=intersect(2:2:length(stim3),use_inds_fix);
+%cur_use_inds=intersect(2:2:78420,valid_data);
+cur_use_inds(end-10:end)=[];
+
+for cc=1:134
+    tic
+    for curlag=1:10
+%    cur_StA2=reshape(cur_STA{curlag},3,25,25);
+%    cur_StA3=reshape(permute(cur_StA2,[3 2 1]),25,75);
+%   cur_StA2=reshape(cur_STA{curlag},60,180);
+%    cur_StA2(curlag,:)=double(binned_SU(cur_use_inds+curlag,cc))'*stim3(cur_use_inds,:);
+    cur_StA2(curlag,:)=binned_SU(cur_use_inds+curlag,cc)'*stim3(cur_use_inds,:);
+    
+    %curlim=max(abs(cell2mat(cur_STA(:)')));
+    curlim=max(abs(cur_StA2(:)'));
+    imagesc(cur_StA2); caxis([-curlim curlim]); %pbaspect([1 3 1])
+    colormap(gray); xlabel(['Lag ' num2str(curlag)]);
+    if curlag==1; ylabel('S          L-M          Lum'); end
+    end
+    title(['SU Unit ' num2str(cc)])
+    toc
+    pause
+end  
+%%
+%use_SUs=[1 2 4 10 13 17 20 24];
+%binned_sua=binned_SU(:,use_SUs);
+% good_SU=[1 3 5 6 7];
+% ok_SU=[4 8:10 15];
+binned_SU=binned_SU(:,iso_SUs);
+figure; imagesc(binned_SU)
+
+%}
 
 %%
 
@@ -600,30 +725,21 @@ else
 	num_stim_locs = 1;
 end
 stim_locs = zeros(size(exptdata_mod,1), num_stim_locs, 4);
-stim_area = zeros(size(exptdata_mod,1), 1);
-
 for nn = 1:size(exptdata_mod,1)
 	if isfield(exptdata_mod{end,1}, 'm_aiTiledStimulusRect')
 		stim_locs(nn, :, :) = exptdata_mod{nn, 1}.m_aiTiledStimulusRect;
 	else
 		stim_locs(nn, :, :) = exptdata_mod{nn, 1}.m_aiStimulusRect;
-    end
-    stim_area(nn) = exptdata_mod{nn, 1}.m_aiStimulusArea;
+	end
 end
-
-if unique(stim_area)>1;
-    disp('Caution: multiple stimulus areas detected. Check stim_area for consistency!')
-end
-
-L = mode(stim_area); % identify the stim area with the most trials. hopefully this will always be 60. if not, we can code in targeting for multiple stim sizes.
-
-% try % old way to calculate stim area introduced 
-%     L = stim_locs(1,3,1)-stim_locs(1,1,1);
-% catch
-%     L = stim_locs(1,1,3)-stim_locs(1,1,1);
-% end
 
 % Determine median stim location and use that -- but then record shifts relative to that
+try
+    L = stim_locs(1,3,1)-stim_locs(1,1,1);
+catch
+    L = stim_locs(1,1,3)-stim_locs(1,1,1);
+end
+
 tcx = median(stim_locs(:,:,1));
 tcy = median(stim_locs(:,:,2));
 stim_location = [tcx' tcy' tcx'+L tcy'+L];
@@ -645,7 +761,6 @@ stimscale = (stim_location(3)-stim_location(1))/60;
 fixlocs1 = [fix_location(1)-fix_size:fix_location(1)+fix_size];
 fixlocs2 = [fix_location(2)-fix_size:fix_location(2)+fix_size];
 
-%{
 %if nofix
 %	fixdot = [];
 %else
@@ -701,7 +816,7 @@ fixlocs2 = [fix_location(2)-fix_size:fix_location(2)+fix_size];
 %		fixdot=[0,0;0,0];
 %	end
 %end
-%}
+
 %% Strange case of fixdotET
 if ~skipET
 	if targ_ETstimtype == 1
@@ -806,7 +921,6 @@ data.dt = dt;
 data.electrode_info = electrode_info;
 data.stim_location = stim_location;
 data.stim_location_deltas = delta_stimlocs;
-data.stim_area = stim_area;
 data.ETstim_location = ETstim_location;
 data.pixel_size = pixel_size;
 
@@ -824,13 +938,16 @@ data.useLeye = useLeye;
 data.useReye = useReye;
 data.sacc_inds = sacc_inds;
 
+%data.stim = stim;
+data.stimtype = stimtype;
+% data.stimET = [];
+
 data.trial_start_ts = trial_start_ts;
 data.block_inds = block_inds;
 data.valid_data = valid_data;
 data.blockID = blockID;  % only relevant to some conditions (?) but otherwise blank
 data.trialID = trialID;  % likewise
 
-data.stimtype = stimtype;
 data.Robs = Robs;
 data.RobsMU = RobsMU;
 data.RobsMU_probe_ID = RobsMU_probe_ID;
@@ -866,6 +983,43 @@ end
 % SAVE
 disp('Saving...') 
 save( cur_filename, '-struct', 'data', '-v7.3')
+
+%%%%%%%%%%% ORIGINAL SAVING FIASCO %%%%%%%%%%%%%%%%%%%%
+%switch targ_stimtype
+%    case 8
+%        if ~skipET
+%            if targ_ETstimtype==1;
+%            save(cur_filename, 'exptname', 'exptdate', 'dt','electrode_info','stim_location','ETstim_location', 'pixel_size', 'fix_location', 'fix_size','fixdot',...
+%                'stim', 'stimET', 'stimETori', 'stimtype', 'stimtypeET', 'stimloc', 'stimscale','valid_data', 'cloud_scale', 'cloud_binary', 'block_inds', 'blockID', 'trialID', 'sacc_inds', 'ETtrace', 'ETtrace_raw', 'ETtrace_plex_calib', 'ETgains', 'trial_start_ts', 'useLeye', 'useReye',...
+%                'Robs', 'Robs_probe_ID', 'Robs_rating', 'spk_times', 'spk_IDs', 'datafilts', 'RobsMU',  'RobsMU_probe_ID', 'RobsMU_rating', 'datafiltsMU', '-v7.3' )
+%            else
+%            save(cur_filename, 'exptname', 'exptdate', 'dt','electrode_info','stim_location','ETstim_location', 'pixel_size', 'fix_location', 'fix_size','fixdot','fixdotET',...
+%                'stim', 'stimET', 'stimtype', 'stimtypeET','stimloc',  'stimscale','valid_data', 'cloud_scale', 'cloud_binary', 'block_inds', 'blockID', 'trialID', 'sacc_inds', 'ETtrace', 'ETtrace_raw', 'ETtrace_plex_calib', 'ETgains', 'trial_start_ts', 'useLeye', 'useReye',...
+%                'Robs', 'Robs_probe_ID', 'Robs_rating', 'spk_times', 'spk_IDs', 'datafilts', 'RobsMU',  'RobsMU_probe_ID', 'RobsMU_rating', 'datafiltsMU', '-v7.3' )
+%            end
+%        else
+%            save(cur_filename, 'exptname', 'exptdate', 'dt','electrode_info','stim_location','ETstim_location', 'pixel_size', 'fix_location', 'fix_size','fixdot',...
+%                'stim', 'stimtype', 'stimscale','stimloc', 'valid_data', 'block_inds', 'cloud_scale', 'cloud_binary', 'blockID', 'trialID', 'sacc_inds', 'ETtrace', 'ETtrace_raw', 'ETtrace_plex_calib', 'ETgains', 'trial_start_ts', 'useLeye', 'useReye',...
+%                'Robs', 'Robs_probe_ID', 'Robs_rating', 'spk_times', 'spk_IDs', 'datafilts', 'RobsMU',  'RobsMU_probe_ID', 'RobsMU_rating', 'datafiltsMU', '-v7.3' )
+%        end
+%        save(cur_filename_targchans, 'targchans')
+%    case 6
+%        if ~skipET
+%            if targ_ETstimtype==1;
+%            save(cur_filename, 'exptname', 'exptdate', 'dt','electrode_info','stim_location','ETstim_location', 'pixel_size', 'fix_location', 'fix_size','fixdot',...
+%                'stim', 'stimET', 'stimETori', 'stimtype', 'hartley_metas', 'stimtypeET', 'stimscale','valid_data', 'block_inds', 'sacc_inds', 'ETtrace', 'ETtrace_raw', 'ETgains', 'trial_start_ts', 'useLeye', 'useReye',...
+%                'Robs', 'Robs_probe_ID', 'Robs_rating', 'spk_times', 'spk_IDs', 'datafilts', 'RobsMU',  'RobsMU_probe_ID', 'RobsMU_rating', 'datafiltsMU', '-v7.3' )
+%            else
+%            save(cur_filename, 'exptname', 'exptdate', 'dt','electrode_info','stim_location','ETstim_location', 'pixel_size', 'fix_location', 'fix_size','fixdot',...
+%                'stim', 'stimET', 'stimtype', 'hartley_metas', 'stimtypeET', 'stimscale','valid_data', 'block_inds', 'sacc_inds', 'ETtrace', 'ETtrace_raw',  'ETgains', 'trial_start_ts', 'useLeye', 'useReye',...
+%                'Robs', 'Robs_probe_ID', 'Robs_rating', 'spk_times', 'spk_IDs', 'datafilts', 'RobsMU',  'RobsMU_probe_ID', 'RobsMU_rating', 'datafiltsMU', '-v7.3' )
+%            end
+%        else
+%            save(cur_filename, 'exptname', 'exptdate', 'dt','electrode_info','stim_location','ETstim_location', 'pixel_size', 'fix_location', 'fix_size','fixdot',...
+%                'stim', 'stimtype', 'hartley_metas', 'stimscale','valid_data', 'block_inds', 'sacc_inds', 'ETtrace', 'ETtrace_raw', 'ETgains', 'trial_start_ts', 'useLeye', 'useReye',...
+%                'Robs', 'Robs_probe_ID', 'Robs_rating', 'spk_times', 'spk_IDs', 'datafilts', 'RobsMU',  'RobsMU_probe_ID', 'RobsMU_rating', 'datafiltsMU', '-v7.3' )
+%        end
+%end
 
 disp('Done saving output for modeling.') 
 
