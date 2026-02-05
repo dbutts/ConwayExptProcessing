@@ -23,8 +23,10 @@ end
 if (nargin < 3) || isempty(targ_ETstimtype)
 	targ_ETstimtype = 0;    % this selects which stimulus to process: 8 looks for cloud stims
 end
-
-skipLFP = 0; %set to 1 if you want to skip laminar probe data and only analyzing the ET stims
+if nargin < 9
+    skipLFP = 1;
+end
+%skipLFP = 0; %set to 1 if you want to skip laminar probe data and only analyzing the ET stims
 %skipET = 1; %set to 1 if you want to skip the ETstim (such as if you moved them all the way out of the way); set to on on 5/12/23 on bevil's request to not have to worry about this
 % Just set targ_ETstimtype to zero (default if you dont want this
 if targ_ETstimtype == 0

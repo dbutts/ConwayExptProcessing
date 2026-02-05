@@ -133,6 +133,7 @@ load(configFilePath)
 try
     [SPKC_adfreq, SPKC_n, SPKC_ts, SPKC_fn, SPKC_ad_test] = plx_ad_v(plxFilePath, 'SPKC001');
     [LFP_adfreq, LFP_n_test, LFP_ts, LFP_fn, LFP_ad_test] = plx_ad_v(plxFilePath, ['FP' num2str(1,'%03.f')]);
+    LFP_n = LFP_n_test; % Added 2/4/26 by MJG
 end
 if SPKC_n<2
     try

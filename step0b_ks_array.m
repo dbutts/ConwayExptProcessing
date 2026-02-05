@@ -182,6 +182,7 @@ save(fullfile(ops.root,'ops.mat'), 'ops')
 %% master_kilosort section:
 rootZ = datFolder; % the raw data binary file is in this folder
 
+% modified 2/3/26 by MJG to inlude rootH = 'home/bizon/kilodata'
 [~, hostName] = system('hostname');
 if contains(hostName, 'IT', 'IgnoreCase', 1) 
     rootH = '/home/felix/kilodata'; % path to temporary binary file (same size as data, should be on fast SSD)
@@ -189,6 +190,8 @@ elseif contains(hostName, 'mt', 'IgnoreCase', 1)
     rootH = '/home/fellixbartsch/kilodata'; % path to temporary binary file (same size as data, should be on fast SSD)
 elseif contains(hostName, 'conwaylab', 'IgnoreCase', 1) 
     rootH = '/home/conwaylab/kilodata';
+elseif contains(hostName, 'dl', 'IgnoreCase', 1) 
+    rootH = '/home/bizon/kilodata';
 end
 
 % pathToYourConfigFile = 'D:\GitHub\KiloSort2\configFiles'; % take from Github folder and put it somewhere else (together with the master_file)

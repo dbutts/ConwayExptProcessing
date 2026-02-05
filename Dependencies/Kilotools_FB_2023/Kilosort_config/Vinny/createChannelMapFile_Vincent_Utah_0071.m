@@ -1,6 +1,7 @@
 %%
 clear all
-
+config_dir = '/mnt/isilon/code/ConwayExptProcessing/Dependencies/Kilotools_FB_2023/Kilosort_config/';
+subject = 'Sprout';
 %%
 Nchannels = 96;
 connected = true(Nchannels, 1);
@@ -14,6 +15,9 @@ ycoords   = ycoords(:);
 kcoords   = ones(Nchannels,1); % grouping of channels (i.e. tetrode groups)
 
 fs = 40000; % sampling frequency
+
+fname = 'V_UT1_chanMap.mat'
+save(fullfile(config_dir,subject))
 save('/home/felix/Dropbox/Project_BevilColor/Kilosort_config/V_UT1_chanMap.mat', ...
     'chanMap','connected', 'xcoords', 'ycoords', 'kcoords', 'chanMap0ind', 'fs')
 

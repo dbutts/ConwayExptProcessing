@@ -1,0 +1,135 @@
+* AutoImpedance measurements
+* Impedance values are estimates and may be affected by noise.
+*  9 June 2023 17:18:13
+*
+* m = 5.40
+* expected = 4460.00
+* b = 34.00
+             elec1	  55 
+             elec2	  58 
+             elec3	  54 
+             elec4	  66 
+             elec5	  59 
+             elec6	  58 
+             elec7	  59 
+             elec8	  59 
+             elec9	  60 
+            elec10	  59 
+            elec11	  57 
+            elec12	  62 
+            elec13	  62 
+            elec14	  65 
+            elec15	  60 
+            elec16	  55 
+            elec17	  60 
+            elec18	  62 
+            elec19	  62 
+            elec20	  60 
+            elec21	  57 
+            elec22	  61 
+            elec23	  52 
+            elec24	  61 
+            elec25	  53 
+            elec26	  67 
+            elec27	  57 
+            elec28	  63 
+            elec29	  63 
+            elec30	  59 
+            elec31	  60 
+            elec32	  54 
+            elec33	  57 
+            elec34	  60 
+            elec35	  59 
+            elec36	  58 
+            elec37	  67 
+            elec38	  61 
+            elec39	  62 
+            elec40	  57 
+            elec41	  60 
+            elec42	  55 
+            elec43	  61 
+            elec44	  55 
+            elec45	  56 
+            elec46	  55 
+            elec47	  53 
+            elec48	  59 
+            elec49	  53 
+            elec50	  62 
+            elec51	  54 
+            elec52	  62 
+            elec53	  62 
+            elec54	  57 
+            elec55	  65 
+            elec56	  61 
+            elec57	  59 
+            elec58	  56 
+            elec59	  59 
+            elec60	  58 
+            elec61	  58 
+            elec62	  53 
+            elec63	  56 
+            elec64	 <= 50
+            elec65	  61 
+            elec66	  53 
+            elec67	  62 
+            elec68	  54 
+            elec69	  54 
+            elec70	  51 
+            elec71	  57 
+            elec72	 <= 50
+            elec73	  64 
+            elec74	  58 
+            elec75	  57 
+            elec76	  64 
+            elec77	  54 
+            elec78	  64 
+            elec79	  55 
+            elec80	  62 
+            elec81	  62 
+            elec82	  64 
+            elec83	  56 
+            elec84	  66 
+            elec85	  60 
+            elec86	  62 
+            elec87	  58 
+            elec88	  57 
+            elec89	  63 
+            elec90	 <= 50
+            elec91	  60 
+            elec92	 <= 50
+            elec93	  58 
+            elec94	  57 
+            elec95	  51 
+            elec96	  55 
+            elec97	  0.61 uV
+            elec98	  0.60 uV
+            elec99	  0.59 uV
+           elec100	  0.55 uV
+           elec101	  0.57 uV
+           elec102	  0.63 uV
+           elec103	  0.58 uV
+           elec104	  0.58 uV
+           elec105	  0.59 uV
+           elec106	  0.58 uV
+           elec107	  0.59 uV
+           elec108	  0.63 uV
+           elec109	  0.63 uV
+           elec110	  0.57 uV
+           elec111	  0.57 uV
+           elec112	  0.60 uV
+           elec113	  0.56 uV
+           elec114	  0.58 uV
+           elec115	  0.60 uV
+           elec116	  0.57 uV
+           elec117	  0.59 uV
+           elec118	  0.60 uV
+           elec119	  0.57 uV
+           elec120	  0.60 uV
+           elec121	  0.59 uV
+           elec122	  0.61 uV
+           elec123	4334.25 uV
+           elec124	  0.57 uV
+           elec125	4375.39 uV
+           elec126	4379.19 uV
+           elec127	4333.48 uV
+           elec128	4319.79 uV

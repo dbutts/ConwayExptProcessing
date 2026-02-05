@@ -3,10 +3,14 @@ clear all
 
 disp('Setup starting')
 
-bizon = true;
+bizon = false;
+if strcmpi(getenv('USER'), 'bizon')
+    bizon = true;
+end
+
 
 %/home/bizon/Git/ConwayExptProcessing/
-%/mnt/isilon/code/ConwayExptProcessingGit
+%/mnt/isilon/code/ConwayExptProcessing
 
 % if bizon
 %     addpath('/home/bizon/Git/ConwayExptProcessing/Dependencies/iCSD/')
@@ -32,15 +36,15 @@ bizon = true;
 %     addpath('/home/conwaylab/Git/ConwayExptProcessing/Dependencies/Kilotools_FB_2023/kilo2Tools-master/npy-matlab/npy-matlab')
 
 if bizon
-    addpath('/mnt/isilon/code/ConwayExptProcessingGit/Dependencies/iCSD/')
-    addpath('/mnt/isilon/code/ConwayExptProcessingGit/Dependencies/iCSD/CSD_functions/')
-    addpath('/mnt/isilon/code/ConwayExptProcessingGit/Dependencies/Kilosort2/')
-    addpath('/mnt/isilon/code/ConwayExptProcessingGit/Dependencies/Kilotools_FB_2023/')
-    addpath('/mnt/isilon/code/ConwayExptProcessingGit/Dependencies/Plexon-Matlab Offline Files SDK/')
-    addpath('/mnt/isilon/code/ConwayExptProcessingGit/Dependencies/Kilotools_FB_2023/kilo2Tools-master/kilo2Tools-master/')
-    addpath('/mnt/isilon/code/ConwayExptProcessingGit')
-    addpath('/mnt/isilon/code/ConwayExptProcessingGit/Tools')
-    addpath('/mnt/isilon/code/ConwayExptProcessingGit/Dependencies/Kilotools_FB_2023/kilo2Tools-master/npy-matlab/npy-matlab')
+    addpath('/mnt/isilon/code/ConwayExptProcessing/Dependencies/iCSD/')
+    addpath('/mnt/isilon/code/ConwayExptProcessing/Dependencies/iCSD/CSD_functions/')
+    addpath('/mnt/isilon/code/ConwayExptProcessing/Dependencies/Kilosort2/')
+    addpath('/mnt/isilon/code/ConwayExptProcessing/Dependencies/Kilotools_FB_2023/')
+    addpath('/mnt/isilon/code/ConwayExptProcessing/Dependencies/Plexon-Matlab Offline Files SDK/')
+    addpath('/mnt/isilon/code/ConwayExptProcessing/Dependencies/Kilotools_FB_2023/kilo2Tools-master/kilo2Tools-master/')
+    addpath('/mnt/isilon/code/ConwayExptProcessing')
+    addpath('/mnt/isilon/code/ConwayExptProcessing/Tools')
+    addpath('/mnt/isilon/code/ConwayExptProcessing/Dependencies/Kilotools_FB_2023/kilo2Tools-master/npy-matlab/npy-matlab')
     
     % Switch into data directory
     dirpath = '/home/bizon/Data/V1_Fovea/';
@@ -48,17 +52,17 @@ if bizon
     stimpath = '/home/bizon/Processing/Cloudstims_calib_04_2024/';
 
 else
-    addpath('/mnt/isilon/code/ConwayExptProcessingGit/Dependencies/iCSD/')
-    addpath('/mnt/isilon/code/ConwayExptProcessingGit/Dependencies/iCSD/CSD_functions/')
-    addpath('/mnt/isilon/code/ConwayExptProcessingGit/Dependencies/Kilosort2/')
-    addpath('/mnt/isilon/code/ConwayExptProcessingGit/Dependencies/Kilotools_FB_2023/')
-    addpath('/mnt/isilon/code/ConwayExptProcessingGit/Dependencies/Plexon-Matlab Offline Files SDK/')
-    addpath('/mnt/isilon/code/ConwayExptProcessingGit/Dependencies/Kilotools_FB_2023/kilo2Tools-master/npy-matlab/npy-matlab')
+    addpath('/mnt/isilon/code/ConwayExptProcessing/Dependencies/iCSD/')
+    addpath('/mnt/isilon/code/ConwayExptProcessing/Dependencies/iCSD/CSD_functions/')
+    addpath('/mnt/isilon/code/ConwayExptProcessing/Dependencies/Kilosort2/')
+    addpath('/mnt/isilon/code/ConwayExptProcessing/Dependencies/Kilotools_FB_2023/')
+    addpath('/mnt/isilon/code/ConwayExptProcessing/Dependencies/Plexon-Matlab Offline Files SDK/')
+    addpath('/mnt/isilon/code/ConwayExptProcessing/Dependencies/Kilotools_FB_2023/kilo2Tools-master/npy-matlab/npy-matlab')
 
 
     % Switch into data directory
     dirpath = '/home/bizon/Data';
-    pl2path = '/mnt/isilon/DATA/monkey_ephys/Jocamo/2024_Singleprobe/'; % you can load the plexon file directly from the server, which may make loading data slower but save you data transfer complications
+    pl2path = '/mnt/isilon/DATA/monkey_ephys/Sprout'; % you can load the plexon file directly from the server, which may make loading data slower but save you data transfer complications
     stimpath = '/home/conwaylab/Processing/Cloudstims_calib_04_2024/';
 end
 
@@ -66,9 +70,8 @@ cd(dirpath)
 
 % this is the name of the experiment you want to run
 % filenameP = '251024_154348_Jacomo';
-filenameP = '251110_152225_Jacomo';
-filenameP = '251010_141322_Jacomo';
-monkey_name = 'Jacomo';
+filenameP = '260202_164139_Sprout';
+monkey_name = 'Sprout';
 
 outputdir = '/home/bizon/Data/V1_Fovea/';
 disp('setup complete')
@@ -100,11 +103,11 @@ disp('phy template-gui params.py')
 %% now kilosort the data for the other arrays
     % %% Utah 1 - Serial 0071
     % opts.ArrayLabel = 'UT1'; %load channel map
-    % opts.chInfo = load('/home/conwaylab/Git/ConwayExptProcessing/Dependencies/Kilotools_FB_2023/Kilosort_config/Vinny/V_UT1_chanMap_nogroup.mat');
+    % opts.chInfo = load('/mnt/isilon/code/ConwayExptProcessing/Dependencies/Kilotools_FB_2023/Kilosort_config/Sprout/V1_UT1_chanMap_nogroup.mat');
     % opts.ChnOffset=64;
     % 
     % opts.curchannels = [1:32]; outputFolder = [dirpath filenameP '/kilosorting_UT1_1to32/'];
-    % [datPaths.UT1a, ~] = Step0_KilosortArray(dirpath,filenameP,pl2path,outputFolder,opts);
+    % [datPaths.UT1a, droptestcheck] = Step0_KilosortArray(dirpath,filenameP,pl2path,outputFolder,opts);
     % 
     % opts.curchannels = [33:64]; outputFolder = [dirpath filenameP '/kilosorting_UT1_33to64/'];
     % [datPaths.UT1b, ~] = Step0_KilosortArray(dirpath,filenameP,pl2path,outputFolder,opts);
@@ -113,7 +116,7 @@ disp('phy template-gui params.py')
     % [datPaths.UT1c, ~] = Step0_KilosortArray(dirpath,filenameP,pl2path,outputFolder,opts);
     %% Utah 2 - Serial 0072
     % opts.ArrayLabel = 'UT2'; %load channel map
-    % opts.chInfo = load('/home/conwaylab/Git/ConwayExptProcessing/Dependencies/Kilotools_FB_2023/Kilosort_config/Vinny/V_UT2_chanMap_nogroup.mat');
+    % opts.chInfo = load('/mnt/isilon/code/ConwayExptProcessing/Dependencies/Kilotools_FB_2023/Kilosort_config/Sprout/V1_UT2_chanMap_nogroup.mat');
     % opts.ChnOffset=160;
     % 
     % opts.curchannels = [1:32]; outputFolder = [dirpath filenameP '/kilosorting_UT2_1to32/'];
@@ -181,11 +184,11 @@ disp('Drop test check complete')
 disp('Kofiko alignment starting')
 which_computer = 2; % (default=2) 2 = Cameron's Bizon
 
-ks.use_online = 0; % set to 1 to use on-line sorting or no sorting at all. Should be 0 if you want to use kilosort
+ks.use_online = 1; % set to 1 to use on-line sorting or no sorting at all. Should be 0 if you want to use kilosort
 ks.onlinechans = [1:64]; % which channels of on-line sorted spikes should we go through? 
 
 ks.stitched=0; % if you combined kilosort outputs for multiple arrays
-ks.arraylabel ='lam';
+ks.arraylabel ='UT';
 ks.filepath = [dirpath filenameP filesep 'kilosorting_laminar' filesep]; % point this at array folders or the "stiched" folder if you want to sort data from multiple arrays
 %ks.filepath = [dirpath filenameP filesep 'kilosorting_stitched' filesep]; % point this at array folders or the "stiched" folder if you want to sort data from multiple arrays
 ks.pl2path = pl2path;
@@ -221,7 +224,7 @@ ExptInfo.monkey_name = monkey_name;
 %data = PackageCloudData_v9( ExptTrials, ExptInfo, [], [], stimpath, [outputdir filenameP filesep 'Analysis'] );
 % data = PackageCloudData_v9( ExptTrials, ExptInfo );
 addpath(genpath('/home/bizon/Data/V1_Fovea/output_greenemj')); 
-data = PackageCloudData_v9mod( ExptTrials, ExptInfo, [], [], stimpath, [outputdir filenameP filesep 'Analysis'] , 0, which_computer, LFP_ad);
+data = PackageCloudData_v9mod( ExptTrials, ExptInfo, [], [], stimpath, [outputdir filenameP filesep 'Analysis'] , 0, which_computer); % temporarily got rid of LFP_ad as final arg
 
 disp('Cloud packaging complete')
 %% Check to see if all of the relevant files were saved

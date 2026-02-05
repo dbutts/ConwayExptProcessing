@@ -1,0 +1,135 @@
+* AutoImpedance measurements
+* Impedance values are estimates and may be affected by noise.
+*  5 November 2024 15:25:20
+*
+*
+*             elec	Impedance
+******************	*********
+             elec1	  57 
+             elec2	  44 
+             elec3	  62 
+             elec4	  62 
+             elec5	  64 
+             elec6	  54 
+             elec7	  66 
+             elec8	  43 
+             elec9	  51 
+            elec10	  42 
+            elec11	  59 
+            elec12	  58 
+            elec13	  39 
+            elec14	  65 
+            elec15	  60 
+            elec16	  51 
+            elec17	  61 
+            elec18	  63 
+            elec19	  32 
+            elec20	  61 
+            elec21	  61 
+            elec22	  61 
+            elec23	  45 
+            elec24	  40 
+            elec25	  60 
+            elec26	  72 
+            elec27	  61 
+            elec28	  45 
+            elec29	  65 
+            elec30	  47 
+            elec31	  77 
+            elec32	  40 
+            elec33	  69 
+            elec34	  65 
+            elec35	  32 
+            elec36	  56 
+            elec37	  51 
+            elec38	  67 
+            elec39	  37 
+            elec40	  75 
+            elec41	  66 
+            elec42	  72 
+            elec43	  66 
+            elec44	  69 
+            elec45	  69 
+            elec46	  40 
+            elec47	  73 
+            elec48	  48 
+            elec49	  63 
+            elec50	  53 
+            elec51	  40 
+            elec52	  55 
+            elec53	  37 
+            elec54	  62 
+            elec55	  41 
+            elec56	  55 
+            elec57	  42 
+            elec58	  60 
+            elec59	  70 
+            elec60	  79 
+            elec61	  53 
+            elec62	  54 
+            elec63	  44 
+            elec64	  56 
+            elec65	  42 
+            elec66	  47 
+            elec67	  46 
+            elec68	  32 
+            elec69	  41 
+            elec70	  67 
+            elec71	  45 
+            elec72	  47 
+            elec73	  37 
+            elec74	  74 
+            elec75	  61 
+            elec76	  51 
+            elec77	  62 
+            elec78	  59 
+            elec79	  54 
+            elec80	  70 
+            elec81	  46 
+            elec82	  53 
+            elec83	  52 
+            elec84	  43 
+            elec85	  42 
+            elec86	  34 
+            elec87	  53 
+            elec88	  42 
+            elec89	  28 
+            elec90	  46 
+            elec91	  38 
+            elec92	  67 
+            elec93	  50 
+            elec94	  67 
+            elec95	  69 
+            elec96	  70 
+            elec97	<= 15
+            elec98	<= 15
+            elec99	<= 15
+           elec100	<= 15
+           elec101	<= 15
+           elec102	<= 15
+           elec103	<= 15
+           elec104	<= 15
+           elec105	<= 15
+           elec106	<= 15
+           elec107	<= 15
+           elec108	<= 15
+           elec109	<= 15
+           elec110	<= 15
+           elec111	<= 15
+           elec112	<= 15
+           elec113	<= 15
+           elec114	<= 15
+           elec115	<= 15
+           elec116	<= 15
+           elec117	<= 15
+           elec118	<= 15
+           elec119	<= 15
+           elec120	<= 15
+           elec121	<= 15
+           elec122	<= 15
+           elec123	<= 15
+           elec124	<= 15
+           elec125	<= 15
+           elec126	<= 15
+           elec127	<= 15
+           elec128	<= 15
