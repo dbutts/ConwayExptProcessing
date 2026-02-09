@@ -40,10 +40,10 @@ if n<2
         [fs, n, ts, fn, ~] = plx_ad_v([pl2path filenameP '.pl2'], ['SPKC01'] );
     end
 end
-[~, n_aux, ts_aux, fn_aux, ~] = plx_ad_v([pl2path filenameP '.pl2'], ['AI01'] );
+[fs_aux, n_aux, ts_aux, fn_aux, ~] = plx_ad_v([pl2path filenameP '.pl2'], ['AI01'] );
 if n<2; error('error reading laminar probe'); end
 %%
-droptestcheck = [n_aux/1000-n/40000];
+droptestcheck = [n_aux/fs_aux-n/fs];
 %%
 if ~opts.preconverted
     %convert pl2 file into dat format

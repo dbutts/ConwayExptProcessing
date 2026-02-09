@@ -1,80 +1,97 @@
 %% Master file
-clear all
-
-disp('Setup starting')
-
-bizon = false;
-if strcmpi(getenv('USER'), 'bizon')
-    bizon = true;
-end
-
-
-%/home/bizon/Git/ConwayExptProcessing/
-%/mnt/isilon/code/ConwayExptProcessing
-
-% if bizon
-%     addpath('/home/bizon/Git/ConwayExptProcessing/Dependencies/iCSD/')
-%     addpath('/home/bizon/Git/ConwayExptProcessing/Dependencies/iCSD/CSD_functions/')
-%     addpath('/home/bizon/Git/ConwayExptProcessing/Dependencies/Kilosort2/')
-%     addpath('/home/bizon/Git/ConwayExptProcessing/Dependencies/Kilotools_FB_2023/')
-%     addpath('/home/bizon/Git/ConwayExptProcessing/Dependencies/Plexon-Matlab Offline Files SDK/')
-%     addpath('/home/bizon/Git/ConwayExptProcessing/Dependencies/Kilotools_FB_2023/kilo2Tools-master/kilo2Tools-master/')
-%     addpath('/home/bizon/Git/ConwayExptProcessing')
-%     addpath('/home/bizon/Git/ConwayExptProcessing/Tools')
-%     addpath('/home/bizon/Git/ConwayExptProcessing/Dependencies/Kilotools_FB_2023/kilo2Tools-master/npy-matlab/npy-matlab')
-% 
-%     % Switch into data directory
-%     dirpath = '/home/bizon/Data/V1_Fovea/';
-%     pl2path = '/home/bizon/Data/V1_Fovea/'; %'/mnt/bc9/Data/'; % you can load the plexon file directly from the server, which may make loading data slower but save you data transfer complications
-%     stimpath = '/home/bizon/Processing/Cloudstims_calib_04_2024/';
-% else
-%     addpath('/home/conwaylab/Git/ConwayExptProcessing/Dependencies/iCSD/')
-%     addpath('/home/conwaylab/Git/ConwayExptProcessing/Dependencies/iCSD/CSD_functions/')
-%     addpath('/home/conwaylab/Git/ConwayExptProcessing/Dependencies/Kilosort2/')
-%     addpath('/home/conwaylab/Git/ConwayExptProcessing/Dependencies/Kilotools_FB_2023/')
-%     addpath('/home/conwaylab/Git/ConwayExptProcessing/Dependencies/Plexon-Matlab Offline Files SDK/')
-%     addpath('/home/conwaylab/Git/ConwayExptProcessing/Dependencies/Kilotools_FB_2023/kilo2Tools-master/npy-matlab/npy-matlab')
-
-if bizon
-    addpath('/mnt/isilon/code/ConwayExptProcessing/Dependencies/iCSD/')
-    addpath('/mnt/isilon/code/ConwayExptProcessing/Dependencies/iCSD/CSD_functions/')
-    addpath('/mnt/isilon/code/ConwayExptProcessing/Dependencies/Kilosort2/')
-    addpath('/mnt/isilon/code/ConwayExptProcessing/Dependencies/Kilotools_FB_2023/')
-    addpath('/mnt/isilon/code/ConwayExptProcessing/Dependencies/Plexon-Matlab Offline Files SDK/')
-    addpath('/mnt/isilon/code/ConwayExptProcessing/Dependencies/Kilotools_FB_2023/kilo2Tools-master/kilo2Tools-master/')
-    addpath('/mnt/isilon/code/ConwayExptProcessing')
-    addpath('/mnt/isilon/code/ConwayExptProcessing/Tools')
-    addpath('/mnt/isilon/code/ConwayExptProcessing/Dependencies/Kilotools_FB_2023/kilo2Tools-master/npy-matlab/npy-matlab')
-    
-    % Switch into data directory
-    dirpath = '/home/bizon/Data/V1_Fovea/';
-    pl2path = '/home/bizon/Data/V1_Fovea/'; %'/mnt/bc9/Data/'; % you can load the plexon file directly from the server, which may make loading data slower but save you data transfer complications
-    stimpath = '/home/bizon/Processing/Cloudstims_calib_04_2024/';
-
-else
-    addpath('/mnt/isilon/code/ConwayExptProcessing/Dependencies/iCSD/')
-    addpath('/mnt/isilon/code/ConwayExptProcessing/Dependencies/iCSD/CSD_functions/')
-    addpath('/mnt/isilon/code/ConwayExptProcessing/Dependencies/Kilosort2/')
-    addpath('/mnt/isilon/code/ConwayExptProcessing/Dependencies/Kilotools_FB_2023/')
-    addpath('/mnt/isilon/code/ConwayExptProcessing/Dependencies/Plexon-Matlab Offline Files SDK/')
-    addpath('/mnt/isilon/code/ConwayExptProcessing/Dependencies/Kilotools_FB_2023/kilo2Tools-master/npy-matlab/npy-matlab')
-
-
-    % Switch into data directory
-    dirpath = '/home/bizon/Data';
-    pl2path = '/mnt/isilon/DATA/monkey_ephys/Sprout'; % you can load the plexon file directly from the server, which may make loading data slower but save you data transfer complications
-    stimpath = '/home/conwaylab/Processing/Cloudstims_calib_04_2024/';
-end
-
-cd(dirpath)
+clear; clc
 
 % this is the name of the experiment you want to run
 % filenameP = '251024_154348_Jacomo';
-filenameP = '260202_164139_Sprout';
+exptDate = '260204';
+filenameP = '260204_161143_Sprout';
 monkey_name = 'Sprout';
 
 outputdir = '/home/bizon/Data/V1_Fovea/';
+disp('Setup starting')
+
+if strcmpi(getenv('USER'), 'bizon') % if this is true, we are on bizon
+    % set path
+    processingPath = '/home/bizon/Git/ConwayExptProcessing';
+    % Switch into data directory
+    dirpath = fullfile('/home/bizon/Data/V1_Fovea/',monkey_name, exptDate);
+    pl2path = dirpath; %'/mnt/bc9/Data/'; % you can load the plexon file directly from the server, which may make loading data slower but save you data transfer complications
+    stimpath = '/home/bizon/Processing/Cloudstims_calib_04_2024/';
+else
+    isilonPath = fullfile([filesep 'mnt'], 'isilon');
+    if ~isdir(isilonPath)
+        isilonPath = fullfile([filesep 'Volumes'], 'isilon');
+    end
+
+    processingPath = fullfile(isilonPath, 'code', 'ConwayExptProcessing');
+
+
+    % Switch into data directory
+    dirpath = uigetdr(pwd, 'Select directory with data');
+    pl2path = fullfile(isilonPath, 'monkey_ephys', monkey_name); % you can load the plexon file directly from the server, which may make loading data slower but save you data transfer complications
+    stimpath = fullfile(isilonPath, 'PROJECTS', 'V1_Fovea', 'stimuli', 'Cloudstims_calib_04_2024');
+
+    
+end
+
+addpath(processingPath); % add necessary dependencies
+addpath(genpath(fullfile(processingPath, 'Dependencies')));
+addpath(fullfile(processingPath, 'Tools'));
+
+plexon_fname = fullfile(pl2path, [filenameP '.pl2']);
+
+cd(dirpath)
+
+
 disp('setup complete')
+
+opts.monkey_name = monkey_name;
+opts.batch_size = 5e9;
+%% multiple arrays
+
+arrayLabels = {'UT1', 'UT2', 'lam'};
+nChans = [96, 96, 64];
+chnOffsets = cumsum([0 nChans(1:end-1)]);
+curChannels = {{{1:32}, {33:64}, {65:96}}, {{1:32}, {33:64}, {65:96}}, {{1:64}}};
+preconverted = {{zeros(1,3)}, {zeros(1,3)}, {0}};
+arraySpacing = [1, 1, 0    % x
+                1, 1, 50]; % y
+
+for a = 1:numel(arrayLabels) % for each array
+    opts.ArrayLabel = arrayLabels{a};
+
+    try
+        opts.chInfo = ...
+            load(['/home/bizon/Git/ConwayExptProcessing/Dependencies/Kilotools_FB_2023/Kilosort_config/Sprout/V1_'...
+            arrayLabels{a} '_chanMap_nogroup.mat']);
+    catch
+        if contains(opts.ArrayLabel, 'UT', 'IgnoreCase', true)
+            error('No channel map info')
+        end
+
+        if isfield(opts, 'chInfo')
+            opts = rmfield(opts, 'chInfo');
+        end
+
+
+    end
+
+
+    for c = 1:numel(curChannels{a})
+
+
+        opts.preconverted = preconverted{a}{:}(c);
+        opts.nChans = length(curChannels{a}{c}{:});
+        opts.ChnOffset = chnOffsets(a);
+        opts.curchannels = curChannels{a}{c}{:};
+        opts.arraySpacing = arraySpacing(:,a);
+
+        [datPath{a,c}, droptestcheck{a,c}] = Step0_Kilosort(dirpath,filenameP,pl2path,opts); %this will take some time to run!
+
+    end
+end
+
+
 %% first kilosort the data for the laminar probe
 disp('Kilosorting Starting')
 
@@ -83,7 +100,9 @@ opts.nChans = 64; % laminar probes will usually have 24 channels, but this can b
 opts.ChnOffset=0;
 opts.batch_size = 5e9; % batch size prevents memory overflow errors. default = 300000000 for IT
 opts.monkey_name = monkey_name;
+opts.arraySpacing = [0 50]; %um 
 
+% outputFolder is set as [dirpath filenameP '/kilosorting_laminar/'] in Step0_KilosortLaminar, and created (if necessary), in convertRawToDat_Laminar ;
 [datPath, droptestcheck] = Step0_KilosortLaminar(dirpath,filenameP,pl2path,opts); %this will take some time to run!
 
 disp(['Plexon-Kofiko offset in seconds: ' num2str(droptestcheck)]) % this will tell us if the plexon time alignment issue is present
@@ -167,29 +186,39 @@ disp('phy template-gui params.py')
 %% if you are rerunning the stuff below, uncomment this cell to quickly rerun the drop test check and see if plexon dropped any measurements
 disp('Drop test check starting')
 try
-    [fs, n, ts, fn, ~] = plx_ad_v([pl2path filenameP '.pl2'], ['SPKC001'] );
+    [fs, n, ts, fn, ~] = plx_ad_v(plexon_fname, ['SPKC001'] );
 end
 if n<2
     try
-        [fs, n, ts, fn, ~] = plx_ad_v([pl2path filenameP '.pl2'], ['SPKC01'] );
+        [fs, n, ts, fn, ~] = plx_ad_v(plexon_fname, ['SPKC01'] );
     end
 end
-[~, n_aux, ts_aux, fn_aux, ~] = plx_ad_v([pl2path filenameP '.pl2'], ['AI01'] );
-droptestcheck = [n_aux/1000-n/40000];
+[fs_aux, n_aux, ts_aux, fn_aux, ~] = plx_ad_v(plexon_fname, ['AI01'] );
+
+spikeChannel1SignalDurSec = n/fs; % samples / (samples/sec)
+dpiSyncSignalDurSec = n_aux/fs_aux;
+
+droptestcheck = n_aux/fs_aux - n/fs;
 disp(['Plexon-Kofiko offset in seconds: ' num2str(droptestcheck)]) % this will tell us if the plexon time alignment issue is present
-if abs(droptestcheck)>0.1; warning("Danger - Plexon might have dropped frames! Check pl2 file."); else; disp('Experiment kilosorted and ready for curation!'); end
+
+if abs(droptestcheck)>0.1 
+    warning("Danger - Plexon might have dropped frames! Check pl2 file.") 
+else 
+    disp('Experiment kilosorted and ready for curation!')
+end
+
 disp('Drop test check complete')
 
 %% now, align kofiko information about stimuli with plexon data about spikes, LFPs, and eye traces
 disp('Kofiko alignment starting')
 which_computer = 2; % (default=2) 2 = Cameron's Bizon
 
-ks.use_online = 1; % set to 1 to use on-line sorting or no sorting at all. Should be 0 if you want to use kilosort
-ks.onlinechans = [1:64]; % which channels of on-line sorted spikes should we go through? 
+ks.use_online = 0; % set to 1 to use on-line sorting or no sorting at all. Should be 0 if you want to use kilosort
+ks.onlinechans = [193:256]; % which channels of on-line sorted spikes should we go through? 
 
 ks.stitched=0; % if you combined kilosort outputs for multiple arrays
-ks.arraylabel ='UT';
-ks.filepath = [dirpath filenameP filesep 'kilosorting_laminar' filesep]; % point this at array folders or the "stiched" folder if you want to sort data from multiple arrays
+ks.arraylabel ='lam';
+ks.filepath = fullfile(dirpath, filenameP, 'kilosorting_laminar/'); % point this at array folders or the "stiched" folder if you want to sort data from multiple arrays
 %ks.filepath = [dirpath filenameP filesep 'kilosorting_stitched' filesep]; % point this at array folders or the "stiched" folder if you want to sort data from multiple arrays
 ks.pl2path = pl2path;
 
@@ -221,8 +250,6 @@ disp('Cloud packaging starting')
 % now package cloud data
 ExptInfo.trialdur = 4;
 ExptInfo.monkey_name = monkey_name;
-%data = PackageCloudData_v9( ExptTrials, ExptInfo, [], [], stimpath, [outputdir filenameP filesep 'Analysis'] );
-% data = PackageCloudData_v9( ExptTrials, ExptInfo );
 addpath(genpath('/home/bizon/Data/V1_Fovea/output_greenemj')); 
 data = PackageCloudData_v9mod( ExptTrials, ExptInfo, [], [], stimpath, [outputdir filenameP filesep 'Analysis'] , 0, which_computer); % temporarily got rid of LFP_ad as final arg
 
@@ -235,6 +262,7 @@ disp('STA generation starting')
 %%force save STA plots [RamonBartolo 20250709]
 data.to_save = true;
 data.outputdir = [outputdir filenameP filesep 'Analysis' filesep, 'STAs'];
+data.outputdir = fullfile(outputdir, monkey_name, filenameP, 'Analysis', 'STAs');
 %%%%%% Comment to skip saving
 if ~exist(data.outputdir,'dir'); mkdir(data.outputdir); end
 stas = get_sta(data, ExptInfo);

@@ -578,8 +578,12 @@ use_inds=setdiff(tvec,unique([bad_inds_fix,bad_inds_sac,bad_inds_artifact]));
 
 %% Now we package the data for later modeling
 disp('Converting...') 
-cd(output_directory)
-
+try
+    cd(output_directory)
+catch
+    mkdir(output_directory)
+    cd(output_directory)
+end
 %% Determine stimulus windows
 %nofix = 1;  % what does this mean?
 pixel_size = 1;

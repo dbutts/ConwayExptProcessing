@@ -229,9 +229,11 @@ switch rawFileType
         % loop over channels and store in a large array.
         for i = 1:nChannels
             
+            cur_chan=opts.specificChannels(i);
             % tell user which channel is being read.
-            disp(['Reading from ' spkcOnChanNames{i} '.']);
-            
+            %disp(['Reading from ' spkcOnChanNames{i} '.']);
+            disp(['Reading from ' ['SPKC' sprintf('%03d', cur_chan)] '.']);
+
             % mark time prior to reading.
             rStart = tic;
             
