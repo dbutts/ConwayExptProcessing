@@ -68,6 +68,15 @@ end
 % Pull necessary variables from meta-data
 exptname = metadata_struct.exptname;
 arraylabel = metadata_struct.array_label;
+
+if numel(arraylabel) > 1
+    arraylabel_filepart = [cellfun(@(x) [x '_'], arraylabel(1:end-1), 'UniformOutput', false) arraylabel(end)];
+    arraylabel_filepart = [arraylabel_filepart{:}];
+else
+    arraylabel_filepart = arraylabel;
+end
+
+
 useofflinesorting = metadata_struct.use_offline_sorting;
 nSU = metadata_struct.nSU;
 nMU = metadata_struct.nMU;
@@ -518,6 +527,7 @@ subplot(2,1,2); plot(exptdata_ColCloud{tt, 1}.ETthisTrialRawEyeData); title('Kof
 			hartleystim_metas(cur_trlinds_stim,:) = hartleys_metas(exptdata_mod{tt,1}.stimseq(1:2:end),:);
 	end
     
+
 	if ~skipET
 		switch exptdata_mod{tt, 1}.DualstimSecondaryUseCloud
 			case 1
@@ -591,8 +601,8 @@ pixel_size = 1;
 exptname = metadata_struct.exptname;
 exptdate = metadata_struct.exptname(1:6);
 
-cur_filename=[metadata_struct.monkey_name '_' exptname(1:6) '_' arraylabel '_' curstimstype '_ET' curETstimtype '_v09.mat'];
-cur_filename_targchans=[metadata_struct.monkey_name '_' exptname(1:6) '_' arraylabel '_CC_ETCC_v09_cloudSUinds.mat'];
+cur_filename=[metadata_struct.monkey_name '_' exptname(1:6) '_' arraylabel_filepart '_' curstimstype '_ET' curETstimtype '_v09.mat'];
+cur_filename_targchans=[metadata_struct.monkey_name '_' exptname(1:6) '_' arraylabel_filepart '_CC_ETCC_v09_cloudSUinds.mat'];
 
 %dt=.016;
 electrode_info = [];
@@ -799,23 +809,26 @@ RobsMU_probe_ID = metadata_struct.spk_channels_MU(targchansMU'-nSU);
 datafiltsMU = ones(size(RobsMU));
 
 %% Accumulate spike-times and KEEP original Phy/KS cluster IDs
-spk_times = [];
-spk_IDs   = [];
-for cc = 1:length(spk_times_all)
-    if ~isempty(spk_times_all{cc})
-        spk_times = [spk_times, spk_times_all{cc}'];
-        spk_IDs   = [spk_IDs, repmat(spk_ID(cc), 1, numel(spk_times_all{cc}))];  % use true cluster ID
-    end
+% commented out by MJG 2/13/26
+% spk_times = [];
+% spk_IDs   = [];
+% for cc = 1:length(spk_times_all)
+%     if ~isempty(spk_times_all{cc})
+%         spk_times = [spk_times, spk_times_all{cc}'];
+%         spk_IDs   = [spk_IDs, repmat(spk_ID(cc), 1, numel(spk_times_all{cc}))];  % use true cluster ID
+%     end
+% end
+% data.spike_ts = spk_times;
+% data.spikeIDs = spk_IDs;   % now these match Phy/Kilosort cluster IDs
+
+
+spk_times=[]; spk_IDs=[];
+for cc=1:length(spk_times_all)
+	spk_times = [spk_times,spk_times_all{cc}'];
+	spk_IDs = [spk_IDs, ones(1,length(spk_times_all{cc}))*cc];
 end
 data.spike_ts = spk_times;
-data.spikeIDs = spk_IDs;   % now these match Phy/Kilosort cluster IDs
-
-
-% spk_times=[]; spk_IDs=[];
-% for cc=1:length(spk_times_all)
-% 	spk_times = [spk_times,spk_times_all{cc}'];
-% 	spk_IDs = [spk_IDs, ones(1,length(spk_times_all{cc}))*cc];
-% end
+data.spikeIDs = spk_IDs; 
 
 %% Build data structure and save
 data.exptname = exptname;
@@ -883,7 +896,7 @@ end
 
 % SAVE
 disp('Saving...') 
-save( cur_filename, '-struct', 'data', '-v7.3')
+save( fullfile(output_path, cur_filename), '-struct', 'data', '-v7.3')
 
 disp('Done saving output for modeling.') 
 
@@ -892,15 +905,15 @@ if ~skipLFP
 	disp('Saving LFPs...') 
 	switch targ_stimtype
 		case 8
-			cur_filename_LFP=[metadata_struct.monkey_name '_' metadata_struct.exptname(1:6) '_' arraylabel '_' curstimstype '_ET' curETstimtype '_v09_LFP.mat'];
+			cur_filename_LFP=[metadata_struct.monkey_name '_' metadata_struct.exptname(1:6) '_' arraylabel_filepart '_' curstimstype '_ET' curETstimtype '_v09_LFP.mat'];
 			try
-            save(cur_filename_LFP,'LFP_ad', 'trial_start_ts', 'trial_start_inds', '-v7.3' )
+            save(fullfile(output_path,cur_filename_LFP),'LFP_ad', 'trial_start_ts', 'trial_start_inds', '-v7.3' )
             catch
                 keyboard;
             end
 		case 6
-			cur_filename_LFP=[metadata_struct.monkey_name '_' metadata_struct.exptname(1:6) '_' arraylabel '_' curstimstype '_ET' curETstimtype '_v09_LFP.mat'];
-			save(cur_filename_LFP, 'trial_start_ts', 'trial_start_inds', '-v7.3' )
+			cur_filename_LFP=[metadata_struct.monkey_name '_' metadata_struct.exptname(1:6) '_' arraylabel_filepart '_' curstimstype '_ET' curETstimtype '_v09_LFP.mat'];
+			save(fullfile(output_path, cur_filename_LFP), 'trial_start_ts', 'trial_start_inds', '-v7.3' )
 	end
 	disp('Done with LFPs') 
 end

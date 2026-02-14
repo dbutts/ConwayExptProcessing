@@ -793,23 +793,29 @@ RobsMU_probe_ID = metadata_struct.spk_channels_MU(targchansMU'-nSU);
 datafiltsMU = ones(size(RobsMU));
 
 %% Accumulate spike-times and KEEP original Phy/KS cluster IDs
-spk_times = [];
-spk_IDs   = [];
-for cc = 1:length(spk_times_all)
-    if ~isempty(spk_times_all{cc})
-        spk_times = [spk_times, spk_times_all{cc}'];
-        spk_IDs   = [spk_IDs, repmat(spk_ID(cc), 1, numel(spk_times_all{cc}))];  % use true cluster ID
-    end
-end
-data.spike_ts = spk_times;
-data.spikeIDs = spk_IDs;   % now these match Phy/Kilosort cluster IDs
 
-
-% spk_times=[]; spk_IDs=[];
-% for cc=1:length(spk_times_all)
-% 	spk_times = [spk_times,spk_times_all{cc}'];
-% 	spk_IDs = [spk_IDs, ones(1,length(spk_times_all{cc}))*cc];
+% commented out my MJG on 2/13/26
+% spk_times = [];
+% spk_IDs   = [];
+% for cc = 1:length(spk_times_all)
+%     if ~isempty(spk_times_all{cc})
+%         spk_times = [spk_times, spk_times_all{cc}'];
+%         spk_IDs   = [spk_IDs, repmat(spk_ID(cc), 1, numel(spk_times_all{cc}))];  % use true cluster ID
+%     end
 % end
+% data.spike_ts = spk_times;
+% data.spikeIDs = spk_IDs;   % now these match Phy/Kilosort cluster IDs
+
+
+spk_times=[]; spk_IDs=[];
+for cc=1:length(spk_times_all)
+	spk_times = [spk_times,spk_times_all{cc}'];
+	spk_IDs = [spk_IDs, ones(1,length(spk_times_all{cc}))*cc];
+end
+
+data.spike_ts = spk_times;
+data.spikeIDs = spk_IDs; 
+
 
 %% Build data structure and save
 data.exptname = exptname;

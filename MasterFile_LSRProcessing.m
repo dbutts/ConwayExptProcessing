@@ -25,12 +25,10 @@ else
 
     processingPath = fullfile(isilonPath, 'code', 'ConwayExptProcessing');
 
-
     % Switch into data directory
     dirpath = uigetdr(pwd, 'Select directory with data');
     pl2path = fullfile(isilonPath, 'monkey_ephys', monkey_name); % you can load the plexon file directly from the server, which may make loading data slower but save you data transfer complications
     stimpath = fullfile(isilonPath, 'PROJECTS', 'V1_Fovea', 'stimuli', 'Cloudstims_calib_04_2024');
-
     
 end
 
@@ -40,8 +38,7 @@ addpath(fullfile(processingPath, 'Tools'));
 
 plexon_fname = fullfile(pl2path, [filenameP '.pl2']);
 
-cd(dirpath)
-
+%cd(dirpath)
 
 disp('setup complete')
 
@@ -51,12 +48,18 @@ opts.batch_size = 5e9;
 
 arrayLabels = {'UT1', 'UT2', 'lam'};
 nChans = [96, 96, 64];
-chnOffsets = cumsum([0 nChans(1:end-1)]);
+
+if numel(nChans) > 1
+    chnOffsets = cumsum([0 nChans(1:end-1)]);
+else
+    chnOffsets = 0;
+end
 curChannels = {{{1:32}, {33:64}, {65:96}}, {{1:32}, {33:64}, {65:96}}, {{1:64}}};
 preconverted = {{zeros(1,3)}, {zeros(1,3)}, {0}};
 arraySpacing = [1, 1, 0    % x
                 1, 1, 50]; % y
 
+disp('Kilosorting Starting')
 for a = 1:numel(arrayLabels) % for each array
     opts.ArrayLabel = arrayLabels{a};
 
@@ -72,14 +75,9 @@ for a = 1:numel(arrayLabels) % for each array
         if isfield(opts, 'chInfo')
             opts = rmfield(opts, 'chInfo');
         end
-
-
     end
 
-
     for c = 1:numel(curChannels{a})
-
-
         opts.preconverted = preconverted{a}{:}(c);
         opts.nChans = length(curChannels{a}{c}{:});
         opts.ChnOffset = chnOffsets(a);
@@ -88,112 +86,33 @@ for a = 1:numel(arrayLabels) % for each array
 
         [datPath{a,c}, droptestcheck{a,c}] = Step0_Kilosort(dirpath,filenameP,pl2path,opts); %this will take some time to run!
 
+        disp(['Plexon-Kofiko offset in seconds: ' num2str(droptestcheck{a,c})]) % this will tell us if the plexon time alignment issue is present
+        if abs(droptestcheck{a,c})>0.1
+            warning("Danger - Plexon might have dropped frames! Check pl2 file.")
+        else
+            disp('Experiment kilosorted and ready for curation!')
+        end
     end
 end
-
-
-%% first kilosort the data for the laminar probe
-disp('Kilosorting Starting')
-
-opts.preconverted = 0; % 0 if sorting the file for the first time, 1 if the recording has already been converted into dat format
-opts.nChans = 64; % laminar probes will usually have 24 channels, but this can be set to 32 or 64 depending on the probe
-opts.ChnOffset=0;
-opts.batch_size = 5e9; % batch size prevents memory overflow errors. default = 300000000 for IT
-opts.monkey_name = monkey_name;
-opts.arraySpacing = [0 50]; %um 
-
-% outputFolder is set as [dirpath filenameP '/kilosorting_laminar/'] in Step0_KilosortLaminar, and created (if necessary), in convertRawToDat_Laminar ;
-[datPath, droptestcheck] = Step0_KilosortLaminar(dirpath,filenameP,pl2path,opts); %this will take some time to run!
-
-disp(['Plexon-Kofiko offset in seconds: ' num2str(droptestcheck)]) % this will tell us if the plexon time alignment issue is present
-if abs(droptestcheck)>0.1; warning("Danger - Plexon might have dropped frames! Check pl2 file."); else; disp('Experiment kilosorted and ready for curation!'); end
 disp('Kilosorting complete, go curate in phy')
-
-
 disp('In terminal type:')
 disp('conda activate phy2')
 disp(['cd ' dirpath filenameP filesep 'kilosorting_laminar' filesep])
 disp('phy template-gui params.py')
 
-%% Once this prints "DONE", go curate the file in Phy!
 
-%% Once this prints "DONE", go curate the file in Phy!
-%{
-%% now kilosort the data for the other arrays
-    % %% Utah 1 - Serial 0071
-    % opts.ArrayLabel = 'UT1'; %load channel map
-    % opts.chInfo = load('/mnt/isilon/code/ConwayExptProcessing/Dependencies/Kilotools_FB_2023/Kilosort_config/Sprout/V1_UT1_chanMap_nogroup.mat');
-    % opts.ChnOffset=64;
-    % 
-    % opts.curchannels = [1:32]; outputFolder = [dirpath filenameP '/kilosorting_UT1_1to32/'];
-    % [datPaths.UT1a, droptestcheck] = Step0_KilosortArray(dirpath,filenameP,pl2path,outputFolder,opts);
-    % 
-    % opts.curchannels = [33:64]; outputFolder = [dirpath filenameP '/kilosorting_UT1_33to64/'];
-    % [datPaths.UT1b, ~] = Step0_KilosortArray(dirpath,filenameP,pl2path,outputFolder,opts);
-    % 
-    % opts.curchannels = [65:96]; outputFolder = [dirpath filenameP '/kilosorting_UT1_65to96/'];
-    % [datPaths.UT1c, ~] = Step0_KilosortArray(dirpath,filenameP,pl2path,outputFolder,opts);
-    %% Utah 2 - Serial 0072
-    % opts.ArrayLabel = 'UT2'; %load channel map
-    % opts.chInfo = load('/mnt/isilon/code/ConwayExptProcessing/Dependencies/Kilotools_FB_2023/Kilosort_config/Sprout/V1_UT2_chanMap_nogroup.mat');
-    % opts.ChnOffset=160;
-    % 
-    % opts.curchannels = [1:32]; outputFolder = [dirpath filenameP '/kilosorting_UT2_1to32/'];
-    % [datPaths.UT2a, ~] = Step0_KilosortArray(dirpath,filenameP,pl2path,outputFolder,opts);
-    % 
-    % opts.curchannels = [33:64]; outputFolder = [dirpath filenameP '/kilosorting_UT2_33to64/'];
-    % [datPaths.UT2b, ~] = Step0_KilosortArray(dirpath,filenameP,pl2path,outputFolder,opts);
-    % 
-    % opts.curchannels = [65:96]; outputFolder = [dirpath filenameP '/kilosorting_UT2_65to96/'];
-    % [datPaths.UT2c, ~] = Step0_KilosortArray(dirpath,filenameP,pl2path,outputFolder,opts);
-
-     %% NForm array
-%     opts.ArrayLabel = 'NF'; %load channel map
-%     opts.chInfo = load('/home/conwaylab/Git/ConwayExptProcessing/Dependencies/Kilotools_FB_2023/Kilosort_config/Vinny/V_NF_chanMap.mat');
-%     opts.ChnOffset=256;
-% 
-%     opts.curchannels = [1:32]; outputFolder = [dirpath filenameP '/kilosorting_NF_1to32/'];
-%     [datPaths.UT1, ~] = Step0_KilosortArray(dirpath,filenameP,pl2path,outputFolder,opts);
-% 
-%     opts.curchannels = [33:64]; outputFolder = [dirpath filenameP '/kilosorting_NF_33to64/'];
-%     [datPaths.UT1, ~] = Step0_KilosortArray(dirpath,filenameP,pl2path,outputFolder,opts);
-% 
-%     opts.curchannels = [65:96]; outputFolder = [dirpath filenameP '/kilosorting_NF_65to96/'];
-%     [datPaths.UT1, ~] = Step0_KilosortArray(dirpath,filenameP,pl2path,outputFolder,opts);    
-% 
-%     opts.curchannels = [97:128]; outputFolder = [dirpath filenameP '/kilosorting_NF_97to128/'];
-%     [datPaths.UT1, ~] = Step0_KilosortArray(dirpath,filenameP,pl2path,outputFolder,opts);   
-    %%
-    disp('Done with arrays!! Now ready to combine kilosorting files.')
-
-    %% to combine kilosort outputs for multiple arrays
-
-    strStitchPath = [dirpath filenameP '/kilosorting_stitched/'];
-    [spk_info, spk_times, spk_clusters] = fn_kiloappend([dirpath filenameP '/kilosorting_laminar/'],0);
-
-%    [spk_info, spk_times, spk_clusters] = fn_kiloappend([dirpath filenameP '/kilosorting_UT2_1to32/'],160);
-    [spk_info, spk_times, spk_clusters] = fn_kiloappend([dirpath filenameP '/kilosorting_UT2_1to32/'],160, spk_info, spk_times, spk_clusters);
-    [spk_info, spk_times, spk_clusters] = fn_kiloappend([dirpath filenameP '/kilosorting_UT2_33to64/'],192, spk_info, spk_times, spk_clusters);
-    [spk_info, spk_times, spk_clusters] = fn_kiloappend([dirpath filenameP '/kilosorting_UT2_65to96/'],224, spk_info, spk_times, spk_clusters);
-
-    if ~exist(strStitchPath,'dir');
-        mkdir(strStitchPath);
-    end
-    save([strStitchPath 'KS_stitched.mat'], "spk_clusters", "spk_times", "spk_info")
-
-    disp('saving ks_stich - done')
-%}    
 %% if you are rerunning the stuff below, uncomment this cell to quickly rerun the drop test check and see if plexon dropped any measurements
+pl2 = PL2ReadFileIndex(plexon_fname);
+numDigitsInLastSpkChan = ceil(log10(length(pl2.SpikeChannels)));
+
+numAIchans = sum(cellfun(@(x) contains(x.Name, 'AI'), pl2.AnalogChannels));
+numDigitsInLastAIchan = ceil(log10(numAIchans));
 disp('Drop test check starting')
-try
-    [fs, n, ts, fn, ~] = plx_ad_v(plexon_fname, ['SPKC001'] );
-end
-if n<2
-    try
-        [fs, n, ts, fn, ~] = plx_ad_v(plexon_fname, ['SPKC01'] );
-    end
-end
-[fs_aux, n_aux, ts_aux, fn_aux, ~] = plx_ad_v(plexon_fname, ['AI01'] );
+
+[fs, n, ts, fn, ~] = plx_ad_v(plexon_fname,...
+    ['SPKC' num2str(1, ['%0' num2str(numDigitsInLastSpkChan) '.f'])]);
+
+[fs_aux, n_aux, ts_aux, fn_aux, ~] = plx_ad_v(plexon_fname, ['AI' num2str(1, ['%0' num2str(numDigitsInLastAIchan), '.f'])] );
 
 spikeChannel1SignalDurSec = n/fs; % samples / (samples/sec)
 dpiSyncSignalDurSec = n_aux/fs_aux;
@@ -214,14 +133,31 @@ disp('Kofiko alignment starting')
 which_computer = 2; % (default=2) 2 = Cameron's Bizon
 
 ks.use_online = 0; % set to 1 to use on-line sorting or no sorting at all. Should be 0 if you want to use kilosort
-ks.onlinechans = [193:256]; % which channels of on-line sorted spikes should we go through? 
+%ks.onlinechans = [1:64]; % which channels of on-line sorted spikes should we go through? 
 
 ks.stitched=0; % if you combined kilosort outputs for multiple arrays
-ks.arraylabel ='lam';
-ks.filepath = fullfile(dirpath, filenameP, 'kilosorting_laminar/'); % point this at array folders or the "stiched" folder if you want to sort data from multiple arrays
+%ks.arraylabel = opts.ArrayLabel;
+ks.arraylabel = arrayLabels;
+
+ii = 1;
+for a = 1:numel(arrayLabels)
+    for c = 1:numel(curChannels{a})
+        if contains(arrayLabels{a}, 'lam')
+            ksFolders{ii} = fullfile(dirpath, filenameP, 'kilosorting_laminar');
+            ks_nChans(ii) = length(curChannels{a}{c}{:});
+        else
+            ksFolders{ii} = ['kilosorting_' arrayLabels{a} '_' num2str(min(curChannels{a}{c}{:})) 'to' num2str(max(curChannels{a}{c}{:}))];
+            ksFolders{ii} = fullfile(dirpath, filenameP, ksFolders{ii});
+            ks_nChans(ii) = length(curChannels{a}{c}{:});
+            ii = ii + 1;
+        end
+    end
+end
+
+ks.filepath = ksFolders; % point this at array folders or the "stiched" folder if you want to sort data from multiple arrays
 %ks.filepath = [dirpath filenameP filesep 'kilosorting_stitched' filesep]; % point this at array folders or the "stiched" folder if you want to sort data from multiple arrays
 ks.pl2path = pl2path;
-
+ks.ks_nChans = ks_nChans;
 opts.eye_tracker = 4;   % (default=3) 0=eyescan, 1=monoc eyelink, 2=binoc eyelink, 3=monocular dDPI, 4=binocular dDPI
 opts.is_cloud = 1;      % (default=1) indicates processing for cloud data. set to 0 to skip cloud-specific variables and align task data or other paradigms 
 opts.extractfixinfo = 1;% (default=1) extracts fixinfo file containing fivedot and dotgrid info
@@ -235,7 +171,7 @@ else
     opts.spk_offset = 0;
 end
 
-[ExptTrials, ExptInfo, ETdata, LFP_ad] = ExtractAndAlignData( filenameP, dirpath, which_computer, ks, opts ); 
+[ExptTrials, ExptInfo, ETdata, LFP_ad] = ExtractAndAlignData(filenameP, dirpath, which_computer, ks, opts); 
 % to see options (including a different datadirectory, type 'help ExtractAndAlignData'
 % this will automatically generate and save CSD/LFP, but you can call the
 % function again and analyze them
@@ -251,7 +187,8 @@ disp('Cloud packaging starting')
 ExptInfo.trialdur = 4;
 ExptInfo.monkey_name = monkey_name;
 addpath(genpath('/home/bizon/Data/V1_Fovea/output_greenemj')); 
-data = PackageCloudData_v9mod( ExptTrials, ExptInfo, [], [], stimpath, [outputdir filenameP filesep 'Analysis'] , 0, which_computer); % temporarily got rid of LFP_ad as final arg
+
+data = PackageCloudData_v9mod( ExptTrials, ExptInfo, [], [], stimpath, fullfile(pl2path, filenameP, 'Analysis') , 0, which_computer); % temporarily got rid of LFP_ad as final arg
 
 disp('Cloud packaging complete')
 %% Check to see if all of the relevant files were saved
@@ -261,8 +198,8 @@ checkOutput(outputdir,filenameP)
 disp('STA generation starting')
 %%force save STA plots [RamonBartolo 20250709]
 data.to_save = true;
-data.outputdir = [outputdir filenameP filesep 'Analysis' filesep, 'STAs'];
-data.outputdir = fullfile(outputdir, monkey_name, filenameP, 'Analysis', 'STAs');
+data.outputdir = fullfile(pl2path, filenameP, 'Analysis', 'STAs'); %[outputdir filenameP filesep 'Analysis' filesep, 'STAs'];
+
 %%%%%% Comment to skip saving
 if ~exist(data.outputdir,'dir'); mkdir(data.outputdir); end
 stas = get_sta(data, ExptInfo);

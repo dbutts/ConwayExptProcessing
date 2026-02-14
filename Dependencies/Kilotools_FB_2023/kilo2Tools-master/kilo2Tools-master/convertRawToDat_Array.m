@@ -261,7 +261,7 @@ switch rawFileType
             		    %samples(i, :) = adReadWrapper(fullFileName, spkcOnChanNames{i+opts.ChnOffset})';
     %					snip = adReadWrapper(fullFileName, spkcOnChanNames{cur_chan})';
     %					snip = adReadWrapper(fullFileName, ['SPKC' spkcOnChanNames{cur_chan}])';
-					    snip = adReadWrapper(fullFileName, ['SPKC' sprintf('%03d', cur_chan)])';
+					    snip = adReadWrapper(fullFileName, ['SPKC' sprintf('%02d', cur_chan)])';
                         
     %					samples(i, ts) = snip(ts);
 					    samples(i, 1:length(ts)) = snip(ts);
@@ -407,7 +407,16 @@ switch rawFileType
     case 'plx'
         [ad.ADFreq, ~,  ad.FragTs, ad.FragCounts] = plx_ad(rawFullPath, 'SPKC01');
     case 'pl2'
-        ad = PL2Ad(rawFullPath, 'SPKC001');
+
+        pl2 = PL2ReadFileIndex(plxFilePath);
+        numDigitsInLastSpkChan = ceil(log10(length(pl2.SpikeChannels)));
+        ad = Pl2Ad(rawFullPath,  ['SPKC' num2str(1, ['%0' num2str(numDigitsInLastSpkChan) '.f'])]);
+
+        %ad = Pl2Ad(rawFullPath, spkcOnChanNames{1});
+        % ad = PL2Ad(rawFullPath, 'SPKC01');
+        % if length(ad.Values)<2
+        %     ad = PL2Ad(rawFullPath, 'SPKC01'); % MGJ: was 'SPKC01' 
+        % end
     otherwise
         error('bad filetype. Time to reconsider your life choices');
 end

@@ -1,4 +1,4 @@
-function [ExptTrials, ExptInfo, ETdata, LFP_ad] = ExtractAndAlignData( exptname, dirpath, which_computer, ks, opts )
+function [ExptTrials, ExptInfo, ETdata, LFP_ad] = ExtractAndAlignData(exptname, dirpath, which_computer, ks, opts)
 %
 % Usage: ExtractAndAlignData( exptname, dirpath, <which_computer>, <eye_tracker> )
 %
@@ -19,65 +19,50 @@ if nargin < 5
     opts = struct;
 end
 
-if ~isfield(opts, 'eye_tracker')
-    ET_Eyelink = 3; % (default) 0=eyescan, 1=monoc eyelink, 2=binoc eyelink, 3=monocular dDPI
-else
-    ET_Eyelink = opts.eye_tracker;
+default_opts = {'eye_tracker', 3,...
+    'plx_analogscale', 1000,...
+    'is_cloud', 1,...
+    'extractfixinfo', 0,...
+    'spk_offset', 0,...
+    'trialwindow', [0 4],...
+    'trl_fix_thresh', 1};
+
+default_opts_fields = default_opts(1:2:end-1);
+default_opts_values = default_opts(2:2:end);
+
+missing_opts_fields = default_opts_fields(~isfield(opts, default_opts_fields));
+missing_opts_values = default_opts_values(~isfield(opts, default_opts_fields));
+
+for i = 1:numel(missing_opts_fields)
+    opts.(missing_opts_fields{i}) = missing_opts_values{i};
 end
 
-if ~isfield(opts, 'plx_analogscale')
-    opts.plx_analogscale = 1000; % how to scale the analog signals in Plexon - usually 1000 (1V range) but can be 5000 if different DAC parameters were used
-end
-
-if ~isfield(opts, 'is_cloud')
-    opts.is_cloud = 1; % default) indicates processing for cloud data. set to 0 to skip cloud-specific variables and align task data or other paradigms 
-end
-
-if ~isfield(opts, 'extractfixinfo')
-    opts.extractfixinfo = 1; % default) saves out fivedot/dotgrid trial onsets and fixation locations (for calibrating dDPI signal). set to 0 to skip this process.
-end
-
-if ~isfield(opts, 'spk_offset') 
-    opts.spk_offset = 0; 
-end
-
-if ~isfield(opts, 'trialwindow')
-    g_strctStatistics.preTrialWindow = 0; % default to 4-second trials
-    g_strctStatistics.postTrialWindow = 4;
-else
-    g_strctStatistics.preTrialWindow = opts.trialwindow(1);
-    g_strctStatistics.postTrialWindow = opts.trialwindow(2);
-end
-
-if ~isfield(opts, 'trl_fix_thresh')
-    opts.trl_fix_thresh = 1; % default) indicates fraction of a trial the monkey has to fixate in order for the trial to be included in analysis
-end
-
+ET_Eyelink = opts.eye_tracker;
+g_strctStatistics.preTrialWindow = opts.trialwindow(1);
+g_strctStatistics.postTrialWindow = opts.trialwindow(2);
 
 if nargin < 4 || isempty(which_computer)
-	% This can be used to set default directories
-	% Dan's laptop = 0
-	% Bevil office desktop = 1
+    % This can be used to set default directories
+    % Dan's laptop = 0
+    % Bevil office desktop = 1
     % LSR 2A58 sorting rig = 2
     % Rig C Plexon rig = 3
-	which_computer = 2; % default value
+    which_computer = 2; % default value
 end
 
-
-
 if nargin < 2
-	switch(which_computer)
-		case 0, dirpath = '/Users/dbutts/Data/Conway/';
-		case 1, dirpath = 'C:\SpkSort2023\AAActiveData\';
+    switch(which_computer)
+        case 0, dirpath = '/Users/dbutts/Data/Conway/';
+        case 1, dirpath = 'C:\SpkSort2023\AAActiveData\';
         case 2, dirpath = '/home/conwaylab/Data/';
-        case 3, dispath = 'D:\PlexonData\'
-		otherwise
-			disp('which_computer is not specified')
-	end
-else
-	if dirpath(end) ~= filesep
-		dirpath = [dirpath filesep];
-	end
+        case 3, dirpath = 'D:\PlexonData\';
+        otherwise
+            disp('which_computer is not specified')
+    end
+else % get rid of this eventually by making sure to use fullfile!!
+    if dirpath(end) ~= filesep
+        dirpath = [dirpath filesep];
+    end
 end
 
 %ExperimentFolder = dirpath;  % EXPERIMENT FOLDER
@@ -95,75 +80,69 @@ else
     useofflinesorting = 1; % set to 1 to use kilosort outputs
 end
 
-skipLFP=0; 
+skipLFP=0;
 nChans=64; %for CSD only now
 LFPchans=1:nChans;
 %LFP_chanmap=LFPchans;
 
 %sessionsToProcess = [];
-matFilePath = [dirpath exptname filesep]; 
+matFilePath = [dirpath exptname filesep];
 
-if (nargin < 3) || isempty(ks)
-    ks.stitched=0; 
-    ks.arraylabel ='lam';
-    ks.filepath = [dirpath exptname filesep 'kilosorting_laminar' filesep]; 
-    plxFilePath = [dirpath exptname '.pl2'];
-else
-    if isfield(ks, 'pl2path')
-        plxFilePath = [ks.pl2path exptname '.pl2'];
-    else
-        plxFilePath = [dirpath exptname '.pl2'];
-    end
+
+plxFilePath = fullfile(ks.pl2path, [exptname '.pl2']);
+if ~isfield(ks, 'stiched')
+    ks.stitched = 0;
 end
 
 %strExperimentPath = [matFilePath 'Analysis' filesep];
-output_directory = [dirpath exptname filesep 'Analysis' filesep];
+%analysis_subFolder = ['kilosorting_' opts.ArrayLabel '_' num2str(min(opts.curchannels)) 'to' num2str(max(opts.curchannels))];
+output_directory = fullfile(dirpath, exptname, 'Analysis');
 
-configFilePath = [dirpath exptname '.mat'];
+configFilePath = fullfile(dirpath, [exptname '.mat']);
 
 %sessionTimeOffsets = [];
 if ~exist(output_directory,'dir')
-	mkdir(output_directory);
+    mkdir(output_directory);
 end
 %filenameK = matFilePath;
 load(configFilePath)
 
 %% test for misalignment
 %/{
-try
-    [SPKC_adfreq, SPKC_n, SPKC_ts, SPKC_fn, SPKC_ad_test] = plx_ad_v(plxFilePath, 'SPKC001');
-    [LFP_adfreq, LFP_n_test, LFP_ts, LFP_fn, LFP_ad_test] = plx_ad_v(plxFilePath, ['FP' num2str(1,'%03.f')]);
-    LFP_n = LFP_n_test; % Added 2/4/26 by MJG
-end
-if SPKC_n<2
-    try
-        [SPKC_adfreq, SPKC_n, SPKC_ts, SPKC_fn, SPKC_ad_test] = plx_ad_v(plxFilePath, 'SPKC01');
-        [LFP_adfreq, LFP_n, LFP_ts, LFP_fn, LFP_ad_test] = plx_ad_v(plxFilePath, ['FP' num2str(1,'%02.f')]);
-    end
-end
+
+pl2 = PL2ReadFileIndex(plxFilePath);
+numDigitsInLastSpkChan = ceil(log10(length(pl2.SpikeChannels)));
+
+
+[SPKC_adfreq, SPKC_n, SPKC_ts, SPKC_fn, SPKC_ad_test] = plx_ad_v(plxFilePath,...
+    ['SPKC' num2str(1, ['%0' num2str(numDigitsInLastSpkChan) '.f'])]);
+
+
+[LFP_adfreq, LFP_n, LFP_ts, LFP_fn, LFP_ad_test] = plx_ad_v(plxFilePath, ['FP' num2str(1, ['%0' num2str(numDigitsInLastSpkChan) '.f'])]);
+LFP_n_test = LFP_n;
+
 [ET_adfreq, ET_n, ET_ts, ET_fn, PlexET_ad_test] = plx_ad_v(plxFilePath, 'AI07');
-ET_n./LFP_n;
-ET_n-LFP_n;
+
 if abs(ET_n-LFP_n)>100
-	warning('Danger - Plexon timing bug dectected')
+    warning('Danger - Plexon timing bug dectected')
 else
-	disp('Plexon timing check passed')
+    disp('Plexon timing check passed')
 end
 %}
 
 %%
-%global strctColorValues unitsInFile PlottingVars g_strctStatistics ExptTrials topLevelIndex 
+%global strctColorValues unitsInFile PlottingVars g_strctStatistics ExptTrials topLevelIndex
 
 %persistent plexonDataAlignedToThisTrial
 experimentIndex = {};
 
-currentDirectory = pwd;
-cd(dirpath);
-allMatFiles = dir('*.mat');
+%currentDirectory = pwd;
+%cd(dirpath);
+allMatFiles = dir(fullfile(dirpath, '*.mat'));
 [~, indices] = sort(vertcat(allMatFiles(:).datenum));
 allMatFiles = allMatFiles(indices);
 
-allPLXfiles = dir([pwd,filesep, '*.plx']);
+allPLXfiles = dir(fullfile(dirpath, '*.plx')); %dir([pwd,filesep, '*.plx']);
 g_strctStatistics.m_strctEyeData.m_fEyeIntegrationPeriod = [g_strctStatistics.preTrialWindow, g_strctStatistics.postTrialWindow];
 
 syncStrobeID = 32757;
@@ -174,33 +153,71 @@ stopRecordID = 32766;
 %% Prepare Kilosort information
 if useofflinesorting==1
 
-	if ks.stitched==1
-		load([ks.filepath 'KS_stitched.mat'])
-	else
-		spk_times = readNPY([ks.filepath 'spike_times_seconds.npy']) + opts.spk_offset;
-		spk_clusters = readNPY([ks.filepath 'spike_clusters.npy']);
-		spk_info = tdfread([ks.filepath 'cluster_info.tsv']);
-	end
-	
-	spk_clustIDs = unique(spk_clusters); nclusts=length(spk_clustIDs);
-	spk_labels_SU=[]; spk_labels_MU=[];
-	for cc=1:nclusts
-		if strcmp(deblank(spk_info.group(cc,:)), 'good')
-			spk_labels_SU = [spk_labels_SU,cc];
-		elseif strcmp(spk_info.group(cc,:), 'noise')
-			% do nothing about noise
-		else
-			spk_labels_MU = [spk_labels_MU,cc];
-		end
-	end
-	bad_chans_SU = find(spk_info.n_spikes(spk_labels_SU)<2000); spk_labels_SU(bad_chans_SU)=[];
-	bad_chans_MU = find(spk_info.n_spikes(spk_labels_MU)<2000); spk_labels_MU(bad_chans_MU)=[];
-	spk_ID_SU = (spk_clustIDs(spk_labels_SU));
-	spk_channels_SU = spk_info.ch(spk_labels_SU);
-	spk_ID_MU = (spk_clustIDs(spk_labels_MU));
-	spk_channels_MU = spk_info.ch(spk_labels_MU);
-	nSU=length(spk_ID_SU);
-	nMU=length(spk_ID_MU);
+    if ks.stitched==1
+        load([ks.filepath 'KS_stitched.mat'])
+    else
+
+        % for each ks file, load in spk_times, spk_clusters, spk_info
+
+        for f = 1:numel(ks.filepath)
+            spk_times{f} = readNPY(fullfile(ks.filepath{f}, 'spike_times_seconds.npy')) + opts.spk_offset;
+            spk_clusters{f} = readNPY(fullfile(ks.filepath{f}, 'spike_clusters.npy'));
+            spk_info{f} = tdfread(fullfile(ks.filepath{f}, 'cluster_info.tsv'));
+
+        end
+
+        % concatenate these cell arrays, carefully
+        % each cluster must be unique, so add maximum cluster number of
+        % previous cell
+        max_cluster_nums = cellfun(@max, spk_clusters);
+        max_cluster_nums_cumsum = cumsum(max_cluster_nums + 1);
+        max_cluster_nums_cumsum = [0 max_cluster_nums_cumsum(1:end-1)];
+
+        ks_chnOffset = [0 cumsum(ks.ks_nChans(1:end-1))];
+        for f = 1:numel(ks.filepath)
+            spk_clusters{f} = spk_clusters{f} + max_cluster_nums_cumsum(f);
+
+            spk_info{f}.cluster_id = unique(spk_clusters{f});
+            spk_info{f}.ch = spk_info{f}.ch + ks_chnOffset(f);
+
+
+        end
+
+        spk_times = vertcat(spk_times{:});
+        spk_clusters = vertcat(spk_clusters{:});
+
+
+
+        % spk_times = readNPY([ks.filepath 'spike_times_seconds.npy']) + opts.spk_offset;
+        % spk_clusters = readNPY([ks.filepath 'spike_clusters.npy']);
+        % spk_info = tdfread([ks.filepath 'cluster_info.tsv']);
+    end
+
+    % now concatenate fields of spk_info
+    spk_info_temp = [spk_info{:}];
+    spk_info_fields = fieldnames(spk_info_temp);
+    spk_info_new = struct;
+
+
+    for i = 1:numel(spk_info_fields)
+        spk_info_new.(spk_info_fields{i}) = vertcat(spk_info_temp.(spk_info_fields{i}));
+    end
+
+    spk_info = spk_info_new;
+
+
+    spk_clustIDs = unique(spk_clusters); 
+    spk_labels_SU = find(cellfun(@(x) strcmp(deblank(x), 'good'), cellstr(spk_info.group)));
+    spk_labels_MU = find(cellfun(@(x) strcmp(deblank(x), 'mua') | isempty(deblank(x)), cellstr(spk_info.group)));
+
+    bad_chans_SU = find(spk_info.n_spikes(spk_labels_SU)<2000); spk_labels_SU(bad_chans_SU)=[];
+    bad_chans_MU = find(spk_info.n_spikes(spk_labels_MU)<2000); spk_labels_MU(bad_chans_MU)=[];
+    spk_ID_SU = spk_clustIDs(spk_labels_SU);
+    spk_channels_SU = spk_info.ch(spk_labels_SU);
+    spk_ID_MU = spk_clustIDs(spk_labels_MU);
+    spk_channels_MU = spk_info.ch(spk_labels_MU);
+    nSU=length(spk_ID_SU);
+    nMU=length(spk_ID_MU);
 
 else
     %% align spiking data
@@ -214,52 +231,52 @@ else
     end
     nSU = sum(allNumUnits); spk_labels_SU=1:nSU;
     nMU = 0; spk_labels_MU=[]; %for online sorting, we'll just treat every unit as an SU
-        spk_ID_MU=[];
-        spk_channels_MU=[];
+    spk_ID_MU=[];
+    spk_channels_MU=[];
 
     numUnits = find(sum(wfcounts,2))-1;
-    
+
     %% Now actually grab all the spike timestamps
     ii=1;
     for channel=ks.onlinechans
-	    for iUnit = 1:allNumUnits(channel)
-		    nameOfUnit = ['unit',num2str(numUnits(iUnit))];
-		    % [spikes(channel).(nameOfUnit).count, spikes(channel).(nameOfUnit).numWaves, spikes(channel).(nameOfUnit).timeStamps, spikes(channel).(nameOfUnit).Waves] = ...
-			%     plx_waves_v([thisSessionFile], channel, iUnit); % old version of doing this; commented ouit to keep formatting in line with KS style
-		    [~, ~, cur_timestamps, ~] = plx_waves_v(plxFilePath, channel, iUnit);
-            spk_times = [spk_times; cur_timestamps]; 
-            spk_clusters = [spk_clusters; ones(length(cur_timestamps),1)*spk_ID_SU(ii)]; 
+        for iUnit = 1:allNumUnits(channel)
+            nameOfUnit = ['unit',num2str(numUnits(iUnit))];
+            % [spikes(channel).(nameOfUnit).count, spikes(channel).(nameOfUnit).numWaves, spikes(channel).(nameOfUnit).timeStamps, spikes(channel).(nameOfUnit).Waves] = ...
+            %     plx_waves_v([thisSessionFile], channel, iUnit); % old version of doing this; commented ouit to keep formatting in line with KS style
+            [~, ~, cur_timestamps, ~] = plx_waves_v(plxFilePath, channel, iUnit);
+            spk_times = [spk_times; cur_timestamps];
+            spk_clusters = [spk_clusters; ones(length(cur_timestamps),1)*spk_ID_SU(ii)];
             ii=ii+1;
-	    end
+        end
     end
 end
 
 %% Organize spike time metadata
 exptDataP = []; exptDataP2=[]; exptDataMUA=[];
 %if useofflinesorting==1
-	for iUnit=1:length(spk_labels_SU)
-		exptDataP(iUnit).spkID = double(spk_ID_SU(iUnit));
-		exptDataP(iUnit).spkCh = spk_channels_SU(iUnit);
-		% exptDataP(iUnit).rating = spk_rating_SU(iUnit);  
-		exptDataP(iUnit).unit1 = spk_times(find(spk_clusters==spk_ID_SU(iUnit)));
-	end
+for iUnit=1:length(spk_labels_SU)
+    exptDataP(iUnit).spkID = double(spk_ID_SU(iUnit));
+    exptDataP(iUnit).spkCh = spk_channels_SU(iUnit);
+    % exptDataP(iUnit).rating = spk_rating_SU(iUnit);
+    exptDataP(iUnit).unit1 = spk_times(spk_clusters==spk_ID_SU(iUnit));
+end
 
-	for iUnit=1:length(spk_labels_MU)
-		exptDataMUA(iUnit).spkID = double(spk_ID_MU(iUnit));
-		exptDataMUA(iUnit).spkCh = spk_channels_MU(iUnit);
-		% exptDataMUA(iUnit).rating = spk_rating_MU(iUnit);
-		exptDataMUA(iUnit).unit1 = spk_times(find(spk_clusters==spk_ID_MU(iUnit)));  
-	end
+for iUnit=1:length(spk_labels_MU)
+    exptDataMUA(iUnit).spkID = double(spk_ID_MU(iUnit));
+    exptDataMUA(iUnit).spkCh = spk_channels_MU(iUnit);
+    % exptDataMUA(iUnit).rating = spk_rating_MU(iUnit);
+    exptDataMUA(iUnit).unit1 = spk_times(spk_clusters==spk_ID_MU(iUnit));
+end
 
 % else
-% 	for channel=1:nChans    
+% 	for channel=1:nChans
 % 		for iUnit = 1:allNumUnits(channel)
 % 			nameOfUnit = ['unit',num2str(iUnit)];
 % 			try
 % 				exptDataP(channel).(nameOfUnit) = spikes(channel).(nameOfUnit).timeStamps;
 % 			catch
-% 				exptDataP(channel).(nameOfUnit) = 0;   
-% 			end		
+% 				exptDataP(channel).(nameOfUnit) = 0;
+% 			end
 %         end
 % 	end
 % end
@@ -270,36 +287,36 @@ allMatFiles = dir([matFilePath, '*.mat']);
 allMatFiles = allMatFiles(indices);
 g_strctStatistics.ExptTrials = {};
 for iFiles = 1:size(allMatFiles,1)
-	if allMatFiles(iFiles).isdir
-		continue
-	end
-	load([matFilePath,allMatFiles(iFiles).name])
-	fprintf('-> loading KS file %s\n', allMatFiles(iFiles).name);
-	if exist('g_strctLocalExperimentRecording') && size(g_strctLocalExperimentRecording{1},1) > 1
-		warning('incorrect format detected in save structure in file  %s, skipping', allMatFiles(iFiles).name)
-		%tmp = g_strctLocalExperimentRecording{1};
-		continue
-	end
+    if allMatFiles(iFiles).isdir
+        continue
+    end
+    load([matFilePath,allMatFiles(iFiles).name])
+    fprintf('-> loading KS file %s\n', allMatFiles(iFiles).name);
+    if exist('g_strctLocalExperimentRecording') && size(g_strctLocalExperimentRecording{1},1) > 1
+        warning('incorrect format detected in save structure in file  %s, skipping', allMatFiles(iFiles).name)
+        %tmp = g_strctLocalExperimentRecording{1};
+        continue
+    end
 
-	% details = whos([output_directory,allMatFiles(iFiles).name])
-	%g_strctLocalg_strctStatistics.ExptTrials(cellfun('isempty',g_strctLocalg_strctStatistics.ExptTrials)) = [];
-	g_strctStatistics.ExptTrials(cellfun('isempty',g_strctStatistics.ExptTrials)) = [];
-	if (exist('g_strctLocalExperimentRecording') == 1)
-		% disp('case 1')
-		g_strctStatistics.ExptTrials = vertcat(g_strctStatistics.ExptTrials,vertcat({g_strctLocalExperimentRecording{find(~cellfun(@isempty,g_strctLocalExperimentRecording))}})');
-		clear g_strctLocalExperimentRecording
-	elseif (exist('strctLocalExperimentRecording') == 1)
-		%disp('case 2')
-		g_strctStatistics.ExptTrials = vertcat(g_strctStatistics.ExptTrials,vertcat({strctLocalExperimentRecording{find(~cellfun(@isempty,strctLocalExperimentRecording))}})');
-		clear('strctLocalExperimentRecording')
-	else
-		%disp('case 3')
-		try
-			g_strctStatistics.ExptTrials = vertcat(g_strctStatistics.ExptTrials,vertcat({dataToSave{find(~cellfun(@isempty,dataToSave))}})');
-		catch
-			warning(sprintf('file %s did not contain appropriately formatted trials', allMatFiles(iFiles).name)); 
-		end
-	end
+    % details = whos([output_directory,allMatFiles(iFiles).name])
+    %g_strctLocalg_strctStatistics.ExptTrials(cellfun('isempty',g_strctLocalg_strctStatistics.ExptTrials)) = [];
+    g_strctStatistics.ExptTrials(cellfun('isempty',g_strctStatistics.ExptTrials)) = [];
+    if (exist('g_strctLocalExperimentRecording') == 1)
+        % disp('case 1')
+        g_strctStatistics.ExptTrials = vertcat(g_strctStatistics.ExptTrials,vertcat({g_strctLocalExperimentRecording{find(~cellfun(@isempty,g_strctLocalExperimentRecording))}})');
+        clear g_strctLocalExperimentRecording
+    elseif (exist('strctLocalExperimentRecording') == 1)
+        %disp('case 2')
+        g_strctStatistics.ExptTrials = vertcat(g_strctStatistics.ExptTrials,vertcat({strctLocalExperimentRecording{find(~cellfun(@isempty,strctLocalExperimentRecording))}})');
+        clear('strctLocalExperimentRecording')
+    else
+        %disp('case 3')
+        try
+            g_strctStatistics.ExptTrials = vertcat(g_strctStatistics.ExptTrials,vertcat({dataToSave{find(~cellfun(@isempty,dataToSave))}})');
+        catch
+            warning(sprintf('file %s did not contain appropriately formatted trials', allMatFiles(iFiles).name));
+        end
+    end
 end
 
 ExptTrials = g_strctStatistics.ExptTrials;
@@ -307,24 +324,24 @@ clear g_strctStatistics.ExptTrials;
 
 %%
 try
-	[events.count, events.timeStamps, events.strobeNumber] = plx_event_ts(plxFilePath, eventChannelNumber);
-	% [events] = PL2EventTs(plxFilePath, eventChannelNumber);
+    [events.count, events.timeStamps, events.strobeNumber] = plx_event_ts(plxFilePath, eventChannelNumber);
+    % [events] = PL2EventTs(plxFilePath, eventChannelNumber);
 catch
-	[~,sessionName] = fileparts(plxFilePath);
-	sprintf('corrupt or missing information from Plexon file, experiment %s', sessionName)
-	return;
+    [~,sessionName] = fileparts(plxFilePath);
+    sprintf('corrupt or missing information from Plexon file, experiment %s', sessionName)
+    return;
 end
-cd(dirpath);
+%cd(dirpath);
 
 try
-load(matFilePath, 'g_strctDAQParams');
+    load(matFilePath, 'g_strctDAQParams');
 catch
-	try
-		load([dirpath, exptname, '.mat'], 'g_strctDAQParams');
-	catch
-		[~, filename] = fileparts(matFilePath); 
-		load([filename, '.mat'], 'g_strctDAQParams');
-	end
+    try
+        load([dirpath, exptname, '.mat'], 'g_strctDAQParams');
+    catch
+        [~, filename] = fileparts(matFilePath);
+        load([filename, '.mat'], 'g_strctDAQParams');
+    end
 end
 
 firstStrobePlexonTS = events.timeStamps(find(events.strobeNumber(events.strobeNumber == syncStrobeID),1));
@@ -337,9 +354,9 @@ kofikoStrobeIDX = find(g_strctDAQParams.LastStrobe.Buffer == syncStrobeID);
 
 kofikoStrobeAllTS = g_strctDAQParams.LastStrobe.TimeStamp(kofikoStrobeIDX);
 
-if numel(kofikoStrobeIDX) ~= numel(plexonStrobeIDX)  
-	sprintf('strobe ID mismatch, different number of sync timestamps detected')
-	%sprintf('Will attempt to reconstruct sessions use sync timestamps from within recording sessions')
+if numel(kofikoStrobeIDX) ~= numel(plexonStrobeIDX)
+    sprintf('strobe ID mismatch, different number of sync timestamps detected')
+    %sprintf('Will attempt to reconstruct sessions use sync timestamps from within recording sessions')
 end
 
 colorsInThisExperiment = zeros(1,3);
@@ -353,7 +370,7 @@ sessionEndTS = g_strctDAQParams.LastStrobe.TimeStamp(sessionsEndIDX);% - firstSt
 numSessions = numel(sessionsStartIDX);
 
 if strfind(exptname, '190409_134012_Jacomo')
-	numSessions=8;
+    numSessions=8;
 end
 sessionStartPlexonIDX = find(events.strobeNumber == startRecordID);
 sessionEndPlexonIDX = find(events.strobeNumber == stopRecordID);
@@ -363,29 +380,24 @@ sessionsStartID = 1;
 
 %% Establish trial times based on Kofiko-time stamp of image-flip
 for iTrials = 1:size(ExptTrials,1)
-	ExptTrials{iTrials, 2} = ExptTrials{iTrials, 1}.m_fImageFlipON_TS_Kofiko;
-	% DAN COMMENTED OUT: UNUSED trialIter(iTrials) = ExptTrials{iTrials, 1}.m_iTrialNumber;
+    ExptTrials{iTrials, 2} = ExptTrials{iTrials, 1}.m_fImageFlipON_TS_Kofiko;
+    % DAN COMMENTED OUT: UNUSED trialIter(iTrials) = ExptTrials{iTrials, 1}.m_iTrialNumber;
 
-	% Add session information (SessionID) which is a manual way in Kofiko to annotate
-	% Note this is not strict and not every trial will have one
-	% Every "start of recording" (a button) in Kofiko is a different session time 
-	ExptTrials{iTrials, 1}.SessionID = find(ExptTrials{iTrials, 2} > sessionStartTS,1,'last');
+    % Add session information (SessionID) which is a manual way in Kofiko to annotate
+    % Note this is not strict and not every trial will have one
+    % Every "start of recording" (a button) in Kofiko is a different session time
+    ExptTrials{iTrials, 1}.SessionID = find(ExptTrials{iTrials, 2} > sessionStartTS,1,'last');
 end
 
+
 %% To picking a particular subset of trials -- including checking timing validity
-% Use timing of beginning and end of Kofiko time stamps to remove erroneous trial information  
+% Use timing of beginning and end of Kofiko time stamps to remove erroneous trial information
 RECstart = kofikoStrobeAllTS(1);
 RECend = kofikoStrobeAllTS(end);
 
-
-
-
 %% Ensure trials are in correct order
-ntrials=length(ExptTrials);
-
-for tt=1:ntrials
-	trialstart_raw(tt)=ExptTrials{tt, 2}; 
-end
+ntrials = length(ExptTrials);
+trialstart_raw = [ExptTrials{:,2}];
 [~,order] = sort(trialstart_raw);
 ExptTrials = ExptTrials(order, :); % ensures that kofiko didn't mess up trial order when appending trials
 
@@ -394,78 +406,78 @@ topLevelIndex = [];
 sessionIndex  = [];
 sessionTags   = {};
 
-cd ..
-allPLXfiles = vertcat(dir([pwd,filesep, '*.plx']),dir([pwd,filesep, '*.pl2']));
+%cd ..
+allPLXfiles = vertcat(dir([dirpath,filesep, '*.plx']),dir([dirpath,filesep, '*.pl2']));
 
 thisSessionFile = plxFilePath;
 if ~exist(plxFilePath) && isempty(allPLXfiles) && ~any(~arrayfun(@isempty,strfind({allPLXfiles(:).name}, [exptname,'.plx']))) && ~any(~arrayfun(@isempty,strfind({allPLXfiles(:).name}, [exptname,'.pl2'])))
-	warning('could not find PLX file for this experiment')
+    warning('could not find PLX file for this experiment')
 else
-	%  thisSessionFile = [pwd,'\',exptname];
+    %  thisSessionFile = [pwd,'\',exptname];
 end
 
-cd(dirpath)
+%cd(dirpath)
 unitsInFile = [];
 [~,~,experimentFileExtension] = fileparts(thisSessionFile);
 if ~strcmp(experimentFileExtension,'.plx') && ~strcmp(experimentFileExtension,'.pl2')
-	thisSessionFile = [thisSessionFile, '.plx'];
+    thisSessionFile = [thisSessionFile, '.plx'];
 end
 
 %% former location of online-sorted spike processing
 
 %% Process Eye-tracking data
-load([dirpath, exptname, '.mat'], 'g_strctEyeCalib'); % Used to load the gains later
-load([dirpath, exptname, '.mat'], 'g_strctStimulusServer');
+load(fullfile(dirpath, [exptname '.mat']), 'g_strctEyeCalib'); % Used to load the gains later
+load(fullfile(dirpath, [exptname '.mat']), 'g_strctStimulusServer');
 
 if ET_Eyelink == 1      % monoc eyelink,
-	[~, ~, ~, ~, PlexET_ad(1,:)] = plx_ad_v(thisSessionFile, 'AI05');
-	[~, ~, ~, ~, PlexET_ad(2,:)] = plx_ad_v(thisSessionFile, 'AI06');
-	[~, ~, ~, ~, PlexET_ad(3,:)] = plx_ad_v(thisSessionFile, 'AI07');
-	[ET_adfreq, ET_n, ET_ts, ET_fn, PlexET_ad(4,:)] = plx_ad_v(thisSessionFile, 'AI08');
-	PlexET_ad_calib=PlexET_ad;
-	PlexET_ad_calib(1,:) = (PlexET_ad_calib(1,:)-median(PlexET_ad_calib(1,:)))*(g_strctEyeCalib.GainX.Buffer(end)./opts.plx_analogscale);
-	PlexET_ad_calib(2,:) = (PlexET_ad_calib(2,:)-median(PlexET_ad_calib(2,:)))*(g_strctEyeCalib.GainY.Buffer(end)./opts.plx_analogscale);
-	PlexET_ad_calib(3,:) = (PlexET_ad_calib(3,:)-median(PlexET_ad_calib(3,:)))*(g_strctEyeCalib.GainX.Buffer(end)./opts.plx_analogscale);
-	PlexET_ad_calib(4,:) = (PlexET_ad_calib(4,:)-median(PlexET_ad_calib(4,:)))*(g_strctEyeCalib.GainY.Buffer(end)./opts.plx_analogscale);
+    [~, ~, ~, ~, PlexET_ad(1,:)] = plx_ad_v(thisSessionFile, 'AI05');
+    [~, ~, ~, ~, PlexET_ad(2,:)] = plx_ad_v(thisSessionFile, 'AI06');
+    [~, ~, ~, ~, PlexET_ad(3,:)] = plx_ad_v(thisSessionFile, 'AI07');
+    [ET_adfreq, ET_n, ET_ts, ET_fn, PlexET_ad(4,:)] = plx_ad_v(thisSessionFile, 'AI08');
+    PlexET_ad_calib=PlexET_ad;
+    PlexET_ad_calib(1,:) = (PlexET_ad_calib(1,:)-median(PlexET_ad_calib(1,:)))*(g_strctEyeCalib.GainX.Buffer(end)./opts.plx_analogscale);
+    PlexET_ad_calib(2,:) = (PlexET_ad_calib(2,:)-median(PlexET_ad_calib(2,:)))*(g_strctEyeCalib.GainY.Buffer(end)./opts.plx_analogscale);
+    PlexET_ad_calib(3,:) = (PlexET_ad_calib(3,:)-median(PlexET_ad_calib(3,:)))*(g_strctEyeCalib.GainX.Buffer(end)./opts.plx_analogscale);
+    PlexET_ad_calib(4,:) = (PlexET_ad_calib(4,:)-median(PlexET_ad_calib(4,:)))*(g_strctEyeCalib.GainY.Buffer(end)./opts.plx_analogscale);
 
 elseif ET_Eyelink == 2  % binoc eyelink
-	[~, ~, ~, ~, PlexET_ad(1,:)] = plx_ad_v(thisSessionFile, 'AI07');
-	[ET_adfreq, ET_n, ET_ts, ET_fn, PlexET_ad(2,:)] = plx_ad_v(thisSessionFile, 'AI08');
-	PlexET_ad_calib=PlexET_ad;
-	PlexET_ad_calib(1,:) = (PlexET_ad_calib(1,:)-median(PlexET_ad_calib(1,:)))*(g_strctEyeCalib.GainX.Buffer(end)./opts.plx_analogscale);
-	PlexET_ad_calib(2,:) = (PlexET_ad_calib(2,:)-median(PlexET_ad_calib(2,:)))*(g_strctEyeCalib.GainY.Buffer(end)./opts.plx_analogscale);
+    [~, ~, ~, ~, PlexET_ad(1,:)] = plx_ad_v(thisSessionFile, 'AI07');
+    [ET_adfreq, ET_n, ET_ts, ET_fn, PlexET_ad(2,:)] = plx_ad_v(thisSessionFile, 'AI08');
+    PlexET_ad_calib=PlexET_ad;
+    PlexET_ad_calib(1,:) = (PlexET_ad_calib(1,:)-median(PlexET_ad_calib(1,:)))*(g_strctEyeCalib.GainX.Buffer(end)./opts.plx_analogscale);
+    PlexET_ad_calib(2,:) = (PlexET_ad_calib(2,:)-median(PlexET_ad_calib(2,:)))*(g_strctEyeCalib.GainY.Buffer(end)./opts.plx_analogscale);
 
-elseif ET_Eyelink == 3  % monocular dDPI 
-	[~, ~, ~, ~, PlexET_ad(1,:)] = plx_ad_v(thisSessionFile, 'AI03');
-	[~, ~, ~, ~, PlexET_ad(2,:)] = plx_ad_v(thisSessionFile, 'AI04');
-	[~, ~, ~, ~, PlexET_ad(3,:)] = plx_ad_v(thisSessionFile, 'AI07');
-	[ET_adfreq, ET_n, ET_ts, ET_fn, PlexET_ad(4,:)] = plx_ad_v(thisSessionFile, 'AI08');
-	PlexET_ad_calib=PlexET_ad;
-	PlexET_ad_calib(3,:) = PlexET_ad_calib(3,:)*(g_strctEyeCalib.GainX.Buffer(end)./opts.plx_analogscale); 
-	PlexET_ad_calib(4,:) = PlexET_ad_calib(4,:)*(g_strctEyeCalib.GainY.Buffer(end)./opts.plx_analogscale);
+elseif ET_Eyelink == 3  % monocular dDPI
+    [~, ~, ~, ~, PlexET_ad(1,:)] = plx_ad_v(thisSessionFile, 'AI03');
+    [~, ~, ~, ~, PlexET_ad(2,:)] = plx_ad_v(thisSessionFile, 'AI04');
+    [~, ~, ~, ~, PlexET_ad(3,:)] = plx_ad_v(thisSessionFile, 'AI07');
+    [ET_adfreq, ET_n, ET_ts, ET_fn, PlexET_ad(4,:)] = plx_ad_v(thisSessionFile, 'AI08');
+    PlexET_ad_calib=PlexET_ad;
+    PlexET_ad_calib(3,:) = PlexET_ad_calib(3,:)*(g_strctEyeCalib.GainX.Buffer(end)./opts.plx_analogscale);
+    PlexET_ad_calib(4,:) = PlexET_ad_calib(4,:)*(g_strctEyeCalib.GainY.Buffer(end)./opts.plx_analogscale);
 
 elseif ET_Eyelink == 4  % binocular dDPI - rigC inputs verified 1/13/25
-	[~, ~, ~, ~, PlexET_ad(1,:)] = plx_ad_v(thisSessionFile, 'AI01'); % Synchronization signal
-	[~, ~, ~, ~, PlexET_ad(2,:)] = plx_ad_v(thisSessionFile, 'AI02'); % Nothing - only arcing from sync signal
-	[~, ~, ~, ~, PlexET_ad(3,:)] = plx_ad_v(thisSessionFile, 'AI03'); % L pupil
-	[~, ~, ~, ~, PlexET_ad(4,:)] = plx_ad_v(thisSessionFile, 'AI04'); % R pupil
-	[~, ~, ~, ~, PlexET_ad(5,:)] = plx_ad_v(thisSessionFile, 'AI05'); % R X
-	[~, ~, ~, ~, PlexET_ad(6,:)] = plx_ad_v(thisSessionFile, 'AI06'); % R Y
-	[~, ~, ~, ~, PlexET_ad(7,:)] = plx_ad_v(thisSessionFile, 'AI07'); % L X
-	[ET_adfreq, ET_n, ET_ts, ET_fn, PlexET_ad(8,:)] = plx_ad_v(thisSessionFile, 'AI08'); % L Y
-	PlexET_ad_calib=PlexET_ad;
-	PlexET_ad_calib(5,:) = PlexET_ad_calib(5,:)*(g_strctEyeCalib.GainX.Buffer(end)./opts.plx_analogscale); % Gain is dependent on the gains set in Kofiko (can see these logged in control computer's .txt file); Analog scale is always 1000 from what I have seen -CM
-	PlexET_ad_calib(6,:) = PlexET_ad_calib(6,:)*(g_strctEyeCalib.GainY.Buffer(end)./opts.plx_analogscale);
-	PlexET_ad_calib(7,:) = PlexET_ad_calib(7,:)*(g_strctEyeCalib.GainX.Buffer(end)./opts.plx_analogscale);
-	PlexET_ad_calib(8,:) = PlexET_ad_calib(8,:)*(g_strctEyeCalib.GainY.Buffer(end)./opts.plx_analogscale);
+    [~, ~, ~, ~, PlexET_ad(1,:)] = plx_ad_v(thisSessionFile, 'AI01'); % Synchronization signal
+    [~, ~, ~, ~, PlexET_ad(2,:)] = plx_ad_v(thisSessionFile, 'AI02'); % Nothing - only arcing from sync signal
+    [~, ~, ~, ~, PlexET_ad(3,:)] = plx_ad_v(thisSessionFile, 'AI03'); % L pupil
+    [~, ~, ~, ~, PlexET_ad(4,:)] = plx_ad_v(thisSessionFile, 'AI04'); % R pupil
+    [~, ~, ~, ~, PlexET_ad(5,:)] = plx_ad_v(thisSessionFile, 'AI05'); % R X
+    [~, ~, ~, ~, PlexET_ad(6,:)] = plx_ad_v(thisSessionFile, 'AI06'); % R Y
+    [~, ~, ~, ~, PlexET_ad(7,:)] = plx_ad_v(thisSessionFile, 'AI07'); % L X
+    [ET_adfreq, ET_n, ET_ts, ET_fn, PlexET_ad(8,:)] = plx_ad_v(thisSessionFile, 'AI08'); % L Y
+    PlexET_ad_calib=PlexET_ad;
+    PlexET_ad_calib(5,:) = PlexET_ad_calib(5,:)*(g_strctEyeCalib.GainX.Buffer(end)./opts.plx_analogscale); % Gain is dependent on the gains set in Kofiko (can see these logged in control computer's .txt file); Analog scale is always 1000 from what I have seen -CM
+    PlexET_ad_calib(6,:) = PlexET_ad_calib(6,:)*(g_strctEyeCalib.GainY.Buffer(end)./opts.plx_analogscale);
+    PlexET_ad_calib(7,:) = PlexET_ad_calib(7,:)*(g_strctEyeCalib.GainX.Buffer(end)./opts.plx_analogscale);
+    PlexET_ad_calib(8,:) = PlexET_ad_calib(8,:)*(g_strctEyeCalib.GainY.Buffer(end)./opts.plx_analogscale);
 
 elseif ET_Eyelink == 0 % eyescan
-	[~, ~, ~, ~, PlexET_ad(1,:)] = plx_ad_v(thisSessionFile, 'AI07');
-	[ET_adfreq, ET_n, ET_ts, ET_fn, PlexET_ad(2,:)] = plx_ad_v(thisSessionFile, 'AI08');
-	PlexET_ad(1,:)=PlexET_ad(1,:)-median(PlexET_ad(1,:));
-	PlexET_ad(2,:)=PlexET_ad(2,:)-median(PlexET_ad(2,:));
+    [~, ~, ~, ~, PlexET_ad(1,:)] = plx_ad_v(thisSessionFile, 'AI07');
+    [ET_adfreq, ET_n, ET_ts, ET_fn, PlexET_ad(2,:)] = plx_ad_v(thisSessionFile, 'AI08');
+    PlexET_ad(1,:)=PlexET_ad(1,:)-median(PlexET_ad(1,:));
+    PlexET_ad(2,:)=PlexET_ad(2,:)-median(PlexET_ad(2,:));
 end
-PlexET_times=[1:ET_n]/ET_adfreq;
+PlexET_times=(1:ET_n)/ET_adfreq;
 
 
 ET_ad = g_strctEyeCalib.EyeRaw.Buffer(:,1:2)';
@@ -475,14 +487,14 @@ ET_times = g_strctEyeCalib.EyeRaw.TimeStamp;
 Recalibs=unique(round([g_strctEyeCalib.CenterX.TimeStamp, g_strctEyeCalib.CenterY.TimeStamp, g_strctEyeCalib.GainX.TimeStamp, g_strctEyeCalib.GainY.TimeStamp]));
 Recalibs=[Recalibs, ET_times(end)];
 for rr=1:length(Recalibs)-1
-	eyeCenterXID = find(Recalibs(rr) > g_strctEyeCalib.CenterX.TimeStamp,1,'last'); if isempty(eyeCenterXID); eyeCenterXID=1;end
-	eyeCenterYID = find(Recalibs(rr) > g_strctEyeCalib.CenterY.TimeStamp,1,'last'); if isempty(eyeCenterYID);eyeCenterYID=1;end
-	eyeGainXID = find(Recalibs(rr) > g_strctEyeCalib.GainX.TimeStamp,1,'last'); if isempty(eyeGainXID);eyeGainXID=1;end
-	eyeGainYID = find(Recalibs(rr) > g_strctEyeCalib.GainY.TimeStamp,1,'last'); if isempty(eyeGainYID);eyeGainYID=1;end
-	CalibEyeBufferIDX = find(g_strctEyeCalib.EyeRaw.TimeStamp > Recalibs(rr) & ...
-		g_strctEyeCalib.EyeRaw.TimeStamp < Recalibs(rr+1));
-	ET_ad(1,CalibEyeBufferIDX) = (ET_ad(1,CalibEyeBufferIDX) - g_strctEyeCalib.CenterX.Buffer(eyeCenterXID)) * g_strctEyeCalib.GainX.Buffer(eyeGainXID);% + (g_strctStimulusServer.m_aiScreenSize(3)/2)-ExptTrials{1, 1}.m_pt2iFixationSpot(1);
-	ET_ad(2,CalibEyeBufferIDX) = (ET_ad(2,CalibEyeBufferIDX) - g_strctEyeCalib.CenterY.Buffer(eyeCenterYID)) * g_strctEyeCalib.GainY.Buffer(eyeGainYID);% + (g_strctStimulusServer.m_aiScreenSize(4)/2)-ExptTrials{1, 1}.m_pt2iFixationSpot(2);
+    eyeCenterXID = find(Recalibs(rr) > g_strctEyeCalib.CenterX.TimeStamp,1,'last'); if isempty(eyeCenterXID); eyeCenterXID=1;end
+    eyeCenterYID = find(Recalibs(rr) > g_strctEyeCalib.CenterY.TimeStamp,1,'last'); if isempty(eyeCenterYID);eyeCenterYID=1;end
+    eyeGainXID = find(Recalibs(rr) > g_strctEyeCalib.GainX.TimeStamp,1,'last'); if isempty(eyeGainXID);eyeGainXID=1;end
+    eyeGainYID = find(Recalibs(rr) > g_strctEyeCalib.GainY.TimeStamp,1,'last'); if isempty(eyeGainYID);eyeGainYID=1;end
+    CalibEyeBufferIDX = find(g_strctEyeCalib.EyeRaw.TimeStamp > Recalibs(rr) & ...
+        g_strctEyeCalib.EyeRaw.TimeStamp < Recalibs(rr+1));
+    ET_ad(1,CalibEyeBufferIDX) = (ET_ad(1,CalibEyeBufferIDX) - g_strctEyeCalib.CenterX.Buffer(eyeCenterXID)) * g_strctEyeCalib.GainX.Buffer(eyeGainXID);% + (g_strctStimulusServer.m_aiScreenSize(3)/2)-ExptTrials{1, 1}.m_pt2iFixationSpot(1);
+    ET_ad(2,CalibEyeBufferIDX) = (ET_ad(2,CalibEyeBufferIDX) - g_strctEyeCalib.CenterY.Buffer(eyeCenterYID)) * g_strctEyeCalib.GainY.Buffer(eyeGainYID);% + (g_strctStimulusServer.m_aiScreenSize(4)/2)-ExptTrials{1, 1}.m_pt2iFixationSpot(2);
 end
 
 %%
@@ -507,7 +519,7 @@ ET_ad_up(2,:) = interp1(ET_times, ET_ad(2,:), ET_times_up, 'spline');
 %% SACCADE DETECTION (from detect_saccades_v2
 fprintf('Detecting saccades\n');
 
-sac_thresh = 3; %threshold eye speed Eyelink0 means it should be set to [1.2] 
+sac_thresh = 3; %threshold eye speed Eyelink0 means it should be set to [1.2]
 peri_thresh = 1.5; %threshold eye speed for defining saccade boundary inds
 min_isi = 0.1; max_isi = Inf; %min/max inter-saccade intervals
 
@@ -544,14 +556,14 @@ thresh_cross_down = 1 + find(all_eye_speed(1:end-1) >= peri_thresh & all_eye_spe
 sac_start_inds = nan(size(saccade_inds));
 sac_stop_inds = nan(size(saccade_inds));
 for ii = 1:length(saccade_inds)
-	next_tc = find(thresh_cross_down > saccade_inds(ii),1,'first');
-	if ~isempty(next_tc)
-		sac_stop_inds(ii) = thresh_cross_down(next_tc);
-	end
-	prev_tc = find(thresh_cross_up < saccade_inds(ii),1,'last');
-	if ~isempty(prev_tc)
-		sac_start_inds(ii) = thresh_cross_up(prev_tc);
-	end
+    next_tc = find(thresh_cross_down > saccade_inds(ii),1,'first');
+    if ~isempty(next_tc)
+        sac_stop_inds(ii) = thresh_cross_down(next_tc);
+    end
+    prev_tc = find(thresh_cross_up < saccade_inds(ii),1,'last');
+    if ~isempty(prev_tc)
+        sac_start_inds(ii) = thresh_cross_up(prev_tc);
+    end
 end
 sac_start_inds(1) = 1;
 sac_stop_inds(end)=ET_n;
@@ -616,13 +628,13 @@ sac_stop_inds(end)=ET_n;
 saccade_times = ET_times_up(saccade_inds); %saccade peak times
 sac_start_times = ET_times_up(sac_start_inds); %saccade start times
 sac_stop_times = ET_times_up(sac_stop_inds); %saccade end times
-%sac_durs = sac_stop_times - sac_start_times; %saccade durations 
+%sac_durs = sac_stop_times - sac_start_times; %saccade durations
 %sac_peakvel = all_eye_speed(saccade_inds); %peak eye vels
 
 fprintf('-> detected %d saccades: %0.1f per second\n',length(saccade_inds), ...
-	length(saccade_inds)./(length(ET_ad_up)./et_params.eye_fs))
+    length(saccade_inds)./(length(ET_ad_up)./et_params.eye_fs))
 
-%% % 
+%% %
 %{
 figure;
 winpre=200; winpost=800;
@@ -652,20 +664,14 @@ fprintf('Done with rudimentary microsaccade detect\n\n')
 
 LFPcc=1;
 if ~skipLFP
-	for chan=LFPchans
-        if LFP_n_test<2
-		        [LFP_adfreq, LFP_n, LFP_ts, LFP_fn, LFP_ad(:,LFPcc)] = plx_ad_v(thisSessionFile, ['FP' num2str(chan,'%02.f')]);  
-        else
-		    [LFP_adfreq, LFP_n, LFP_ts, LFP_fn, LFP_ad(:,LFPcc)] = plx_ad_v(thisSessionFile, ['FP' num2str(chan,'%03.f')]);        
-
-        end
-		LFPcc=LFPcc+1;
-	end
-	LFP_ad=LFP_ad';  
-	LFP_times=[1:LFP_n]/LFP_adfreq;
+    for chan=LFPchans
+        [LFP_adfreq, LFP_n, LFP_ts, LFP_fn, LFP_ad(LFPcc,:)] = plx_ad_v(plxFilePath, ['FP' num2str(1, ['%0' num2str(numDigitsInLastSpkChan) '.f'])]);
+        LFPcc=LFPcc+1;
+    end
+    LFP_times=(1:LFP_n)/LFP_adfreq;
 end
 if opts.spk_offset ~=0
-	LFP_times=LFP_times+opts.spk_offset;
+    LFP_times=LFP_times+opts.spk_offset;
 end
 
 %% previous location of reading in kilosort outputs
@@ -684,7 +690,7 @@ kofikoSyncStrobesInThisSessionTS = g_strctDAQParams.LastStrobe.TimeStamp;
 kofikoSyncStrobesInThisSessionStrobeID = g_strctDAQParams.LastStrobe.Buffer;
 kofikoSyncStrobesInThisSessionTS = kofikoSyncStrobesInThisSessionTS(kofikoSyncStrobesInThisSessionStrobeID == syncStrobeID);
 if isempty(kofikoSyncStrobesInThisSessionTS) || isempty(plexonSyncStrobesInThisSessionTS)
-	sprintf('could not process recording %s, session %i, timestamp missing.', exptname, iSessions)
+    sprintf('could not process recording %s, session %i, timestamp missing.', exptname, iSessions)
 end
 
 %%
@@ -712,71 +718,71 @@ N_recalibs=g_strctEyeCalib.CenterX.TimeStamp;
 trialIter = 1;
 
 for iFixationCheck = 1:ntrials  %trialsInThisSession{iSessions};%
-	if isfield(ExptTrials{iFixationCheck, 1},'m_bMonkeyFixated') && ExptTrials{iFixationCheck, 1}.m_bMonkeyFixated
-		ExptTrials{iFixationCheck,7} = 1;
-		sessionIndex(trialIter).m_bFixated = 1;
-		sessionIndex(trialIter).m_afEyeXPositionScreenCoordinates = [];
+    if isfield(ExptTrials{iFixationCheck, 1},'m_bMonkeyFixated') && ExptTrials{iFixationCheck, 1}.m_bMonkeyFixated
+        ExptTrials{iFixationCheck,7} = 1;
+        sessionIndex(trialIter).m_bFixated = 1;
+        sessionIndex(trialIter).m_afEyeXPositionScreenCoordinates = [];
 
-		% append eye trace information to this trial
-		thisTrialFlipon = ExptTrials{iFixationCheck,2};
-		eyeCenterXID = find(thisTrialFlipon > g_strctEyeCalib.CenterX.TimeStamp,1,'last'); if isempty(eyeCenterXID); eyeCenterXID=1;end
-		eyeCenterYID = find(thisTrialFlipon > g_strctEyeCalib.CenterY.TimeStamp,1,'last'); if isempty(eyeCenterYID);eyeCenterYID=1;end
-		eyeGainXID = find(thisTrialFlipon > g_strctEyeCalib.GainX.TimeStamp,1,'last'); if isempty(eyeGainXID);eyeGainXID=1;end
-		eyeGainYID = find(thisTrialFlipon > g_strctEyeCalib.GainY.TimeStamp,1,'last'); if isempty(eyeGainYID);eyeGainYID=1;end
+        % append eye trace information to this trial
+        thisTrialFlipon = ExptTrials{iFixationCheck,2};
+        eyeCenterXID = find(thisTrialFlipon > g_strctEyeCalib.CenterX.TimeStamp,1,'last'); if isempty(eyeCenterXID); eyeCenterXID=1;end
+        eyeCenterYID = find(thisTrialFlipon > g_strctEyeCalib.CenterY.TimeStamp,1,'last'); if isempty(eyeCenterYID);eyeCenterYID=1;end
+        eyeGainXID = find(thisTrialFlipon > g_strctEyeCalib.GainX.TimeStamp,1,'last'); if isempty(eyeGainXID);eyeGainXID=1;end
+        eyeGainYID = find(thisTrialFlipon > g_strctEyeCalib.GainY.TimeStamp,1,'last'); if isempty(eyeGainYID);eyeGainYID=1;end
 
-		thisTrialEyeBufferIDX = find(g_strctEyeCalib.EyeRaw.TimeStamp > thisTrialFlipon + g_strctStatistics.m_strctEyeData.m_fEyeIntegrationPeriod(1) & ...
-			g_strctEyeCalib.EyeRaw.TimeStamp < thisTrialFlipon + g_strctStatistics.m_strctEyeData.m_fEyeIntegrationPeriod(2) );
-      
-		thisTrialRawEyeData = g_strctEyeCalib.EyeRaw.Buffer(thisTrialEyeBufferIDX,:);
-		thisTrialRawEyeDatatimes = g_strctEyeCalib.EyeRaw.TimeStamp(1,thisTrialEyeBufferIDX);
+        thisTrialEyeBufferIDX = find(g_strctEyeCalib.EyeRaw.TimeStamp > thisTrialFlipon + g_strctStatistics.m_strctEyeData.m_fEyeIntegrationPeriod(1) & ...
+            g_strctEyeCalib.EyeRaw.TimeStamp < thisTrialFlipon + g_strctStatistics.m_strctEyeData.m_fEyeIntegrationPeriod(2) );
 
-		fEyeXPix = (thisTrialRawEyeData(:, 1) - g_strctEyeCalib.CenterX.Buffer(eyeCenterXID)) * g_strctEyeCalib.GainX.Buffer(eyeGainXID) + (g_strctStimulusServer.m_aiScreenSize(3)/2);
-		fEyeYPix = (thisTrialRawEyeData(:, 2) - g_strctEyeCalib.CenterY.Buffer(eyeCenterYID)) * g_strctEyeCalib.GainY.Buffer(eyeGainYID) + (g_strctStimulusServer.m_aiScreenSize(4)/2);
-		ExptTrials{(iFixationCheck),1}.m_afEyeXPositionScreenCoordinates = fEyeXPix;
-		ExptTrials{(iFixationCheck),1}.m_afEyeYPositionScreenCoordinates = fEyeYPix;
-		ExptTrials{iFixationCheck,1}.m_afEyePositiontimes = thisTrialRawEyeDatatimes;
-		ExptTrials{iFixationCheck,1}.ETthisTrialRawEyeData = thisTrialRawEyeData;
-		ExptTrials{iFixationCheck,1}.ETCenter = [g_strctEyeCalib.CenterX.Buffer(eyeCenterXID),g_strctEyeCalib.CenterY.Buffer(eyeCenterYID)];
-		ExptTrials{iFixationCheck,1}.ScreenCenter = [(g_strctStimulusServer.m_aiScreenSize(3)/2),(g_strctStimulusServer.m_aiScreenSize(4)/2)];
-		sessionIndex(trialIter).m_afEyeXPositionScreenCoordinates = fEyeXPix;
-		sessionIndex(trialIter).m_afEyeYPositionScreenCoordinates = fEyeYPix;
-    
-	elseif ~isfield(ExptTrials{(iFixationCheck), 1},'m_bMonkeyFixated') || ~ExptTrials{(iFixationCheck), 1}.m_bMonkeyFixated
-		ExptTrials{(iFixationCheck),7} = 0;
-		sessionIndex(trialIter).m_bFixated = 0;
-		sessionIndex(trialIter).m_afEyeXPositionScreenCoordinates = [];        % append eye trace information to this trial
-		thisTrialFlipon = ExptTrials{(iFixationCheck),2} ;
-		eyeCenterXID = find(thisTrialFlipon > g_strctEyeCalib.CenterX.TimeStamp,1,'last'); if isempty(eyeCenterXID); eyeCenterXID=1;end
-		eyeCenterYID = find(thisTrialFlipon > g_strctEyeCalib.CenterY.TimeStamp,1,'last'); if isempty(eyeCenterYID);eyeCenterYID=1;end
-		eyeGainXID = find(thisTrialFlipon > g_strctEyeCalib.GainX.TimeStamp,1,'last'); if isempty(eyeGainXID);eyeGainXID=1;end
-		eyeGainYID = find(thisTrialFlipon > g_strctEyeCalib.GainY.TimeStamp,1,'last'); if isempty(eyeGainYID);eyeGainYID=1;end
+        thisTrialRawEyeData = g_strctEyeCalib.EyeRaw.Buffer(thisTrialEyeBufferIDX,:);
+        thisTrialRawEyeDatatimes = g_strctEyeCalib.EyeRaw.TimeStamp(1,thisTrialEyeBufferIDX);
 
-		thisTrialEyeBufferIDX = g_strctEyeCalib.EyeRaw.TimeStamp > thisTrialFlipon + g_strctStatistics.m_strctEyeData.m_fEyeIntegrationPeriod(1) & ...
-			g_strctEyeCalib.EyeRaw.TimeStamp < thisTrialFlipon + g_strctStatistics.m_strctEyeData.m_fEyeIntegrationPeriod(2);
-		thisTrialRawEyeData = g_strctEyeCalib.EyeRaw.Buffer(thisTrialEyeBufferIDX,:);
-		thisTrialRawEyeDatatimes = g_strctEyeCalib.EyeRaw.TimeStamp(1,thisTrialEyeBufferIDX);
+        fEyeXPix = (thisTrialRawEyeData(:, 1) - g_strctEyeCalib.CenterX.Buffer(eyeCenterXID)) * g_strctEyeCalib.GainX.Buffer(eyeGainXID) + (g_strctStimulusServer.m_aiScreenSize(3)/2);
+        fEyeYPix = (thisTrialRawEyeData(:, 2) - g_strctEyeCalib.CenterY.Buffer(eyeCenterYID)) * g_strctEyeCalib.GainY.Buffer(eyeGainYID) + (g_strctStimulusServer.m_aiScreenSize(4)/2);
+        ExptTrials{(iFixationCheck),1}.m_afEyeXPositionScreenCoordinates = fEyeXPix;
+        ExptTrials{(iFixationCheck),1}.m_afEyeYPositionScreenCoordinates = fEyeYPix;
+        ExptTrials{iFixationCheck,1}.m_afEyePositiontimes = thisTrialRawEyeDatatimes;
+        ExptTrials{iFixationCheck,1}.ETthisTrialRawEyeData = thisTrialRawEyeData;
+        ExptTrials{iFixationCheck,1}.ETCenter = [g_strctEyeCalib.CenterX.Buffer(eyeCenterXID),g_strctEyeCalib.CenterY.Buffer(eyeCenterYID)];
+        ExptTrials{iFixationCheck,1}.ScreenCenter = [(g_strctStimulusServer.m_aiScreenSize(3)/2),(g_strctStimulusServer.m_aiScreenSize(4)/2)];
+        sessionIndex(trialIter).m_afEyeXPositionScreenCoordinates = fEyeXPix;
+        sessionIndex(trialIter).m_afEyeYPositionScreenCoordinates = fEyeYPix;
 
-		fEyeXPix = (thisTrialRawEyeData(:, 1) - g_strctEyeCalib.CenterX.Buffer(eyeCenterXID)) * g_strctEyeCalib.GainX.Buffer(eyeGainXID) + (g_strctStimulusServer.m_aiScreenSize(3)/2);
-		fEyeYPix = (thisTrialRawEyeData(:, 2) - g_strctEyeCalib.CenterY.Buffer(eyeCenterYID)) * g_strctEyeCalib.GainY.Buffer(eyeGainYID) + (g_strctStimulusServer.m_aiScreenSize(4)/2);
-		ExptTrials{iFixationCheck,1}.m_afEyeXPositionScreenCoordinates = fEyeXPix;
-		ExptTrials{iFixationCheck,1}.m_afEyeYPositionScreenCoordinates = fEyeYPix;
-		ExptTrials{iFixationCheck,1}.m_afEyePositiontimes = thisTrialRawEyeDatatimes;
-		ExptTrials{iFixationCheck,1}.ETthisTrialRawEyeData = thisTrialRawEyeData;
-		ExptTrials{iFixationCheck,1}.ETCenter = [g_strctEyeCalib.CenterX.Buffer(eyeCenterXID),g_strctEyeCalib.CenterY.Buffer(eyeCenterYID)];
-		ExptTrials{iFixationCheck,1}.ScreenCenter = [(g_strctStimulusServer.m_aiScreenSize(3)/2),(g_strctStimulusServer.m_aiScreenSize(4)/2)];
-		sessionIndex(trialIter).m_afEyeXPositionScreenCoordinates = fEyeXPix;
-		sessionIndex(trialIter).m_afEyeYPositionScreenCoordinates = fEyeYPix;
-	else
-		spintf('big oof: no ET data')
-	end
-	trialIter = trialIter + 1;
-%     figure(1);
-%     plot(ExptTrials{iFixationCheck,1}.m_afEyeXPositionScreenCoordinates); hold on
-%     plot(ExptTrials{iFixationCheck,1}.m_afEyeYPositionScreenCoordinates); hold off
-% 
-%     figure(3);
-%     plot(ExptTrials{iFixationCheck,5}')
-%     pause
+    elseif ~isfield(ExptTrials{(iFixationCheck), 1},'m_bMonkeyFixated') || ~ExptTrials{(iFixationCheck), 1}.m_bMonkeyFixated
+        ExptTrials{(iFixationCheck),7} = 0;
+        sessionIndex(trialIter).m_bFixated = 0;
+        sessionIndex(trialIter).m_afEyeXPositionScreenCoordinates = [];        % append eye trace information to this trial
+        thisTrialFlipon = ExptTrials{(iFixationCheck),2} ;
+        eyeCenterXID = find(thisTrialFlipon > g_strctEyeCalib.CenterX.TimeStamp,1,'last'); if isempty(eyeCenterXID); eyeCenterXID=1;end
+        eyeCenterYID = find(thisTrialFlipon > g_strctEyeCalib.CenterY.TimeStamp,1,'last'); if isempty(eyeCenterYID);eyeCenterYID=1;end
+        eyeGainXID = find(thisTrialFlipon > g_strctEyeCalib.GainX.TimeStamp,1,'last'); if isempty(eyeGainXID);eyeGainXID=1;end
+        eyeGainYID = find(thisTrialFlipon > g_strctEyeCalib.GainY.TimeStamp,1,'last'); if isempty(eyeGainYID);eyeGainYID=1;end
+
+        thisTrialEyeBufferIDX = g_strctEyeCalib.EyeRaw.TimeStamp > thisTrialFlipon + g_strctStatistics.m_strctEyeData.m_fEyeIntegrationPeriod(1) & ...
+            g_strctEyeCalib.EyeRaw.TimeStamp < thisTrialFlipon + g_strctStatistics.m_strctEyeData.m_fEyeIntegrationPeriod(2);
+        thisTrialRawEyeData = g_strctEyeCalib.EyeRaw.Buffer(thisTrialEyeBufferIDX,:);
+        thisTrialRawEyeDatatimes = g_strctEyeCalib.EyeRaw.TimeStamp(1,thisTrialEyeBufferIDX);
+
+        fEyeXPix = (thisTrialRawEyeData(:, 1) - g_strctEyeCalib.CenterX.Buffer(eyeCenterXID)) * g_strctEyeCalib.GainX.Buffer(eyeGainXID) + (g_strctStimulusServer.m_aiScreenSize(3)/2);
+        fEyeYPix = (thisTrialRawEyeData(:, 2) - g_strctEyeCalib.CenterY.Buffer(eyeCenterYID)) * g_strctEyeCalib.GainY.Buffer(eyeGainYID) + (g_strctStimulusServer.m_aiScreenSize(4)/2);
+        ExptTrials{iFixationCheck,1}.m_afEyeXPositionScreenCoordinates = fEyeXPix;
+        ExptTrials{iFixationCheck,1}.m_afEyeYPositionScreenCoordinates = fEyeYPix;
+        ExptTrials{iFixationCheck,1}.m_afEyePositiontimes = thisTrialRawEyeDatatimes;
+        ExptTrials{iFixationCheck,1}.ETthisTrialRawEyeData = thisTrialRawEyeData;
+        ExptTrials{iFixationCheck,1}.ETCenter = [g_strctEyeCalib.CenterX.Buffer(eyeCenterXID),g_strctEyeCalib.CenterY.Buffer(eyeCenterYID)];
+        ExptTrials{iFixationCheck,1}.ScreenCenter = [(g_strctStimulusServer.m_aiScreenSize(3)/2),(g_strctStimulusServer.m_aiScreenSize(4)/2)];
+        sessionIndex(trialIter).m_afEyeXPositionScreenCoordinates = fEyeXPix;
+        sessionIndex(trialIter).m_afEyeYPositionScreenCoordinates = fEyeYPix;
+    else
+        spintf('big oof: no ET data')
+    end
+    trialIter = trialIter + 1;
+    %     figure(1);
+    %     plot(ExptTrials{iFixationCheck,1}.m_afEyeXPositionScreenCoordinates); hold on
+    %     plot(ExptTrials{iFixationCheck,1}.m_afEyeYPositionScreenCoordinates); hold off
+    %
+    %     figure(3);
+    %     plot(ExptTrials{iFixationCheck,5}')
+    %     pause
 end
 
 %%
@@ -795,41 +801,41 @@ end
 trialIter = 1; oosynctrials=[];
 disp(['General time-alignment: ' num2str(ntrials) ' trials'])
 for iTrials = 1:ntrials   %trialsInThisSession{iSessions}
-	spikesInThisTrial = [];
-	sessionIndex(trialIter).m_iGlobalTrialIndex = iTrials;
-	[~,trialSyncStrobeID] = min(abs(ExptTrials{iTrials, 2} - kofikoSyncStrobesInThisSessionTS));
+    spikesInThisTrial = [];
+    sessionIndex(trialIter).m_iGlobalTrialIndex = iTrials;
+    [~,trialSyncStrobeID] = min(abs(ExptTrials{iTrials, 2} - kofikoSyncStrobesInThisSessionTS));
 
-	if trialSyncStrobeID>length(kofikoSyncStrobesInThisSessionTS)
-		warning(['Error with sync strobes? off by ' num2str(trialSyncStrobeID-length(kofikoSyncStrobesInThisSessionTS))]);
+    if trialSyncStrobeID>length(kofikoSyncStrobesInThisSessionTS)
+        warning(['Error with sync strobes? off by ' num2str(trialSyncStrobeID-length(kofikoSyncStrobesInThisSessionTS))]);
         oosynctrials = [oosynctrials, iTrials];
         continue
-		%trialSyncStrobeID=length(kofikoSyncStrobesInThisSessionTS);
-	end
-  
-	if trialSyncStrobeID>length(plexonSyncStrobesInThisSessionTS)
-		warning(['Error with sync strobes? off by ' num2str(trialSyncStrobeID-length(plexonSyncStrobesInThisSessionTS))]);
-        oosynctrials = [oosynctrials, iTrials];
-        continue
-		%trialSyncStrobeID=length(plexonSyncStrobesInThisSessionTS);
-	end
-
-	kofikoSyncTime = kofikoSyncStrobesInThisSessionTS(trialSyncStrobeID);
-	plexonSyncTime = plexonSyncStrobesInThisSessionTS(trialSyncStrobeID);
-
-	ExptTrials{iTrials,1}.kofikoSyncTime = kofikoSyncTime; 
-	ExptTrials{iTrials,1}.PlexonSyncTime = plexonSyncTime;
-	ExptTrials{iTrials,1}.PlexonOnsetTime = plexonSyncTime + (ExptTrials{iTrials, 2} - kofikoSyncTime);
-	%    [ExptTrials{iTrials,1}.PlexonOnsetTime = (ExptTrials{iTrials, 2} - kofikoSyncTime)]
-
-	if ~isfield( ExptTrials{iTrials, 1},'m_aiStimColor') || isempty(ExptTrials{iTrials, 1}.m_aiStimColor)
-		ExptTrials{iTrials, 1}.m_aiStimColor = [NaN, NaN, NaN];
+        %trialSyncStrobeID=length(kofikoSyncStrobesInThisSessionTS);
     end
-    
+
+    if trialSyncStrobeID>length(plexonSyncStrobesInThisSessionTS)
+        warning(['Error with sync strobes? off by ' num2str(trialSyncStrobeID-length(plexonSyncStrobesInThisSessionTS))]);
+        oosynctrials = [oosynctrials, iTrials];
+        continue
+        %trialSyncStrobeID=length(plexonSyncStrobesInThisSessionTS);
+    end
+
+    kofikoSyncTime = kofikoSyncStrobesInThisSessionTS(trialSyncStrobeID);
+    plexonSyncTime = plexonSyncStrobesInThisSessionTS(trialSyncStrobeID);
+
+    ExptTrials{iTrials,1}.kofikoSyncTime = kofikoSyncTime;
+    ExptTrials{iTrials,1}.PlexonSyncTime = plexonSyncTime;
+    ExptTrials{iTrials,1}.PlexonOnsetTime = plexonSyncTime + (ExptTrials{iTrials, 2} - kofikoSyncTime);
+    %    [ExptTrials{iTrials,1}.PlexonOnsetTime = (ExptTrials{iTrials, 2} - kofikoSyncTime)]
+
+    if ~isfield( ExptTrials{iTrials, 1},'m_aiStimColor') || isempty(ExptTrials{iTrials, 1}.m_aiStimColor)
+        ExptTrials{iTrials, 1}.m_aiStimColor = [NaN, NaN, NaN];
+    end
+
     % try and check for partial trials
     xtrace = (ExptTrials{iTrials,1}.m_afEyeXPositionScreenCoordinates-960);
-    ytrace = (ExptTrials{iTrials,1}.m_afEyeYPositionScreenCoordinates-540);  
-%        bad_inds = find(abs(xtrace)>45 | abs(ytrace)>45);
-%        use_inds_trial = ones(1,length(xtrace)); use_inds_trial(bad_inds)=0;
+    ytrace = (ExptTrials{iTrials,1}.m_afEyeYPositionScreenCoordinates-540);
+    %        bad_inds = find(abs(xtrace)>45 | abs(ytrace)>45);
+    %        use_inds_trial = ones(1,length(xtrace)); use_inds_trial(bad_inds)=0;
     xfix = length(find(abs(xtrace)<45))./length(xtrace);
     yfix = length(find(abs(ytrace)<45))./length(ytrace);
 
@@ -840,109 +846,109 @@ for iTrials = 1:ntrials   %trialsInThisSession{iSessions}
     end
 
     if opts.is_cloud
-	    ExptTrials{iTrials, 3} = ExptTrials{iTrials, 1}.m_strTrialType;
-    	sessionIndex(trialIter).m_strTrialType = ExptTrials{iTrials, 1}.m_strTrialType;
+        ExptTrials{iTrials, 3} = ExptTrials{iTrials, 1}.m_strTrialType;
+        sessionIndex(trialIter).m_strTrialType = ExptTrials{iTrials, 1}.m_strTrialType;
     end
 
 
-	% if useofflinesorting==1
-		for iUnit=1:nSU
-			plexonDataAlignedToThisTrial = [];         
-			plexonDataAlignedToThisTrial =  exptDataP(iUnit).unit1 - plexonSyncTime;
-      
-			spikesInThisTrial.unit1 = plexonDataAlignedToThisTrial(plexonDataAlignedToThisTrial - ...
-				(ExptTrials{iTrials, 2} - kofikoSyncTime) >= g_strctStatistics.preTrialWindow & ...
-				plexonDataAlignedToThisTrial - (ExptTrials{iTrials, 2} - kofikoSyncTime) <=  g_strctStatistics.postTrialWindow) ...
-				- (ExptTrials{iTrials, 2} - kofikoSyncTime);
-           
-			spikesInThisTrial.spkID = exptDataP(iUnit).spkID;
-			%  spikesInThisTrial.rating = exptDataP(iUnit).rating;
-			ExptTrials{iTrials,10+(iUnit-1)} = spikesInThisTrial.unit1;
-			%ExptTrials{iTrials,11+3*(iUnit-1)} = length(spikesInThisTrial.unit1);
-			%sessionIndex(trialIter).m_afSpikesInThisTrial = spikesInThisTrial;
-		end
+    % if useofflinesorting==1
+    for iUnit=1:nSU
+        plexonDataAlignedToThisTrial = [];
+        plexonDataAlignedToThisTrial =  exptDataP(iUnit).unit1 - plexonSyncTime;
 
-		for iUnit=1:nMU
-			plexonMUADataAlignedToThisTrial=[];
-			plexonMUADataAlignedToThisTrial =  exptDataMUA(iUnit).unit1 - plexonSyncTime ;          
-			MUAspikesInThisTrial.unit1 = plexonMUADataAlignedToThisTrial(plexonMUADataAlignedToThisTrial - ...
-				(ExptTrials{iTrials, 2} - kofikoSyncTime) >= g_strctStatistics.preTrialWindow & ...
-				plexonMUADataAlignedToThisTrial - (ExptTrials{iTrials, 2} - kofikoSyncTime) <=  g_strctStatistics.postTrialWindow)...
-				- (ExptTrials{iTrials, 2} - kofikoSyncTime);
+        spikesInThisTrial.unit1 = plexonDataAlignedToThisTrial(plexonDataAlignedToThisTrial - ...
+            (ExptTrials{iTrials, 2} - kofikoSyncTime) >= g_strctStatistics.preTrialWindow & ...
+            plexonDataAlignedToThisTrial - (ExptTrials{iTrials, 2} - kofikoSyncTime) <=  g_strctStatistics.postTrialWindow) ...
+            - (ExptTrials{iTrials, 2} - kofikoSyncTime);
 
-			MUAspikesInThisTrial.spkID = exptDataMUA(iUnit).spkID;
-			ExptTrials{iTrials,10+(iUnit-1+nSU)} = MUAspikesInThisTrial.unit1;
-			%ExptTrials{iTrials,11+3*(iUnit-1+nSU)} = length(MUAspikesInThisTrial.unit1);	
-		end
-	% else		
-	% 	for channel = find(allNumUnits) %1:nChans
-		% 	for iUnit = 1:allNumUnits(channel)
-			% 	plexonDataAlignedToThisTrial = []; 
-			% 	nameOfUnit = ['unit',num2str(iUnit)];
-			% 	% nameOfUnit = ['unit',num2str(unitsInFile(iUnit))];            
-    % 
-			% 	plexonDataAlignedToThisTrial =  exptDataP(channel).(nameOfUnit) - plexonSyncTime ;
-			% 	spikesInThisTrial.(nameOfUnit) = plexonDataAlignedToThisTrial(plexonDataAlignedToThisTrial - ...
-			% 		(ExptTrials{iTrials, 2} - kofikoSyncTime) >= g_strctStatistics.preTrialWindow & ...
-			% 		plexonDataAlignedToThisTrial - (ExptTrials{iTrials, 2} - kofikoSyncTime) <=  g_strctStatistics.postTrialWindow)...
-			% 		- (ExptTrials{iTrials, 2} - kofikoSyncTime);;
-		% 	end
-		% 	%         plexonMUADataAlignedToThisTrial =  exptDataMUA{channel} - plexonSyncTime ;
-		% 	%         MUAspikesInThisTrial = plexonMUADataAlignedToThisTrial(plexonMUADataAlignedToThisTrial - ...
-		% 	%             (ExptTrials{iTrials, 2} - kofikoSyncTime) >= g_strctStatistics.preTrialWindow & ...
-		% 	%             plexonMUADataAlignedToThisTrial - (ExptTrials{iTrials, 2} - kofikoSyncTime) <=  g_strctStatistics.postTrialWindow)...
-		% 	%             - (ExptTrials{iTrials, 2} - kofikoSyncTime);
-		% 	ExptTrials{iTrials,10+3*(channel-1)} = spikesInThisTrial;
-		% 	ExptTrials{iTrials,11+3*(channel-1)} = length(spikesInThisTrial.unit1);
-		% 	sessionIndex(trialIter).m_afSpikesInThisTrial = spikesInThisTrial;
-		% 	%        ExptTrials{iTrials,12+3*(channel-1)} = MUAspikesInThisTrial;
-	% 	end 
-	% end
+        spikesInThisTrial.spkID = exptDataP(iUnit).spkID;
+        %  spikesInThisTrial.rating = exptDataP(iUnit).rating;
+        ExptTrials{iTrials,10+(iUnit-1)} = spikesInThisTrial.unit1;
+        %ExptTrials{iTrials,11+3*(iUnit-1)} = length(spikesInThisTrial.unit1);
+        %sessionIndex(trialIter).m_afSpikesInThisTrial = spikesInThisTrial;
+    end
+
+    for iUnit=1:nMU
+        plexonMUADataAlignedToThisTrial=[];
+        plexonMUADataAlignedToThisTrial =  exptDataMUA(iUnit).unit1 - plexonSyncTime ;
+        MUAspikesInThisTrial.unit1 = plexonMUADataAlignedToThisTrial(plexonMUADataAlignedToThisTrial - ...
+            (ExptTrials{iTrials, 2} - kofikoSyncTime) >= g_strctStatistics.preTrialWindow & ...
+            plexonMUADataAlignedToThisTrial - (ExptTrials{iTrials, 2} - kofikoSyncTime) <=  g_strctStatistics.postTrialWindow)...
+            - (ExptTrials{iTrials, 2} - kofikoSyncTime);
+
+        MUAspikesInThisTrial.spkID = exptDataMUA(iUnit).spkID;
+        ExptTrials{iTrials,10+(iUnit-1+nSU)} = MUAspikesInThisTrial.unit1;
+        %ExptTrials{iTrials,11+3*(iUnit-1+nSU)} = length(MUAspikesInThisTrial.unit1);
+    end
+    % else
+    % 	for channel = find(allNumUnits) %1:nChans
+    % 	for iUnit = 1:allNumUnits(channel)
+    % 	plexonDataAlignedToThisTrial = [];
+    % 	nameOfUnit = ['unit',num2str(iUnit)];
+    % 	% nameOfUnit = ['unit',num2str(unitsInFile(iUnit))];
+    %
+    % 	plexonDataAlignedToThisTrial =  exptDataP(channel).(nameOfUnit) - plexonSyncTime ;
+    % 	spikesInThisTrial.(nameOfUnit) = plexonDataAlignedToThisTrial(plexonDataAlignedToThisTrial - ...
+    % 		(ExptTrials{iTrials, 2} - kofikoSyncTime) >= g_strctStatistics.preTrialWindow & ...
+    % 		plexonDataAlignedToThisTrial - (ExptTrials{iTrials, 2} - kofikoSyncTime) <=  g_strctStatistics.postTrialWindow)...
+    % 		- (ExptTrials{iTrials, 2} - kofikoSyncTime);;
+    % 	end
+    % 	%         plexonMUADataAlignedToThisTrial =  exptDataMUA{channel} - plexonSyncTime ;
+    % 	%         MUAspikesInThisTrial = plexonMUADataAlignedToThisTrial(plexonMUADataAlignedToThisTrial - ...
+    % 	%             (ExptTrials{iTrials, 2} - kofikoSyncTime) >= g_strctStatistics.preTrialWindow & ...
+    % 	%             plexonMUADataAlignedToThisTrial - (ExptTrials{iTrials, 2} - kofikoSyncTime) <=  g_strctStatistics.postTrialWindow)...
+    % 	%             - (ExptTrials{iTrials, 2} - kofikoSyncTime);
+    % 	ExptTrials{iTrials,10+3*(channel-1)} = spikesInThisTrial;
+    % 	ExptTrials{iTrials,11+3*(channel-1)} = length(spikesInThisTrial.unit1);
+    % 	sessionIndex(trialIter).m_afSpikesInThisTrial = spikesInThisTrial;
+    % 	%        ExptTrials{iTrials,12+3*(channel-1)} = MUAspikesInThisTrial;
+    % 	end
+    % end
 
     % % original code for aligning online-sorted data
-	%     for iUnit2 = 1:allNumUnits2
-	%         SortedSpikesAlignedToThisTrial = [];
-	%         nameOfUnit = ['unit',num2str(iUnit2)];
-	% %            nameOfUnit = ['unit',num2str(unitsInFile(iUnit))];            
-	%         SortedSpikesAlignedToThisTrial =  exptDataP2.(nameOfUnit);
-	%         SortedSpikesInThisTrial.(nameOfUnit) = SortedSpikesAlignedToThisTrial(SortedSpikesAlignedToThisTrial - ...
-	%             (ExptTrials{iTrials, 2} - kofikoSyncTime) >= g_strctStatistics.preTrialWindow & ...
-	%             SortedSpikesAlignedToThisTrial - (ExptTrials{iTrials, 2} - kofikoSyncTime) <=  g_strctStatistics.postTrialWindow)...
-	%             - (ExptTrials{iTrials, 2} - kofikoSyncTime);
-	%         ExptTrials{iTrials,9}(iUnit2) = length(SortedSpikesInThisTrial);
-	%   
-	%     end
-	%     ExptTrials{iTrials,8} = SortedSpikesInThisTrial;
+    %     for iUnit2 = 1:allNumUnits2
+    %         SortedSpikesAlignedToThisTrial = [];
+    %         nameOfUnit = ['unit',num2str(iUnit2)];
+    % %            nameOfUnit = ['unit',num2str(unitsInFile(iUnit))];
+    %         SortedSpikesAlignedToThisTrial =  exptDataP2.(nameOfUnit);
+    %         SortedSpikesInThisTrial.(nameOfUnit) = SortedSpikesAlignedToThisTrial(SortedSpikesAlignedToThisTrial - ...
+    %             (ExptTrials{iTrials, 2} - kofikoSyncTime) >= g_strctStatistics.preTrialWindow & ...
+    %             SortedSpikesAlignedToThisTrial - (ExptTrials{iTrials, 2} - kofikoSyncTime) <=  g_strctStatistics.postTrialWindow)...
+    %             - (ExptTrials{iTrials, 2} - kofikoSyncTime);
+    %         ExptTrials{iTrials,9}(iUnit2) = length(SortedSpikesInThisTrial);
+    %
+    %     end
+    %     ExptTrials{iTrials,8} = SortedSpikesInThisTrial;
 
-	if ~skipLFP
-		%    ncols=size(ExptTrials,2);
-		plexonLFPDataAlignedToThisTrial = LFP_ad(1:nChans, LFP_times - plexonSyncTime - (ExptTrials{iTrials, 2} - kofikoSyncTime) >= g_strctStatistics.preTrialWindow & ...
-			LFP_times - plexonSyncTime - (ExptTrials{iTrials, 2} - kofikoSyncTime) <=  g_strctStatistics.postTrialWindow);
-		ExptTrials{iTrials,4} = plexonLFPDataAlignedToThisTrial;  
+    if ~skipLFP
+        %    ncols=size(ExptTrials,2);
+        plexonLFPDataAlignedToThisTrial = LFP_ad(1:nChans, LFP_times - plexonSyncTime - (ExptTrials{iTrials, 2} - kofikoSyncTime) >= g_strctStatistics.preTrialWindow & ...
+            LFP_times - plexonSyncTime - (ExptTrials{iTrials, 2} - kofikoSyncTime) <=  g_strctStatistics.postTrialWindow);
+        ExptTrials{iTrials,4} = plexonLFPDataAlignedToThisTrial;
     end
 
-	% for aligning EMs to Kofiko timestamps
-	EMsInThisTrial.saccades =  saccade_times(saccade_times >= ExptTrials{iTrials, 2}+g_strctStatistics.preTrialWindow & ...
-		saccade_times <= ExptTrials{iTrials, 2}+g_strctStatistics.postTrialWindow);
-	EMsInThisTrial.saccade_start =  sac_start_times(saccade_times >= ExptTrials{iTrials, 2}+g_strctStatistics.preTrialWindow & ...
-		sac_start_times <= ExptTrials{iTrials, 2}+g_strctStatistics.postTrialWindow);
-	EMsInThisTrial.saccade_stop =  sac_stop_times(saccade_times >= ExptTrials{iTrials, 2}+g_strctStatistics.preTrialWindow & ...
-		sac_stop_times <= ExptTrials{iTrials, 2}+g_strctStatistics.postTrialWindow);
-	EMsInThisTrial.ET_times =  ET_times(ET_times >= ExptTrials{iTrials, 2}+g_strctStatistics.preTrialWindow & ...
-		ET_times <= ExptTrials{iTrials, 2}+g_strctStatistics.postTrialWindow);
-	ExptTrials{iTrials,6} = EMsInThisTrial;
+    % for aligning EMs to Kofiko timestamps
+    EMsInThisTrial.saccades =  saccade_times(saccade_times >= ExptTrials{iTrials, 2}+g_strctStatistics.preTrialWindow & ...
+        saccade_times <= ExptTrials{iTrials, 2}+g_strctStatistics.postTrialWindow);
+    EMsInThisTrial.saccade_start =  sac_start_times(saccade_times >= ExptTrials{iTrials, 2}+g_strctStatistics.preTrialWindow & ...
+        sac_start_times <= ExptTrials{iTrials, 2}+g_strctStatistics.postTrialWindow);
+    EMsInThisTrial.saccade_stop =  sac_stop_times(saccade_times >= ExptTrials{iTrials, 2}+g_strctStatistics.preTrialWindow & ...
+        sac_stop_times <= ExptTrials{iTrials, 2}+g_strctStatistics.postTrialWindow);
+    EMsInThisTrial.ET_times =  ET_times(ET_times >= ExptTrials{iTrials, 2}+g_strctStatistics.preTrialWindow & ...
+        ET_times <= ExptTrials{iTrials, 2}+g_strctStatistics.postTrialWindow);
+    ExptTrials{iTrials,6} = EMsInThisTrial;
 
-	plexonETDataAlignedToThisTrial.ET_trace = PlexET_ad(:, PlexET_times - plexonSyncTime - (ExptTrials{iTrials, 2} - kofikoSyncTime) >= g_strctStatistics.preTrialWindow & ...
-		PlexET_times - plexonSyncTime - (ExptTrials{iTrials, 2} - kofikoSyncTime) <=  g_strctStatistics.postTrialWindow);
-	plexonETDataAlignedToThisTrial.ET_times = PlexET_times(:, PlexET_times - plexonSyncTime - (ExptTrials{iTrials, 2} - kofikoSyncTime) >= g_strctStatistics.preTrialWindow & ...
-		PlexET_times - plexonSyncTime - (ExptTrials{iTrials, 2} - kofikoSyncTime) <=  g_strctStatistics.postTrialWindow);  
-	ExptTrials{iTrials,7} = plexonETDataAlignedToThisTrial;
+    plexonETDataAlignedToThisTrial.ET_trace = PlexET_ad(:, PlexET_times - plexonSyncTime - (ExptTrials{iTrials, 2} - kofikoSyncTime) >= g_strctStatistics.preTrialWindow & ...
+        PlexET_times - plexonSyncTime - (ExptTrials{iTrials, 2} - kofikoSyncTime) <=  g_strctStatistics.postTrialWindow);
+    plexonETDataAlignedToThisTrial.ET_times = PlexET_times(:, PlexET_times - plexonSyncTime - (ExptTrials{iTrials, 2} - kofikoSyncTime) >= g_strctStatistics.preTrialWindow & ...
+        PlexET_times - plexonSyncTime - (ExptTrials{iTrials, 2} - kofikoSyncTime) <=  g_strctStatistics.postTrialWindow);
+    ExptTrials{iTrials,7} = plexonETDataAlignedToThisTrial;
 
-	trialIter = trialIter + 1;  
-	if mod(iTrials,100)==0
-		fprintf('-> trial %4d of %d\n',iTrials, ntrials)
-	end
-end 
+    trialIter = trialIter + 1;
+    if mod(iTrials,100)==0
+        fprintf('-> trial %4d of %d\n',iTrials, ntrials)
+    end
+end
 %%
 if opts.extractfixinfo
     ETdata = extract_fixinfo( ExptTrials, ExptInfo, {'Fivedot','FiveDot', 'Dotgrid'}, output_directory);
@@ -952,14 +958,20 @@ end
 fprintf('Done combining information.\n')
 
 %%
-cd(currentDirectory);
+%cd(currentDirectory);
+if numel(ks.arraylabel) > 1
+    arraylabel_filepart = [cellfun(@(x) [x '_'], ks.arraylabel(1:end-1), 'UniformOutput', false) ks.arraylabel(end)];
+    arraylabel_filepart = [arraylabel_filepart{:}];
+else
+    arraylabel_filepart = ks.arraylabel;
+end
 
-outfile = sprintf( '%s_FullExpt_ks%d_%s_v09.mat', exptname, useofflinesorting, ks.arraylabel );
+outfile = sprintf( '%s_FullExpt_ks%d_%s_v09.mat', exptname, useofflinesorting,  arraylabel_filepart );
 
 % Save other variables to continue the process
 ExptInfo.nSU = nSU;
 ExptInfo.nMU = nMU;
-ExptInfo.spk_ID_SU = spk_ID_SU; 
+ExptInfo.spk_ID_SU = spk_ID_SU;
 ExptInfo.spk_ID_MU = spk_ID_MU;
 ExptInfo.spk_channels_SU = spk_channels_SU;
 ExptInfo.spk_channels_MU = spk_channels_MU;
@@ -978,22 +990,22 @@ ExptInfo.g_strctDAQParams = g_strctDAQParams;  % don't know if needed, but just 
 if opts.is_cloud % only include cloud trials; this discards Fivedot, Handmapper, etc trials
     targ_trials=[];
     for tt=1:length(ExptTrials)
-	    if strcmp(ExptTrials{tt, 1}.m_strTrialType, 'Dual Stim')
-		    % if strcmp(ExptTrials{tt, 1}.m_strTrialType, 'Fivedot');
-		    if (ExptTrials{tt, 2} >= RECstart) && (ExptTrials{tt, 2} <= RECend) 
-			    targ_trials = [targ_trials, tt];
-		    else
-			    fprintf('   Invalid Dual-Stim trial detected (#%d) -- eliminating.\n', tt)
-		    end
-	    end
+        if strcmp(ExptTrials{tt, 1}.m_strTrialType, 'Dual Stim')
+            % if strcmp(ExptTrials{tt, 1}.m_strTrialType, 'Fivedot');
+            if (ExptTrials{tt, 2} >= RECstart) && (ExptTrials{tt, 2} <= RECend)
+                targ_trials = [targ_trials, tt];
+            else
+                fprintf('   Invalid Dual-Stim trial detected (#%d) -- eliminating.\n', tt)
+            end
+        end
     end
-    
+
     % Reduce trials to valid subset
     ExptTrials=ExptTrials(targ_trials,:);
 end
 
 fprintf('Saving %s in %s....\n', outfile, output_directory)
-save([output_directory outfile], 'ExptTrials', 'ExptInfo', '-v7.3')  % HDF5 output
+save(fullfile(output_directory, outfile), 'ExptTrials', 'ExptInfo', '-v7.3')  % HDF5 output
 
 % Output RAW plexon ET trace in separate file (for time-alignment etc)
 EToutfile = sprintf( '%s_FullExpt_ET.mat', exptname );
@@ -1002,16 +1014,16 @@ fprintf('Saving %s in %s....\n', EToutfile, output_directory)
 
 PlexET_ad_calib = PlexET_ad_calib';
 PlexET_times = PlexET_times';
-save([output_directory EToutfile], 'PlexET_ad_calib', 'PlexET_times', '-v7.3')  % HDF5 output
+save(fullfile(output_directory, EToutfile), 'PlexET_ad_calib', 'PlexET_times', '-v7.3')  % HDF5 output
 disp('Saved!')
 
 %% check eye traces
 % for iFixationCheck = 1:ntrials; %trialsInThisSession{iSessions};%
-% figure(1); 
+% figure(1);
 % plot(ExptTrials{iFixationCheck,1}.m_afEyeXPositionScreenCoordinates); hold on
 % plot(ExptTrials{iFixationCheck,1}.m_afEyeYPositionScreenCoordinates); hold off
 % title(['Processed ET signal - fixation target @ ' num2str(ExptTrials{iFixationCheck, 1}.m_pt2iFixationSpot)]);
-% figure(2); 
+% figure(2);
 % plot(ExptTrials{iFixationCheck,1}.ETthisTrialRawEyeData); title('Raw ET signal')
 % figure(3);
 % plot(ExptTrials{iFixationCheck,5}'); title('Plexon ET signal')
@@ -1025,4 +1037,4 @@ if opts.is_cloud
     % Usage: [csd, lfp] = CSDprocess( ExptRecording, trial_select, save_images, exptname, savedir, verbose )
 end
 
-return 
+return

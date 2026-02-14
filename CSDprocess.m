@@ -112,8 +112,8 @@ xlim([0 550]); colorbar
 %colormap(hotcold); caxis([-max(expt_CSDs(:))/3 max(expt_CSDs(:))/3]);
 
 if save_images
-	saveas(CSDfig,[savedir exptname '_iCSD.pdf'])
-	saveas(CSDfig,[savedir exptname '_iCSD.png'])
+	saveas(CSDfig,fullfile(savedir, [exptname '_iCSD.pdf']))
+	saveas(CSDfig,fullfile(savedir, [exptname '_iCSD.png']))
 end
 
 CSDfig2=figure;
@@ -124,8 +124,8 @@ xlim([0 250]); colorbar
 ax=gca; ax.XTickLabel={'0','50','100','150','200','250'};
 
 if save_images
-	saveas(CSDfig2,[savedir exptname '_iCSD_zoom.pdf'])
-	saveas(CSDfig2,[savedir exptname '_iCSD_zoom.png'])
+	saveas(CSDfig2,fullfile(savedir, [exptname '_iCSD_zoom.pdf']))
+	saveas(CSDfig2,fullfile(savedir, [exptname '_iCSD_zoom.png']))
 end
 
 %% Plot the LFP 
@@ -139,6 +139,6 @@ xlim([0 550]); colorbar
 %colormap(hotcold); caxis([-max(lfps2(:))/3 max(lfps2(:))/3]);
 
 if save_images
-	saveas(LFPfig,[savedir exptname '_LFP.pdf'])
-	saveas(LFPfig,[savedir exptname '_LFP.png'])
+	saveas(LFPfig,fullfile(savedir, [exptname '_LFP.pdf']))
+	saveas(LFPfig,fullfile(savedir, [exptname '_LFP.png']))
 end

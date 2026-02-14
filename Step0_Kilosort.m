@@ -99,7 +99,7 @@ opts.extractLfp = false;
 opts.outputFolder = outputFolder;
 
 %%
-cd(dirpath)
+%cd(dirpath) % may need to uncomment?
 if dirpath(end) ~= filesep
     dirpath = [dirpath filesep];
 end
@@ -107,14 +107,12 @@ end
 %opts.specificChannels = [];  % user can select which plexon channels to use for
 %                               conversion. remember, this must be in plexon-numbering.
 %%
-try
-    [fs, n, ts, fn, ~] = plx_ad_v(plexon_fname, ['SPKC001'] );
-end
-if n<2
-    try
-        [fs, n, ts, fn, ~] = plx_ad_v(plexon_fname, ['SPKC01'] );
-    end
-end
+pl2 = PL2ReadFileIndex(plexon_fname);
+numDigitsInLastSpkChan = ceil(log10(length(pl2.SpikeChannels)));
+
+[fs, n, ts, fn, ~] = plx_ad_v(plexon_fname,...
+    ['SPKC' num2str(1, ['%0' num2str(numDigitsInLastSpkChan) '.f'])]);
+
 [fs_aux, n_aux, ts_aux, fn_aux, ~] = plx_ad_v(plexon_fname, ['AI01'] );
 
 if n<2
