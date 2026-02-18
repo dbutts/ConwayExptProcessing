@@ -33,6 +33,9 @@ function [samples, datPath] = convertRawToDat_Array(rawFullPath, opts)
 
 dbstop if error
 
+pl2 = PL2ReadFileIndex(rawFullPath);
+numDigitsInLastSpkChan = ceil(log10(length(pl2.SpikeChannels)));
+
 %% paths:
 addPathsForSpikeSorting;
 
@@ -251,8 +254,8 @@ switch rawFileType
     
             		    % tell user which channel is being read.
     %            		disp(['Reading from ' spkcOnChanNames{cur_chan} '.']);
-            		    disp(['Reading from ' ['SPKC' sprintf('%03d', cur_chan)] '.']);
-            		    
+            		    %disp(['Reading from ' ['SPKC' sprintf('%03d', cur_chan)] '.']);
+            		    disp(['Reading from ' ['SPKC' sprintf(['%0' num2str(numDigitsInLastSpkChan) 'd'], cur_chan)] '.']);
             		    % mark time prior to reading.
             		    rStart = tic;
             		    
@@ -261,7 +264,7 @@ switch rawFileType
             		    %samples(i, :) = adReadWrapper(fullFileName, spkcOnChanNames{i+opts.ChnOffset})';
     %					snip = adReadWrapper(fullFileName, spkcOnChanNames{cur_chan})';
     %					snip = adReadWrapper(fullFileName, ['SPKC' spkcOnChanNames{cur_chan}])';
-					    snip = adReadWrapper(fullFileName, ['SPKC' sprintf('%02d', cur_chan)])';
+					    snip = adReadWrapper(fullFileName, ['SPKC' sprintf(['%0' num2str(numDigitsInLastSpkChan) 'd'], cur_chan)])';
                         
     %					samples(i, ts) = snip(ts);
 					    samples(i, 1:length(ts)) = snip(ts);
@@ -408,9 +411,14 @@ switch rawFileType
         [ad.ADFreq, ~,  ad.FragTs, ad.FragCounts] = plx_ad(rawFullPath, 'SPKC01');
     case 'pl2'
 
-        pl2 = PL2ReadFileIndex(plxFilePath);
+        pl2 = PL2ReadFileIndex(rawFullPath);
         numDigitsInLastSpkChan = ceil(log10(length(pl2.SpikeChannels)));
-        ad = Pl2Ad(rawFullPath,  ['SPKC' num2str(1, ['%0' num2str(numDigitsInLastSpkChan) '.f'])]);
+
+        try
+         ad = PL2Ad(rawFullPath,  ['SPKC' num2str(1, ['%0' num2str(numDigitsInLastSpkChan) '.f'])]);
+        catch
+            keyboard
+        end
 
         %ad = Pl2Ad(rawFullPath, spkcOnChanNames{1});
         % ad = PL2Ad(rawFullPath, 'SPKC01');

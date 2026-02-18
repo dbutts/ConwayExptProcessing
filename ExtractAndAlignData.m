@@ -20,12 +20,12 @@ if nargin < 5
 end
 
 default_opts = {'eye_tracker', 3,...
-    'plx_analogscale', 1000,...
-    'is_cloud', 1,...
-    'extractfixinfo', 0,...
-    'spk_offset', 0,...
-    'trialwindow', [0 4],...
-    'trl_fix_thresh', 1};
+                'plx_analogscale', 1000,...
+                'is_cloud', 1,...
+                'extractfixinfo', 0,...
+                'spk_offset', 0,...
+                'trialwindow', [0 4],...
+                'trl_fix_thresh', 1};
 
 default_opts_fields = default_opts(1:2:end-1);
 default_opts_values = default_opts(2:2:end);
@@ -87,7 +87,6 @@ LFPchans=1:nChans;
 
 %sessionsToProcess = [];
 matFilePath = [dirpath exptname filesep];
-
 
 plxFilePath = fullfile(ks.pl2path, [exptname '.pl2']);
 if ~isfield(ks, 'stiched')
@@ -163,7 +162,6 @@ if useofflinesorting==1
             spk_times{f} = readNPY(fullfile(ks.filepath{f}, 'spike_times_seconds.npy')) + opts.spk_offset;
             spk_clusters{f} = readNPY(fullfile(ks.filepath{f}, 'spike_clusters.npy'));
             spk_info{f} = tdfread(fullfile(ks.filepath{f}, 'cluster_info.tsv'));
-
         end
 
         % concatenate these cell arrays, carefully
@@ -176,17 +174,12 @@ if useofflinesorting==1
         ks_chnOffset = [0 cumsum(ks.ks_nChans(1:end-1))];
         for f = 1:numel(ks.filepath)
             spk_clusters{f} = spk_clusters{f} + max_cluster_nums_cumsum(f);
-
             spk_info{f}.cluster_id = unique(spk_clusters{f});
             spk_info{f}.ch = spk_info{f}.ch + ks_chnOffset(f);
-
-
         end
 
         spk_times = vertcat(spk_times{:});
         spk_clusters = vertcat(spk_clusters{:});
-
-
 
         % spk_times = readNPY([ks.filepath 'spike_times_seconds.npy']) + opts.spk_offset;
         % spk_clusters = readNPY([ks.filepath 'spike_clusters.npy']);
@@ -198,13 +191,11 @@ if useofflinesorting==1
     spk_info_fields = fieldnames(spk_info_temp);
     spk_info_new = struct;
 
-
     for i = 1:numel(spk_info_fields)
         spk_info_new.(spk_info_fields{i}) = vertcat(spk_info_temp.(spk_info_fields{i}));
     end
 
     spk_info = spk_info_new;
-
 
     spk_clustIDs = unique(spk_clusters); 
     spk_labels_SU = find(cellfun(@(x) strcmp(deblank(x), 'good'), cellstr(spk_info.group)));
@@ -219,7 +210,7 @@ if useofflinesorting==1
     nSU=length(spk_ID_SU);
     nMU=length(spk_ID_MU);
 
-else
+else % if using online sorting
     %% align spiking data
     [tscounts, wfcounts, evcounts, contcounts] = plx_info(plxFilePath, false);
     spk_clusters=[]; spk_times=[];
@@ -849,7 +840,6 @@ for iTrials = 1:ntrials   %trialsInThisSession{iSessions}
         ExptTrials{iTrials, 3} = ExptTrials{iTrials, 1}.m_strTrialType;
         sessionIndex(trialIter).m_strTrialType = ExptTrials{iTrials, 1}.m_strTrialType;
     end
-
 
     % if useofflinesorting==1
     for iUnit=1:nSU

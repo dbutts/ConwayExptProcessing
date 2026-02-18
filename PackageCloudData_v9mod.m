@@ -16,7 +16,7 @@ function data = PackageCloudData_v9mod( exptdata, metadata_struct, targ_stimtype
 % 1 = 1-D bars alternating each frame in both windows
 % 2 = 1-D horizontal in 1, vertical in other
 % 3 = Alternate to 2...
-
+addpath(genpath(stimFilePath));
 if (nargin < 3) || isempty(targ_stimtype)
 	targ_stimtype = 8;    %this selects which stimulus to process: 8 looks for cloud stims
 end
@@ -75,7 +75,6 @@ if numel(arraylabel) > 1
 else
     arraylabel_filepart = arraylabel;
 end
-
 
 useofflinesorting = metadata_struct.use_offline_sorting;
 nSU = metadata_struct.nSU;
@@ -235,7 +234,7 @@ if (targ_stimtype == 3) || (targ_stimtype == 6)
 end
 
 
-cd(stimFilePath)
+%cd(stimFilePath)
 %cur_scale=g_astrctAllParadigms{1, 1}.DualstimScale.Buffer(find(g_astrctAllParadigms{1, 1}.DualstimScale.TimeStamp<exptdata_mod{2,2},1,'last'));
 try
     cur_scale=g_astrctAllParadigms.DualstimScale.Buffer(find(g_astrctAllParadigms.DualstimScale.TimeStamp<exptdata_mod{2,2},1,'last'));
@@ -277,11 +276,13 @@ for tt = 1:ntrls
 			if exptdata_mod{tt, 1}.usebinary==1
 				load(sprintf(['Cloudstims_BinaryChrom_size60_scale%d_SPscale6_%02d.mat'], cur_scale, cur_BlockID));            
             elseif exptdata_mod{tt, 1}.usebinary==2
-				load(sprintf(['Cloudstims_ContrastMatched_size60_scale%d_%02d.mat'], cur_scale, cur_BlockID));      
+				load(sprintf(['Cloudstims_ContrastMatched_size60_scale%d_%02d.mat'], cur_scale, cur_BlockID)); 
+                DensenoiseChromcloud_DKlspace=int8(10*127*(DensenoiseChromcloud_DKlspace));
             else
 				load(sprintf(['Cloudstims_Chrom_size60_scale%d_%02d.mat'], cur_scale, cur_BlockID));
+                DensenoiseChromcloud_DKlspace=int8(127*(DensenoiseChromcloud_DKlspace));
 			end
-			DensenoiseChromcloud_DKlspace=int8(10*127*(DensenoiseChromcloud_DKlspace));
+			
 		end
     
 		cur_TrialID = exptdata_mod{tt,1}.TrialID;
@@ -588,12 +589,12 @@ use_inds=setdiff(tvec,unique([bad_inds_fix,bad_inds_sac,bad_inds_artifact]));
 
 %% Now we package the data for later modeling
 disp('Converting...') 
-try
-    cd(output_directory)
-catch
-    mkdir(output_directory)
-    cd(output_directory)
-end
+% try
+%     cd(output_directory)
+% catch
+%     mkdir(output_directory)
+%     cd(output_directory)
+% end
 %% Determine stimulus windows
 %nofix = 1;  % what does this mean?
 pixel_size = 1;

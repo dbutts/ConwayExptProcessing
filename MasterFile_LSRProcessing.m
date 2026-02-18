@@ -3,8 +3,8 @@ clear; clc
 
 % this is the name of the experiment you want to run
 % filenameP = '251024_154348_Jacomo';
-exptDate = '260204';
-filenameP = '260204_161143_Sprout';
+exptDate = '260210';
+filenameP = '260210_134234_Sprout';
 monkey_name = 'Sprout';
 
 outputdir = '/home/bizon/Data/V1_Fovea/';
@@ -149,6 +149,7 @@ for a = 1:numel(arrayLabels)
             ksFolders{ii} = ['kilosorting_' arrayLabels{a} '_' num2str(min(curChannels{a}{c}{:})) 'to' num2str(max(curChannels{a}{c}{:}))];
             ksFolders{ii} = fullfile(dirpath, filenameP, ksFolders{ii});
             ks_nChans(ii) = length(curChannels{a}{c}{:});
+            ks_arraylabels_rep{ii} = arrayLabels{a};
             ii = ii + 1;
         end
     end
@@ -156,6 +157,7 @@ end
 
 ks.filepath = ksFolders; % point this at array folders or the "stiched" folder if you want to sort data from multiple arrays
 %ks.filepath = [dirpath filenameP filesep 'kilosorting_stitched' filesep]; % point this at array folders or the "stiched" folder if you want to sort data from multiple arrays
+ks.arraylabels_rep = ks_arraylabels_rep;
 ks.pl2path = pl2path;
 ks.ks_nChans = ks_nChans;
 opts.eye_tracker = 4;   % (default=3) 0=eyescan, 1=monoc eyelink, 2=binoc eyelink, 3=monocular dDPI, 4=binocular dDPI
