@@ -244,7 +244,7 @@ catch
 end
 load(sprintf('Cloudstims_Chrom_size60_scale%d_%02d.mat', cur_scale, cur_BlockID));
 %load(sprintf([stimFilePath 'Cloudstims_Chrom_size60_scale%d_%02d.mat'], cur_scale, cur_BlockID)) 
-%DensenoiseChromcloud_DKlspace=int8(127*(DensenoiseChromcloud_DKlspace));
+DensenoiseChromcloud_DKlspace=int8(127*(DensenoiseChromcloud_DKlspace));
 
 %% Load external eye-tracking file info -- has two variables (at 1 kHZ)
 % NOT NEEDED -- plexon information already went into trial-level information
@@ -277,10 +277,14 @@ for tt = 1:ntrls
 				load(sprintf(['Cloudstims_BinaryChrom_size60_scale%d_SPscale6_%02d.mat'], cur_scale, cur_BlockID));            
             elseif exptdata_mod{tt, 1}.usebinary==2
 				load(sprintf(['Cloudstims_ContrastMatched_size60_scale%d_%02d.mat'], cur_scale, cur_BlockID)); 
-                DensenoiseChromcloud_DKlspace=int8(10*127*(DensenoiseChromcloud_DKlspace));
-            else
+                LumScale = 0.1085;
+                DensenoiseChromcloud_DKlspace(:,:,:,2:3)=int8(127*(DensenoiseChromcloud_DKlspace(:,:,:,2:3)));
+                DensenoiseChromcloud_DKlspace(:,:,:,1)=int8((1/LumScale)*127*(DensenoiseChromcloud_DKlspace(:,:,:,1)));
+            elseif exptdata_mod{tt, 1}.usebinary==0
 				load(sprintf(['Cloudstims_Chrom_size60_scale%d_%02d.mat'], cur_scale, cur_BlockID));
                 DensenoiseChromcloud_DKlspace=int8(127*(DensenoiseChromcloud_DKlspace));
+            else
+                error('Invalid usebinary value');
 			end
 			
 		end
@@ -874,6 +878,12 @@ data.datafilts = datafilts;
 data.datafiltsMU = datafiltsMU;
 data.spike_ts = spk_times;
 data.spikeIDs = spk_IDs;
+
+data.ks_spk_clusters = metadata_struct.ks_spk_clusters;
+data.arrayLabelPerChan = metadata_struct.arrayLabelPerChan;
+data.arrayLabelPerCluster = metadata_struct.arrayLabelPerCluster;
+data.plexonChanNum = metadata_struct.plexonChanNum;
+data.ksChanNum = metadata_struct.ksChanNum;
 
 % Add hartley-specific or cloud-specific information 
 switch targ_stimtype

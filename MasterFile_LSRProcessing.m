@@ -1,65 +1,164 @@
 %% Master file
 clear; clc
 
-% this is the name of the experiment you want to run
-% filenameP = '251024_154348_Jacomo';
-exptDate = '260210';
-filenameP = '260210_134234_Sprout';
-monkey_name = 'Sprout';
+% Get basic experimental info
 
-outputdir = '/home/bizon/Data/V1_Fovea/';
+%first, who are you?
+userName = inputdlg('Your name:');
+while ~exist('userName', 'var') | isempty(userName)
+    userName = inputdlg('Your name:');
+end
+
+monkey_name = inputdlg('Enter monkey name:');
+while ~exist('monkey_name', 'var') | isempty(monkey_name)
+    monkey_name = inputdlg('Enter monkey name:');
+end
+
+% if isempty(regexp(monkey_name, 'J[ao]c[ao]mo'))
+%     monkey_name = {'J*c*mo'};
+% end
+
+exptDate = inputdlg('Enter experiment date:');
+while ~exist('exptDate', 'var') | isempty(exptDate)
+    exptDate = inputdlg('Enter experiment date:');
+end
+
+filenameP = inputdlg('Enter file name:');
+while ~exist('filenameP', 'var') | isempty(filenameP)
+    filenameP = inputdlg('Enter file name:');
+end
+
+monkey_name = monkey_name{:};
+exptDate = exptDate{:};
+filenameP = filenameP{:};
+
+% where should we look for data?
+dataPathQ = questdlg('Read data from local machine or isilon?', 'Data path', 'Local', 'Isilon', 'Local');
+
+% Set up paths for reading and writing data
+
 disp('Setup starting')
 
-if strcmpi(getenv('USER'), 'bizon') % if this is true, we are on bizon
-    % set path
-    processingPath = '/home/bizon/Git/ConwayExptProcessing';
-    % Switch into data directory
-    dirpath = fullfile('/home/bizon/Data/V1_Fovea/',monkey_name, exptDate);
-    pl2path = dirpath; %'/mnt/bc9/Data/'; % you can load the plexon file directly from the server, which may make loading data slower but save you data transfer complications
-    stimpath = '/home/bizon/Processing/Cloudstims_calib_04_2024/';
-else
-    isilonPath = fullfile([filesep 'mnt'], 'isilon');
-    if ~isdir(isilonPath)
-        isilonPath = fullfile([filesep 'Volumes'], 'isilon');
+% set isilon path
+if isunix && ~ismac
+    mountBase = '/mnt';
+elseif ismac
+    mountBase = [filesep 'Volumes'];
+elseif ispc
+    isilonDriveLetter = inputdlg('Isilon Drive Letter:');
+    mountBase = [isilonDriveLetter{1} ':\'];
+end
+isilonPath = fullfile(mountBase, 'isilon');
+
+if strcmpi(dataPathQ, 'Local')
+    homeDir = char(java.lang.System.getProperty('user.home'));
+    processingPath = fullfile(homeDir, 'Git', 'ConwayExptProcessing');
+
+    if ~isdir(processingPath)
+        oldProcessingPath = processingPath;
+        processingPath = fullfile(isilonPath, 'code', 'ConwayExptProcessing');
+        warning('No such directory as %s \nSetting processingPath to %s', oldProcessingPath, processingPath);
     end
 
-    processingPath = fullfile(isilonPath, 'code', 'ConwayExptProcessing');
+    dirpath = fullfile(homeDir, 'Data', 'V1_Fovea', monkey_name, exptDate);
 
-    % Switch into data directory
-    dirpath = uigetdr(pwd, 'Select directory with data');
-    pl2path = fullfile(isilonPath, 'monkey_ephys', monkey_name); % you can load the plexon file directly from the server, which may make loading data slower but save you data transfer complications
+    if ~isdir(dirpath)
+        oldDirpath = dirpath;
+        dirpath = fullfile(isilonPath, 'DATA', 'monkey_ephys', monkey_name);
+        warning('No such directory as %s \nSetting dirPath and pl2path to %s', oldDirpath, dirpath);
+    end
+
+    stimpath = fullfile(homeDir, 'Processing', 'Cloudstims_calib_04_2024/');
+
+    if ~isdir(stimpath)
+        oldStimpath = stimpath;
+        stimpath = fullfile(isilonPath, 'PROJECTS', 'V1_Fovea', 'stimuli', 'Cloudstims_calib_04_2024');
+        warning('No such directory as %s \nSetting dirPath and pl2path to %s', oldStimpath, stimpath);
+    end
+else
+    processingPath = fullfile(isilonPath, 'code', 'ConwayExptProcessing');
+    dirpath = fullfile(isilonPath, 'DATA', 'monkey_ephys');
     stimpath = fullfile(isilonPath, 'PROJECTS', 'V1_Fovea', 'stimuli', 'Cloudstims_calib_04_2024');
-    
 end
 
 addpath(processingPath); % add necessary dependencies
 addpath(genpath(fullfile(processingPath, 'Dependencies')));
 addpath(fullfile(processingPath, 'Tools'));
 
+pl2dir = dir(fullfile(dirpath, '**/*.pl2'));
+pl2folders = {pl2dir.folder};
+pl2files = {pl2dir.name};
+
+pl2path = pl2folders{cellfun(@(x) contains(x, filenameP), pl2files)};
+dirpath = pl2path;
 plexon_fname = fullfile(pl2path, [filenameP '.pl2']);
 
-%cd(dirpath)
-
+outputdir = fullfile(homeDir, 'Data', 'V1_Fovea');
 disp('setup complete')
 
 opts.monkey_name = monkey_name;
 opts.batch_size = 5e9;
 %% multiple arrays
 
-arrayLabels = {'UT1', 'UT2', 'lam'};
-nChans = [96, 96, 64];
+% dialog to set up arrays
+
+% array labels
+arrayLabels = inputdlg({'Array lablel(s):'});
+while ~exist('arrayLabels', 'var') | isempty(arrayLabels)
+    arrayLabels = inputdlg({'Array lablel(s):'});
+end
+arrayLabels = cellfun(@strip, split(arrayLabels, ","), 'UniformOutput', false); % split comma separated values and remove whitespace 
+arrayLabels = transpose(arrayLabels);
+
+nChans = inputdlg(cellfun(@(x) [x ' channels'], arrayLabels, 'UniformOutput', false), 'Channels');
+while ~exist('nChans', 'var') | isempty(nChans)
+    nChans = inputdlg(cellfun(@(x) [x ' channels'], arrayLabels, 'UniformOutput', false), 'Channels');
+end
+
+nChans = cellfun(@str2num, nChans);
+nChans = transpose(nChans);
 
 if numel(nChans) > 1
     chnOffsets = cumsum([0 nChans(1:end-1)]);
 else
     chnOffsets = 0;
 end
-curChannels = {{{1:32}, {33:64}, {65:96}}, {{1:32}, {33:64}, {65:96}}, {{1:64}}};
-preconverted = {{zeros(1,3)}, {zeros(1,3)}, {0}};
-arraySpacing = [1, 1, 0    % x
-                1, 1, 50]; % y
 
+arraySpacing = inputdlg(cellfun(@(x) [x ' spacing in um (x,y)'], arrayLabels, 'UniformOutput', false), 'Channels');
+while ~exist('arraySpacing', 'var') | isempty(arraySpacing)
+    arraySpacing = inputdlg(cellfun(@(x) [x ' spacing in um (x,y)'], arrayLabels, 'UniformOutput', false), 'Channels');
+end
+arraySpacing = regexp(arraySpacing, '\d*', 'match');
+arraySpacing = transpose(cellfun(@str2num, vertcat(arraySpacing{:})));
+
+curChannels = inputdlg(cellfun(@(x) [x ' curchannels'], arrayLabels, 'UniformOutput', false));
+while ~exist('curChannels', 'var') | isempty(curChannels)
+    curChannels = inputdlg(cellfun(@(x) [x ' curchannels'], arrayLabels, 'UniformOutput', false));
+end
+curChannels = regexp(curChannels, '\d*:\d*', 'match');
+
+preconverted = questdlg('Have the data been preconverted (raw to dat)?', 'Preconverted', 'Yes', 'No', 'No');
+if strcmpi(preconverted, 'Yes')
+    preconverted = 1;
+elseif strcmpi(preconverted, 'No')
+    preconverted = 0;
+else
+    preconverted = questdlg('Have the data been preconverted (raw to dat)?', 'Preconverted', 'Yes', 'No', 'No');
+end
+% save the answers
+
+promptAnswersFileName = fullfile(dirpath, 'preprocessingInfo.mat');
+try
+    save(promptAnswersFileName, 'userName', 'monkey_name', 'exptDate', 'filenameP',...
+        'outputdir', 'processingPath', 'dirpath', 'pl2path', 'stimpath', ...
+        'arrayLabels','nChans', 'chnOffsets', 'arraySpacing', 'curChannels', 'preconverted', '-v7.3')
+catch
+end
+
+%% kilosorting
 disp('Kilosorting Starting')
+opts.preconverted = preconverted;
+
 for a = 1:numel(arrayLabels) % for each array
     opts.ArrayLabel = arrayLabels{a};
 
@@ -78,22 +177,25 @@ for a = 1:numel(arrayLabels) % for each array
     end
 
     for c = 1:numel(curChannels{a})
-        opts.preconverted = preconverted{a}{:}(c);
-        opts.nChans = length(curChannels{a}{c}{:});
+
+        opts.nChans = length(str2num(curChannels{a}{c}));
         opts.ChnOffset = chnOffsets(a);
-        opts.curchannels = curChannels{a}{c}{:};
+        opts.curchannels = str2num(curChannels{a}{c});
         opts.arraySpacing = arraySpacing(:,a);
 
         [datPath{a,c}, droptestcheck{a,c}] = Step0_Kilosort(dirpath,filenameP,pl2path,opts); %this will take some time to run!
 
         disp(['Plexon-Kofiko offset in seconds: ' num2str(droptestcheck{a,c})]) % this will tell us if the plexon time alignment issue is present
+       
         if abs(droptestcheck{a,c})>0.1
             warning("Danger - Plexon might have dropped frames! Check pl2 file.")
         else
             disp('Experiment kilosorted and ready for curation!')
         end
+
     end
 end
+
 disp('Kilosorting complete, go curate in phy')
 disp('In terminal type:')
 disp('conda activate phy2')
@@ -144,11 +246,12 @@ for a = 1:numel(arrayLabels)
     for c = 1:numel(curChannels{a})
         if contains(arrayLabels{a}, 'lam')
             ksFolders{ii} = fullfile(dirpath, filenameP, 'kilosorting_laminar');
-            ks_nChans(ii) = length(curChannels{a}{c}{:});
+            ks_nChans(ii) = length(str2num(curChannels{a}{c}));
+            ks_arraylabels_rep{ii} = arrayLabels{a};
         else
-            ksFolders{ii} = ['kilosorting_' arrayLabels{a} '_' num2str(min(curChannels{a}{c}{:})) 'to' num2str(max(curChannels{a}{c}{:}))];
+            ksFolders{ii} = ['kilosorting_' arrayLabels{a} '_' num2str(min(str2num(curChannels{a}{c}))) 'to' num2str(max(str2num(curChannels{a}{c})))];
             ksFolders{ii} = fullfile(dirpath, filenameP, ksFolders{ii});
-            ks_nChans(ii) = length(curChannels{a}{c}{:});
+            ks_nChans(ii) = length(str2num(curChannels{a}{c}));
             ks_arraylabels_rep{ii} = arrayLabels{a};
             ii = ii + 1;
         end
@@ -178,7 +281,7 @@ end
 % this will automatically generate and save CSD/LFP, but you can call the
 % function again and analyze them
 
-% ExtractAndAlign saves FullExpt_ks1_lam_v08.mat in Analysis directory, and
+% ExtractAndAlign saves FullExpt_ks1_lam_v08.mat in Analysis directory (in dirpath/filenameP), and
 % can be loaded or its outputs (in memory can be used directly
 % This step also makes the fixinfo file
 disp('Kofiko alignment complete')
@@ -188,9 +291,9 @@ disp('Cloud packaging starting')
 % now package cloud data
 ExptInfo.trialdur = 4;
 ExptInfo.monkey_name = monkey_name;
-addpath(genpath('/home/bizon/Data/V1_Fovea/output_greenemj')); 
 
-data = PackageCloudData_v9mod( ExptTrials, ExptInfo, [], [], stimpath, fullfile(pl2path, filenameP, 'Analysis') , 0, which_computer); % temporarily got rid of LFP_ad as final arg
+skipLFP = 0;
+data = PackageCloudData_v9mod( ExptTrials, ExptInfo, [], [], stimpath, fullfile(pl2path, filenameP, 'Analysis') , skipLFP, which_computer); % temporarily got rid of LFP_ad as final arg
 
 disp('Cloud packaging complete')
 %% Check to see if all of the relevant files were saved
@@ -200,7 +303,7 @@ checkOutput(outputdir,filenameP)
 disp('STA generation starting')
 %%force save STA plots [RamonBartolo 20250709]
 data.to_save = true;
-data.outputdir = fullfile(pl2path, filenameP, 'Analysis', 'STAs'); %[outputdir filenameP filesep 'Analysis' filesep, 'STAs'];
+data.outputdir = fullfile(pl2path, filenameP, 'Analysis', 'STAs'); %[outputdir cd ..filenameP filesep 'Analysis' filesep, 'STAs'];
 
 %%%%%% Comment to skip saving
 if ~exist(data.outputdir,'dir'); mkdir(data.outputdir); end

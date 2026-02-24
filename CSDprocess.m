@@ -1,4 +1,4 @@
-function [csd, lfp] = CSDprocess( ExptRecording, trial_select, save_images, exptname, savedir, verbose )
+function [expt_CSDs, lfps2] = CSDprocess( ExptRecording, trial_select, save_images, exptname, savedir, verbose )
 %
 % Usage: [csd, lfp] = CSDprocess( ExptRecording, <trial_select>, <save_images>, <exptname>, <savedir>, <verbose> )
 %

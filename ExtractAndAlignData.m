@@ -14,6 +14,8 @@ function [ExptTrials, ExptInfo, ETdata, LFP_ad] = ExtractAndAlignData(exptname, 
 % addpath('/Users/dbutts/Projects/ColorV1/ColorProcessing_Packaged/Dependencies/Plexon-Matlab Offline Files SDK/')
 % addpath('/Users/dbutts/Projects/ColorV1/ColorProcessing_Packaged/Dependencies/Kilotools_FB_2023/kilo2Tools-master/npy-matlab/npy-matlab')
 
+skipLFP = 0;
+
 
 if nargin < 5
     opts = struct;
@@ -80,7 +82,17 @@ else
     useofflinesorting = 1; % set to 1 to use kilosort outputs
 end
 
-skipLFP=0;
+if numel(ks.arraylabel) > 1
+    arraylabel_filepart = [cellfun(@(x) [x '_'], ks.arraylabel(1:end-1), 'UniformOutput', false) ks.arraylabel(end)];
+    arraylabel_filepart = [arraylabel_filepart{:}];
+else
+    arraylabel_filepart = ks.arraylabel;
+end
+
+outfile = sprintf( '%s_FullExpt_ks%d_%s_v09.mat', exptname, useofflinesorting,  arraylabel_filepart );
+
+
+
 nChans=64; %for CSD only now
 LFPchans=1:nChans;
 %LFP_chanmap=LFPchans;
@@ -150,6 +162,7 @@ startRecordID = 32767;
 stopRecordID = 32766;
 
 %% Prepare Kilosort information
+
 if useofflinesorting==1
 
     if ks.stitched==1
@@ -160,10 +173,18 @@ if useofflinesorting==1
 
         for f = 1:numel(ks.filepath)
             spk_times{f} = readNPY(fullfile(ks.filepath{f}, 'spike_times_seconds.npy')) + opts.spk_offset;
-            spk_clusters{f} = readNPY(fullfile(ks.filepath{f}, 'spike_clusters.npy'));
+            spk_clusters{f} = readNPY(fullfile(ks.filepath{f}, 'spike_clusters.npy')); % zero indexed
             spk_info{f} = tdfread(fullfile(ks.filepath{f}, 'cluster_info.tsv'));
         end
 
+        % get array label for each individual channel
+        arrayLabelPerChan = repelem(ks.arraylabels_rep, ks.ks_nChans);
+        arrayLabelPerCluster = repelem(ks.arraylabels_rep, cellfun(@numel, spk_clusters));
+        plexonChanNum= 1:sum(ks.ks_nChans);
+        ksChanNum = arrayfun(@(x) 0:x, ks.ks_nChans-1, 'UniformOutput', false);
+        ksChanNum = horzcat(ksChanNum{:});
+
+        ks_spk_clusters = vertcat(spk_clusters{:});
         % concatenate these cell arrays, carefully
         % each cluster must be unique, so add maximum cluster number of
         % previous cell
@@ -181,9 +202,6 @@ if useofflinesorting==1
         spk_times = vertcat(spk_times{:});
         spk_clusters = vertcat(spk_clusters{:});
 
-        % spk_times = readNPY([ks.filepath 'spike_times_seconds.npy']) + opts.spk_offset;
-        % spk_clusters = readNPY([ks.filepath 'spike_clusters.npy']);
-        % spk_info = tdfread([ks.filepath 'cluster_info.tsv']);
     end
 
     % now concatenate fields of spk_info
@@ -201,8 +219,10 @@ if useofflinesorting==1
     spk_labels_SU = find(cellfun(@(x) strcmp(deblank(x), 'good'), cellstr(spk_info.group)));
     spk_labels_MU = find(cellfun(@(x) strcmp(deblank(x), 'mua') | isempty(deblank(x)), cellstr(spk_info.group)));
 
-    bad_chans_SU = find(spk_info.n_spikes(spk_labels_SU)<2000); spk_labels_SU(bad_chans_SU)=[];
-    bad_chans_MU = find(spk_info.n_spikes(spk_labels_MU)<2000); spk_labels_MU(bad_chans_MU)=[];
+    bad_chans_SU = find(spk_info.n_spikes(spk_labels_SU)<1000);
+    spk_labels_SU(bad_chans_SU)=[];
+    bad_chans_MU = find(spk_info.n_spikes(spk_labels_MU)<1000); 
+    spk_labels_MU(bad_chans_MU)=[];
     spk_ID_SU = spk_clustIDs(spk_labels_SU);
     spk_channels_SU = spk_info.ch(spk_labels_SU);
     spk_ID_MU = spk_clustIDs(spk_labels_MU);
@@ -210,6 +230,13 @@ if useofflinesorting==1
     nSU=length(spk_ID_SU);
     nMU=length(spk_ID_MU);
 
+    % how do we go from spk_ID_MU or spk_ID_SU to channel # and cluster ID
+    % in kilosort/phy?
+    %ks cluster #: ks_spk_clusters(spk_clusters == spk_ID_MU(i))
+    % plexon channel number: spk_info.ch(spk_info.cluster_id ==
+    % spk_ID_MU(i)) + 1
+    %ks channel:   ksChanNum(plexonChanNum == spk_info.ch(spk_info.ch(spk_info.cluster_id ==
+    % spk_ID_MU(i)) + 1)
 else % if using online sorting
     %% align spiking data
     [tscounts, wfcounts, evcounts, contcounts] = plx_info(plxFilePath, false);
@@ -949,14 +976,7 @@ fprintf('Done combining information.\n')
 
 %%
 %cd(currentDirectory);
-if numel(ks.arraylabel) > 1
-    arraylabel_filepart = [cellfun(@(x) [x '_'], ks.arraylabel(1:end-1), 'UniformOutput', false) ks.arraylabel(end)];
-    arraylabel_filepart = [arraylabel_filepart{:}];
-else
-    arraylabel_filepart = ks.arraylabel;
-end
 
-outfile = sprintf( '%s_FullExpt_ks%d_%s_v09.mat', exptname, useofflinesorting,  arraylabel_filepart );
 
 % Save other variables to continue the process
 ExptInfo.nSU = nSU;
@@ -970,12 +990,32 @@ ExptInfo.trialdur = ExptInfo.trialwindow(2)-ExptInfo.trialwindow(1);
 ExptInfo.ET_Eyelink = ET_Eyelink;
 ExptInfo.use_offline_sorting = useofflinesorting;
 ExptInfo.expt_folder = dirpath;
+ExptInfo.ks_spk_clusters = ks_spk_clusters;  
+ExptInfo.arrayLabelPerChan =  arrayLabelPerChan;
+ExptInfo.arrayLabelPerCluster=   arrayLabelPerCluster;
+ExptInfo.plexonChanNum = plexonChanNum;
+ExptInfo.ksChanNum = ksChanNum;  
 
 % Add experiment metadata from base file (moved from cloud stim 2: general expt parameters here)
 load([dirpath exptname '.mat'], 'g_astrctAllParadigms')
 ExptInfo.g_astrctAllParadigms = g_astrctAllParadigms{1};  % this is only one cell array -- what is it?
 ExptInfo.g_strctEyeCalib = g_strctEyeCalib;
 ExptInfo.g_strctDAQParams = g_strctDAQParams;  % don't know if needed, but just in case
+
+
+%% Processing the LFPs/CSDs
+if opts.is_cloud
+    fprintf('\nProcessing CSDs (all trials):\n')
+    try
+        [expt_CSDs, lfps2] = CSDprocess( ExptTrials, [], 1, exptname, output_directory, 1 ); % save this
+    % Usage: [csd, lfp] = CSDprocess( ExptRecording, trial_select, save_images, exptname, savedir, verbose )
+        ExptInfo.expt_CSDs = expt_CSDs;
+        ExptInfo.lfps2 = lfps2;
+        catch
+    end
+
+end
+%%
 
 if opts.is_cloud % only include cloud trials; this discards Fivedot, Handmapper, etc trials
     targ_trials=[];
@@ -1020,11 +1060,6 @@ disp('Saved!')
 % pause
 % end
 
-%% Processing the LFPs/CSDs
-if opts.is_cloud
-    fprintf('\nProcessing CSDs (all trials):\n')
-    CSDprocess( ExptTrials, [], 1, exptname, output_directory, 1 );
-    % Usage: [csd, lfp] = CSDprocess( ExptRecording, trial_select, save_images, exptname, savedir, verbose )
-end
+
 
 return
