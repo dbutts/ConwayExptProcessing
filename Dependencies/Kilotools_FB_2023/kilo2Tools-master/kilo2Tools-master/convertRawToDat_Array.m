@@ -101,7 +101,7 @@ datPath = fullfile(opts.outputFolder, [dsn '.dat']);
 % if a .dat file already exists delete it so that new file is so fresh and
 % so clean clean
 if exist(datPath, 'file')
-    confirmDatDelete = questdlg(sprintf('Delete existing dat file at %s?', datPath), 'Delete dat file', 'Yes', 'No', 'No');
+    confirmDataDelete = questdlg(sprintf('Delete existing dat file at %s?', datPath), 'Delete dat file', 'Yes', 'No', 'No');
     if strcmpi(confirmDataDelete, 'Yes')
         delete(datPath)
     else

@@ -7,9 +7,14 @@ setupStrct = preprocessingSetup;
 load(setupStrct.filename);
 
 
+% if setupStrct file exists, load into workspace and run:
+%addpath(processingPath); % add necessary dependencies
+%addpath(genpath(fullfile(processingPath, 'Dependencies')));
+%addpath(fullfile(processingPath, 'Tools'));
+
 %% kilosorting
 disp('Kilosorting Starting')
-opts.monkey_name = setupStrct.monkey_name;
+opts.monkey_name = monkey_name;
 opts.batch_size = 5e9;
 opts.preconverted = preconverted;
 
