@@ -146,6 +146,12 @@ curChannels = regexp(curChannels, '\d*:\d*', 'match');
 
 preconverted = dlgFun('questdlg', 'Preconversion', 'Have the data been preconverted (raw to binary/.dat)?', {'No'}, {'Yes', 'No', 'Cancel'});
 
+if strcmpi(preconverted, 'Yes')
+    preconverted = 1;
+else
+    preconverted = 0;
+end
+
 setupStrctFilename = fullfile(dirpath, ['setupStrct' datestr(now, 'mm_dd_yyyy_HH_MM_SS') '.mat']);
 
 setupStrct.processingPath = processingPath;

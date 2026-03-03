@@ -2,6 +2,12 @@ function [datPath, droptestcheck] = Step0_Kilosort(dirpath,filenameP,pl2path, op
 %Step0_KilosortLaminar Packages and then kilosorts laminar probe data
 %   Based on custom code by Leor Katz, adapted by Felix Bartsch, 2024
 
+% check GPU comptability
+try gpuDevice
+catch
+    parallel.gpu.enableCUDAForwardCompatibility(true)
+end
+
 plexon_fname = fullfile(pl2path, [filenameP '.pl2']);
 if nargin <3
     preconverted=0;
@@ -201,16 +207,23 @@ save(fullfile(ops.root,'ops.mat'), 'ops')
 %% master_kilosort section:
 rootZ = datFolder; % the raw data binary file is in this folder
 
-[~, hostName] = system('hostname');
-if contains(hostName, 'IT', 'IgnoreCase', 1)
-    rootH = '/home/felix/kilodata'; % path to temporary binary file (same size as data, should be on fast SSD)
-elseif contains(hostName, 'mt', 'IgnoreCase', 1)
-    rootH = '/home/fellixbartsch/kilodata'; % path to temporary binary file (same size as data, should be on fast SSD)
-elseif contains(hostName, 'conwaylab', 'IgnoreCase', 1)
-    rootH = '/home/conwaylab/kilodata';
-elseif contains(hostName, 'dl', 'IgnoreCase', 1)
-    rootH = '/home/bizon/kilodata';
+homeDir = char(java.lang.System.getProperty('user.home'));
+rootH = fullfile(homeDir, 'kilodata');
+if ~isdir(rootH)
+    mkdir(rootH);
 end
+
+
+% [~, hostName] = system('hostname');
+% if contains(hostName, 'IT', 'IgnoreCase', 1)
+%     rootH = '/home/felix/kilodata'; % path to temporary binary file (same size as data, should be on fast SSD)
+% elseif contains(hostName, 'mt', 'IgnoreCase', 1)
+%     rootH = '/home/fellixbartsch/kilodata'; % path to temporary binary file (same size as data, should be on fast SSD)
+% elseif contains(hostName, 'conwaylab', 'IgnoreCase', 1)
+%     rootH = '/home/conwaylab/kilodata';
+% elseif contains(hostName, 'dl', 'IgnoreCase', 1)
+%     rootH = '/home/bizon/kilodata';
+% end
 
 % pathToYourConfigFile = 'D:\GitHub\KiloSort2\configFiles'; % take from Github folder and put it somewhere else (together with the master_file)
 % chanMapFile = 'neuropixPhase3A_kilosortChanMap.mat';

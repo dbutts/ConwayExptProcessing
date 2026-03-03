@@ -37,7 +37,7 @@ pl2 = PL2ReadFileIndex(rawFullPath);
 numDigitsInLastSpkChan = ceil(log10(length(pl2.SpikeChannels)));
 
 %% paths:
-addPathsForSpikeSorting;
+%addPathsForSpikeSorting;
 
 %% data file & folder names:
 
