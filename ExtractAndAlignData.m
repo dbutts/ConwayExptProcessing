@@ -86,12 +86,10 @@ if numel(ks.arraylabel) > 1
     arraylabel_filepart = [cellfun(@(x) [x '_'], ks.arraylabel(1:end-1), 'UniformOutput', false) ks.arraylabel(end)];
     arraylabel_filepart = [arraylabel_filepart{:}];
 else
-    arraylabel_filepart = ks.arraylabel;
+    arraylabel_filepart = ks.arraylabel{1};
 end
 
 outfile = sprintf( '%s_FullExpt_ks%d_%s_v09.mat', exptname, useofflinesorting,  arraylabel_filepart );
-
-
 
 nChans=64; %for CSD only now
 LFPchans=1:nChans;
@@ -230,6 +228,16 @@ if useofflinesorting==1
     nSU=length(spk_ID_SU);
     nMU=length(spk_ID_MU);
 
+    % get ks/Phy channel number (ch) frm spk_ID:
+    % ExptInfo.spk_info.ch(ExptInfo.spk_info.cluster_id == ExptInfo.spk_ID_SU(i));
+    % where ExptInfo.spk_ID_SU corresponds to id within Phy GUI (for
+    % examined batch)
+
+    % get plexon channel number:
+    %ExptInfo.spk_info.ch(ExptInfo.spk_info.cluster_id == ExptInfo.spk_ID_SU(i))+1
+
+
+
     % how do we go from spk_ID_MU or spk_ID_SU to channel # and cluster ID
     % in kilosort/phy?
     %ks cluster #: ks_spk_clusters(spk_clusters == spk_ID_MU(i))
@@ -237,6 +245,8 @@ if useofflinesorting==1
     % spk_ID_MU(i)) + 1
     %ks channel:   ksChanNum(plexonChanNum == spk_info.ch(spk_info.ch(spk_info.cluster_id ==
     % spk_ID_MU(i)) + 1)
+
+
 else % if using online sorting
     %% align spiking data
     [tscounts, wfcounts, evcounts, contcounts] = plx_info(plxFilePath, false);
@@ -995,6 +1005,8 @@ ExptInfo.arrayLabelPerChan =  arrayLabelPerChan;
 ExptInfo.arrayLabelPerCluster=   arrayLabelPerCluster;
 ExptInfo.plexonChanNum = plexonChanNum;
 ExptInfo.ksChanNum = ksChanNum;  
+ExptInfo.spk_clusters = spk_clusters;
+ExptInfo.spk_info = spk_info;
 
 % Add experiment metadata from base file (moved from cloud stim 2: general expt parameters here)
 load([dirpath exptname '.mat'], 'g_astrctAllParadigms')

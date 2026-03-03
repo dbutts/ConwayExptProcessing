@@ -1,162 +1,16 @@
 %% Master file
 clear; clc
 
-% Get basic experimental info
+%% Setup
 
-%first, who are you?
-userName = inputdlg('Your name:');
-while ~exist('userName', 'var') | isempty(userName)
-    userName = inputdlg('Your name:');
-end
+setupStrct = preprocessingSetup;
+load(setupStrct.filename);
 
-monkey_name = inputdlg('Enter monkey name:');
-while ~exist('monkey_name', 'var') | isempty(monkey_name)
-    monkey_name = inputdlg('Enter monkey name:');
-end
-
-% if isempty(regexp(monkey_name, 'J[ao]c[ao]mo'))
-%     monkey_name = {'J*c*mo'};
-% end
-
-exptDate = inputdlg('Enter experiment date:');
-while ~exist('exptDate', 'var') | isempty(exptDate)
-    exptDate = inputdlg('Enter experiment date:');
-end
-
-filenameP = inputdlg('Enter file name:');
-while ~exist('filenameP', 'var') | isempty(filenameP)
-    filenameP = inputdlg('Enter file name:');
-end
-
-monkey_name = monkey_name{:};
-exptDate = exptDate{:};
-filenameP = filenameP{:};
-
-% where should we look for data?
-dataPathQ = questdlg('Read data from local machine or isilon?', 'Data path', 'Local', 'Isilon', 'Local');
-
-% Set up paths for reading and writing data
-
-disp('Setup starting')
-
-% set isilon path
-if isunix && ~ismac
-    mountBase = '/mnt';
-elseif ismac
-    mountBase = [filesep 'Volumes'];
-elseif ispc
-    isilonDriveLetter = inputdlg('Isilon Drive Letter:');
-    mountBase = [isilonDriveLetter{1} ':\'];
-end
-isilonPath = fullfile(mountBase, 'isilon');
-
-if strcmpi(dataPathQ, 'Local')
-    homeDir = char(java.lang.System.getProperty('user.home'));
-    processingPath = fullfile(homeDir, 'Git', 'ConwayExptProcessing');
-
-    if ~isdir(processingPath)
-        oldProcessingPath = processingPath;
-        processingPath = fullfile(isilonPath, 'code', 'ConwayExptProcessing');
-        warning('No such directory as %s \nSetting processingPath to %s', oldProcessingPath, processingPath);
-    end
-
-    dirpath = fullfile(homeDir, 'Data', 'V1_Fovea', monkey_name, exptDate);
-
-    if ~isdir(dirpath)
-        oldDirpath = dirpath;
-        dirpath = fullfile(isilonPath, 'DATA', 'monkey_ephys', monkey_name);
-        warning('No such directory as %s \nSetting dirPath and pl2path to %s', oldDirpath, dirpath);
-    end
-
-    stimpath = fullfile(homeDir, 'Processing', 'Cloudstims_calib_04_2024/');
-
-    if ~isdir(stimpath)
-        oldStimpath = stimpath;
-        stimpath = fullfile(isilonPath, 'PROJECTS', 'V1_Fovea', 'stimuli', 'Cloudstims_calib_04_2024');
-        warning('No such directory as %s \nSetting dirPath and pl2path to %s', oldStimpath, stimpath);
-    end
-else
-    processingPath = fullfile(isilonPath, 'code', 'ConwayExptProcessing');
-    dirpath = fullfile(isilonPath, 'DATA', 'monkey_ephys');
-    stimpath = fullfile(isilonPath, 'PROJECTS', 'V1_Fovea', 'stimuli', 'Cloudstims_calib_04_2024');
-end
-
-addpath(processingPath); % add necessary dependencies
-addpath(genpath(fullfile(processingPath, 'Dependencies')));
-addpath(fullfile(processingPath, 'Tools'));
-
-pl2dir = dir(fullfile(dirpath, '**/*.pl2'));
-pl2folders = {pl2dir.folder};
-pl2files = {pl2dir.name};
-
-pl2path = pl2folders{cellfun(@(x) contains(x, filenameP), pl2files)};
-dirpath = pl2path;
-plexon_fname = fullfile(pl2path, [filenameP '.pl2']);
-
-outputdir = fullfile(homeDir, 'Data', 'V1_Fovea');
-disp('setup complete')
-
-opts.monkey_name = monkey_name;
-opts.batch_size = 5e9;
-%% multiple arrays
-
-% dialog to set up arrays
-
-% array labels
-arrayLabels = inputdlg({'Array lablel(s):'});
-while ~exist('arrayLabels', 'var') | isempty(arrayLabels)
-    arrayLabels = inputdlg({'Array lablel(s):'});
-end
-arrayLabels = cellfun(@strip, split(arrayLabels, ","), 'UniformOutput', false); % split comma separated values and remove whitespace 
-arrayLabels = transpose(arrayLabels);
-
-nChans = inputdlg(cellfun(@(x) [x ' channels'], arrayLabels, 'UniformOutput', false), 'Channels');
-while ~exist('nChans', 'var') | isempty(nChans)
-    nChans = inputdlg(cellfun(@(x) [x ' channels'], arrayLabels, 'UniformOutput', false), 'Channels');
-end
-
-nChans = cellfun(@str2num, nChans);
-nChans = transpose(nChans);
-
-if numel(nChans) > 1
-    chnOffsets = cumsum([0 nChans(1:end-1)]);
-else
-    chnOffsets = 0;
-end
-
-arraySpacing = inputdlg(cellfun(@(x) [x ' spacing in um (x,y)'], arrayLabels, 'UniformOutput', false), 'Channels');
-while ~exist('arraySpacing', 'var') | isempty(arraySpacing)
-    arraySpacing = inputdlg(cellfun(@(x) [x ' spacing in um (x,y)'], arrayLabels, 'UniformOutput', false), 'Channels');
-end
-arraySpacing = regexp(arraySpacing, '\d*', 'match');
-arraySpacing = transpose(cellfun(@str2num, vertcat(arraySpacing{:})));
-
-curChannels = inputdlg(cellfun(@(x) [x ' curchannels'], arrayLabels, 'UniformOutput', false));
-while ~exist('curChannels', 'var') | isempty(curChannels)
-    curChannels = inputdlg(cellfun(@(x) [x ' curchannels'], arrayLabels, 'UniformOutput', false));
-end
-curChannels = regexp(curChannels, '\d*:\d*', 'match');
-
-preconverted = questdlg('Have the data been preconverted (raw to dat)?', 'Preconverted', 'Yes', 'No', 'No');
-if strcmpi(preconverted, 'Yes')
-    preconverted = 1;
-elseif strcmpi(preconverted, 'No')
-    preconverted = 0;
-else
-    preconverted = questdlg('Have the data been preconverted (raw to dat)?', 'Preconverted', 'Yes', 'No', 'No');
-end
-% save the answers
-
-promptAnswersFileName = fullfile(dirpath, 'preprocessingInfo.mat');
-try
-    save(promptAnswersFileName, 'userName', 'monkey_name', 'exptDate', 'filenameP',...
-        'outputdir', 'processingPath', 'dirpath', 'pl2path', 'stimpath', ...
-        'arrayLabels','nChans', 'chnOffsets', 'arraySpacing', 'curChannels', 'preconverted', '-v7.3')
-catch
-end
 
 %% kilosorting
 disp('Kilosorting Starting')
+opts.monkey_name = setupStrct.monkey_name;
+opts.batch_size = 5e9;
 opts.preconverted = preconverted;
 
 for a = 1:numel(arrayLabels) % for each array

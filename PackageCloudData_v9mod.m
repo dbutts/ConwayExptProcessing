@@ -73,7 +73,7 @@ if numel(arraylabel) > 1
     arraylabel_filepart = [cellfun(@(x) [x '_'], arraylabel(1:end-1), 'UniformOutput', false) arraylabel(end)];
     arraylabel_filepart = [arraylabel_filepart{:}];
 else
-    arraylabel_filepart = arraylabel;
+    arraylabel_filepart = arraylabel{1};
 end
 
 useofflinesorting = metadata_struct.use_offline_sorting;
@@ -556,7 +556,7 @@ subplot(2,1,2); plot(exptdata_ColCloud{tt, 1}.ETthisTrialRawEyeData); title('Kof
 end
 
 %%
-tvec=[1:length(binned_SU1)];
+tvec=1:length(binned_SU1);
 Block_offsetinds=[Block_offsetinds,length(binned_SU1)];
 %Block_offsetinds_blink=[Block_offsetinds_blink,length(binned_SU1)];
 %Block_inds=[unique([Block_onsetinds,Block_onsetinds_blink]);unique([Block_offsetinds,Block_offsetinds_blink])];
@@ -798,7 +798,7 @@ targchans_SU=1:nSU;
 
 SU_clusters=[];
 Robs = binned_SU1(:,targchans_SU)';
-Robs_probe_ID = metadata_struct.spk_channels_SU(targchans_SU');
+Robs_probe_ID = metadata_struct.spk_channels_SU(targchans_SU'); % this gets cluster IDs of SUs
 Robs_rating=[];  %spk_rating_SU(targchans_SU');
 
 datafilts = ones(size(Robs));
