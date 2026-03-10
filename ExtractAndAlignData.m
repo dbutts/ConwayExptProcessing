@@ -241,8 +241,7 @@ if useofflinesorting==1
     % how do we go from spk_ID_MU or spk_ID_SU to channel # and cluster ID
     % in kilosort/phy?
     %ks cluster #: ks_spk_clusters(spk_clusters == spk_ID_MU(i))
-    % plexon channel number: spk_info.ch(spk_info.cluster_id ==
-    % spk_ID_MU(i)) + 1
+    % plexon channel number: spk_info.ch(spk_info.cluster_id == spk_ID_MU(i)) + 1
     %ks channel:   ksChanNum(plexonChanNum == spk_info.ch(spk_info.ch(spk_info.cluster_id ==
     % spk_ID_MU(i)) + 1)
 

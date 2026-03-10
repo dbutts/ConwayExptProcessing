@@ -169,7 +169,7 @@ setupStrct.preconverted = preconverted;
 setupStrct.filename = setupStrctFilename;
 
 try
-    save(setupStrctFilename,'-struct', setupStrct);
+    save(setupStrctFilename,'-struct', 'setupStrct');
 
 catch
     setupStrctFilename = fullfile(['setupStrct_' datestr(now, 'mm_dd_yyyy_HH_MM_SS') '.mat']);
