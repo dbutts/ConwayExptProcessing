@@ -1,128 +1,136 @@
-% directory containing Kofiko mat files
-dirpath ='/home/bizon/Data/V1_Fovea/Sprout/260205';
-filenameP = '260205_153540_Sprout';
+%% Set paths
 
+% "dirpath" should contain:
+%   - All Kofiko mat files as well as the plexon file (which will be
+%   searched for recursively)
+%   - Plexon (.pl2) file
+
+%dirpath = '~/Data/V1_Fovea/Sprout/260205';
+dirpath = '/mnt/isilon/DATA/monkey_ephys/Jocamo/2022to23_ArrayExpts/';
+
+% "ks_path" should contain:
+%   -Kilosort outputs (spike_times.npy, spike_clusters.npy, and
+%   cluster_info.tsv)
+
+%ks_path = '/mnt/isilon/PROJECTS/V1_Fovea/processing/250529_152043_Jacomo';
+ks_path = '/home/bizon/Data/V1_Fovea/Jocamo/220715/220715_131937_Jacomo/';
+% Should point to stimuli mat files
+stimpath = '/home/bizon/Processing/Cloudstims_calib_01_2022/';
+
+% Add ConwayExptProcessing Dependencies to path
 addpath(genpath('/home/bizon/Git/ConwayExptProcessing/Dependencies/'));
 addpath(genpath('/home/bizon/Processing'));
 
+% File prefix for Kofiko and plexon files
+%filenameP = '250529_152043_Jacomo';
+filenameP = '220715_131937_Jacomo';
+plexon_dir = dir(fullfile(dirpath, '**', [filenameP '.pl2']));
+plexon_fname = fullfile(plexon_dir(1).folder, plexon_dir(1).name);
 
-%% Read in plexon data
+%% Hardcoded values
+fps = 60; % display frames per second
+%% Load kofiko data
 
-plexon_fname = fullfile(dirpath, [filenameP '.pl2']);
-% plexon ddpi sync signal
-[adfreq, n, ts, fn, sync_ad] = plx_ad_v(plexon_fname, 'AI01'); % ddpi sync
+tic;
+fprintf('Loading Kofiko trial data\n')
 
-[~, ~, ~, ~, lefPupil_plexon] = plx_ad_v(plexon_fname, 'AI03'); % L pupil
-[~, ~, ~, ~, rightPupil_plexon] = plx_ad_v(plexon_fname, 'AI04'); % R pupil
-[~, ~, ~, ~, rightEyeX_plexon] = plx_ad_v(plexon_fname, 'AI05'); % R X, used for tracking
-[~, ~, ~, ~, rightEyeY_plexon] = plx_ad_v(plexon_fname, 'AI06'); % R Y used for tracking
-[~, ~, ~, ~,leftEyeX_plexon] = plx_ad_v(plexon_fname, 'AI07'); % L X
-[ET_adfreq, ET_n, ET_ts, ET_fn, leftEyeY_plexon] = plx_ad_v(plexon_fname, 'AI08'); % L Y
-
-t_plexon = 0:(1/adfreq):(length(sync_ad)-1)/adfreq;
-%% load kofiko data
-
-% find the mat files produced by Kofiko
+% Find the mat files produced by Kofiko
 
 kofiko_dir = dir(fullfile(dirpath, '**', [filenameP '*.mat']));
 kofiko_fname_re = [filenameP '(_\d*)?.mat'];
 valid_kofiko_fname_idx = cellfun(@(x) ~isempty(x), ...
     cellfun(@(x) regexp(x, kofiko_fname_re), {kofiko_dir(:).name}, 'UniformOutput',false));
-
 kofiko_folder = {kofiko_dir(valid_kofiko_fname_idx).folder};
 kofiko_fname = {kofiko_dir(valid_kofiko_fname_idx).name};
-%sort
 
+% Get the Kofiko mat file numbers from their names
 kofiko_file_numStr = cellfun(@(x) regexp(x, '\d*(?=(.mat))', 'match'),...
     kofiko_fname, 'UniformOutput',false);
 kofiko_file_numStr{cellfun(@isempty, kofiko_file_numStr)} = {'nan'};
 kofiko_file_num = cellfun(@(x) str2num(x{:}), kofiko_file_numStr);
 kofiko_file_num(isnan(kofiko_file_num)) = max(kofiko_file_num)+1;
 
-% load the g_strctLocalExperimentRecording structs which contain
+% Load the g_strctLocalExperimentRecording structs which contain
 % information about each trials
 g_strctLocalExperimentRecording = [];
 for i = 1:length(kofiko_file_num)
     idx = kofiko_file_num(i);
-
     temp_full_fname = fullfile(kofiko_folder{i}, kofiko_fname{i});
     temp_strct = load(temp_full_fname, 'g_strctLocalExperimentRecording');
     temp_cell = temp_strct.g_strctLocalExperimentRecording;
     g_strctLocalExperimentRecording{idx} = temp_cell;
 end
 
-% load the file which should be the "main" Kofiko mat file (no number at
+% Load the file which should be the "main" Kofiko mat file (no number at
 % the end)
 
-load(fullfile(kofiko_folder{1}, kofiko_fname{1}), 'g_strctDAQParams', ...
+mainKofikoFolderIdx = strcmpi(kofiko_fname, [filenameP '.mat']);
+load(fullfile(kofiko_folder{mainKofikoFolderIdx}, kofiko_fname{mainKofikoFolderIdx}), 'g_strctDAQParams', ...
     'g_astrctAllParadigms', 'g_strctLog', 'g_strctEyeCalib', ...
     'g_strctAppConfig', 'g_strctSharedParadigmData', ...
     'g_strctStimulusServer', 'g_strctSystemCodes');
 
-
-% concatenate the g_strctLocalExperimentRecorindg structs and remove empty
+% Concatenate the g_strctLocalExperimentRecorindg structs and remove empty
 % cells
-g_strctLocalExperimentRecording = vertcat(g_strctLocalExperimentRecording{:});
-g_strctLocalExperimentRecording(cellfun(@isempty, g_strctLocalExperimentRecording)) = [];
+trialData = vertcat(g_strctLocalExperimentRecording{:});
+trialData(cellfun(@isempty, trialData)) = [];
 
-% unify field names across g_strctLocalExperimentRecording
+% Unify field names across g_strctLocalExperimentRecording to facilitate
+% using cellfun
 
-fieldNames = cellfun(@(x) fieldnames(x), g_strctLocalExperimentRecording, 'UniformOutput', false);
+fieldNames = cellfun(@(x) fieldnames(x), trialData, 'UniformOutput', false);
 uniqueFieldNames = unique(vertcat(fieldNames{:}));
 missingFieldNames = cellfun(@(x) setdiff(uniqueFieldNames, fieldnames(x)),...
-    g_strctLocalExperimentRecording, 'UniformOutput',false);
+    trialData, 'UniformOutput',false);
 
-for i = 1:numel(g_strctLocalExperimentRecording)
+for i = 1:numel(trialData)
     for  j = 1:numel(missingFieldNames{i})
-        g_strctLocalExperimentRecording{i}.(missingFieldNames{i}{j}) = [];
+        trialData{i}.(missingFieldNames{i}{j}) = [];
     end
 end
 
+toc;
 
 %% Time alignment
 
-% read kofiko strobes from plexon and kofiko files
+tic;
+fprintf('Loading Kofiko eye signals and converting to plexon time\n')
+
+% Read kofiko strobes from plexon and kofiko files
 [events.count, events.timeStamps, events.strobeNumber] = plx_event_ts(plexon_fname, 257);
 kofikoSyncStrobesTS = transpose(g_strctDAQParams.LastStrobe.TimeStamp(g_strctDAQParams.LastStrobe.Buffer == g_strctSystemCodes.m_iSync));
 plexonSyncStrobesTS = events.timeStamps(events.strobeNumber == g_strctSystemCodes.m_iSync);
 
-% linear regression to get kofiko time stamps into plexon time
-
+% Linear regression to get kofiko time stamps into plexon time
 B = [ones(size(kofikoSyncStrobesTS)) kofikoSyncStrobesTS]\plexonSyncStrobesTS;
-
 
 %% Kofiko eye data
 
-% get kofiko sync timestamps from control computer
-
-% in seconds
-t_kofiko_sync_control = g_strctDAQParams.LastStrobe.TimeStamp(...
-    g_strctDAQParams.LastStrobe.Buffer == g_strctSystemCodes.m_iSync);
-
-% in seconds
-t_kofiko_sync_plexon = events.timeStamps(events.strobeNumber==g_strctSystemCodes.m_iSync);
-
-b_control_plexon = [ones(size(t_kofiko_sync_control')) t_kofiko_sync_control']\t_kofiko_sync_plexon;
-
-% kofiko eye signal
+% Get the screen dimensions
 ScreenSizeX_pix = g_strctStimulusServer.m_aiScreenSize(3);
 ScreenSizeY_pix = g_strctStimulusServer.m_aiScreenSize(4);
 
-Kofiko_EyeRawX = g_strctEyeCalib.EyeRaw.Buffer(:,1);
-Kofiko_EyeRawY = g_strctEyeCalib.EyeRaw.Buffer(:,2);
+% Convert Kofiko eye signal timestamps to Plexon time
 Kofiko_ET_TS = g_strctEyeCalib.EyeRaw.TimeStamp';
 Kofiko_ET_TS_PlexonTime = [ones(size(Kofiko_ET_TS)) Kofiko_ET_TS]*B;
 
+% Get Kofiko raw eye signals
+Kofiko_EyeRawX = g_strctEyeCalib.EyeRaw.Buffer(:,1);
+Kofiko_EyeRawY = g_strctEyeCalib.EyeRaw.Buffer(:,2);
+% Get Kofiko eye signal gains
 Kofiko_GainX = g_strctEyeCalib.GainX.Buffer;
 Kofiko_GainY = g_strctEyeCalib.GainY.Buffer;
-
+% Get Kofiko eye signal gain timestamps
 Kofiko_GainX_TS = g_strctEyeCalib.GainX.TimeStamp;
 Kofiko_GainY_TS = g_strctEyeCalib.GainY.TimeStamp;
-
+% Get Kofiko eye signal offsets
 Kofiko_CenterX = g_strctEyeCalib.CenterX.Buffer;
 Kofiko_CenterY = g_strctEyeCalib.CenterY.Buffer;
+% Get Kofiko eye signal offset timestamps
 Kofiko_CenterX_TS = g_strctEyeCalib.CenterX.TimeStamp;
 Kofiko_CenterY_TS = g_strctEyeCalib.CenterY.TimeStamp;
+
+% Determine the Kofiko gains and offsets for each eye signal time stamp
 
 Kofiko_GainX_forEachTimeStamp = zeros(size(Kofiko_ET_TS));
 for i = 1:numel(Kofiko_GainX)
@@ -148,242 +156,135 @@ for i = 1:numel(Kofiko_CenterY)
     Kofiko_CenterY_forEachTimeStamp(idx) = Kofiko_CenterY(i);
 end
 
-% The way to convert raw eye signal to pixel coordinates is:
+% Convert raw eye signals to screen coordinates (pixels) by:
 % [RawSignal-SignalOffset]*Gain + ScreenCenter = FixationPoint
 % SignalOffset is CenterX or CenterY
 
 Kofiko_Xpix = Kofiko_GainX_forEachTimeStamp.*(Kofiko_EyeRawX - Kofiko_CenterX_forEachTimeStamp) + ScreenSizeX_pix/2;
 Kofiko_Ypix = Kofiko_GainY_forEachTimeStamp.*(Kofiko_EyeRawY - Kofiko_CenterY_forEachTimeStamp) + ScreenSizeY_pix/2;
 
-
-% we can compare the kofiko and plexon eye signals for alignment as well
-
-
-
-
+toc;
 %% trial analysis
+tic;
+fprintf('Extracting important trial variables\n')
 
-% order trials in g_strctLocalExperimentRecording
-tempImageFlipON_TS_Kofiko = cellfun(@(x) x.m_fImageFlipON_TS_Kofiko, g_strctLocalExperimentRecording);
+% Find unique trials by finding unique Flip ON timestamps
+tempImageFlipON_TS_Kofiko = cellfun(@(x) x.m_fImageFlipON_TS_Kofiko, trialData);
+tempImageFlipON_TS_Kofiko_unique = unique(tempImageFlipON_TS_Kofiko);
+[~, uniqueTrialIdx, ~] = intersect(tempImageFlipON_TS_Kofiko, tempImageFlipON_TS_Kofiko_unique);
+trialData= trialData(uniqueTrialIdx);
+
+% Order trials by flip ON
+tempImageFlipON_TS_Kofiko = cellfun(@(x) x.m_fImageFlipON_TS_Kofiko, trialData);
 [~, trial_idx_for_sorting] = sort(tempImageFlipON_TS_Kofiko , 'ascend');
+trialData = trialData(trial_idx_for_sorting);
 
-% trialData cell array
-trialData = g_strctLocalExperimentRecording(trial_idx_for_sorting);
+
+% Determine stimulus intervals
+StimulusON_MS = cellfun(@(x) x.m_fStimulusON_MS, trialData);
+ImageFlipON_TS_Kofiko = cellfun(@(x) x.m_fImageFlipON_TS_Kofiko, trialData);
+stimStartTimes = [ones(size(ImageFlipON_TS_Kofiko)), ImageFlipON_TS_Kofiko]*B; % plexon time
+stimStopTimes = stimStartTimes + StimulusON_MS./1e3; % Note that dropped frames are not accounted for!
+stimIntervals = [stimStartTimes stimStopTimes]';
+stimIntervals = stimIntervals(:);
+
+% Number of frames per trial
+numFrames = cellfun(@(x) x.numFrames, trialData);
+repFrames = cellfun(@(x) x.repframes, trialData, 'UniformOutput',false); %numFrames./(fps*StimulusON_MS*1e-3);
+repFrames(cellfun(@isempty, repFrames)) = {0};
+numFrames = numFrames./ [repFrames{:}]';
+numFrames(~isfinite(numFrames)) = 0;
+
+% Get trial numbers
 trialNum = cellfun(@(x) x.m_iTrialNumber, trialData);
+trialNumPerFrame = cellfun(@(x, y) repelem(x, y), num2cell(trialNum), num2cell(numFrames), 'UniformOutput', false);
+% Get trial IDs (insane that there are trial numbers and IDs....)
+
+TrialID = cellfun(@(x) x.TrialID, trialData, 'UniformOutput',false);
+TrialID(cellfun(@isempty, TrialID)) = {nan};
+TrialIDPerFrame = cellfun(@(x, y) repelem(x, y), TrialID, num2cell(numFrames), 'UniformOutput', false);
+
 
 % usebinary: 0 = high contrast cloud, 1 = binary cloud, 2 = contrast
 % matched cloud
 usebinary = cellfun(@(x) x.usebinary, trialData, 'UniformOutput',false);
-
-% cloud spatial scale
-spatialscale = cellfun(@(x) x.spatialscale, trialData, 'UniformOutput', false);
-
-% stimulus blocks
-BlockID = cellfun(@(x) x.BlockID, trialData, 'UniformOutput', false);
-
-% matrix of unique conditions defined by cloud parameters and block
-uniqueCloudConditions =  unique([[usebinary{:}]' [spatialscale{:}]' [BlockID{:}]'], 'rows');
-
 usebinary(cellfun(@isempty, usebinary)) = {nan};
+useBinaryPerFrame = cellfun(@(x, y) repelem(x, y), usebinary, num2cell(numFrames), 'UniformOutput', false);
+
+% Cloud spatial scale
+spatialscale = cellfun(@(x) x.spatialscale, trialData, 'UniformOutput', false);
 spatialscale(cellfun(@isempty, spatialscale)) = {nan};
+spatialScalePerFrame =  cellfun(@(x, y) repelem(x, y),spatialscale, num2cell(numFrames), 'UniformOutput', false);
+
+% Stimulus blocks
+BlockID = cellfun(@(x) x.BlockID, trialData, 'UniformOutput', false);
 BlockID(cellfun(@isempty, BlockID)) = {nan};
+BlockIDPerFrame =  cellfun(@(x, y) repelem(x, y), BlockID, num2cell(numFrames), 'UniformOutput', false);
 
+% Matrix of unique conditions defined by cloud parameters and block
+uniqueCloudConditions =  unique([[usebinary{:}]' [spatialscale{:}]' [BlockID{:}]'], 'rows');
+uniqueCloudConditions(any(isnan(uniqueCloudConditions),2),:) = [];
+
+% Get trial/stimulus types
 trialType = cellfun(@(x) x.m_strTrialType, trialData, 'UniformOutput',false);
+DualstimPrimaryuseRGBCloud=cellfun(@(x) x.DualstimPrimaryuseRGBCloud, trialData, 'UniformOutput',false);
 
-% determine stimulus intervals
-StimulusON_MS = cellfun(@(x) x.m_fStimulusON_MS, trialData);
-StimulusOFF_MS = cellfun(@(x) x.m_fStimulusOFF_MS, trialData);
-ImageFlipON_TS_Kofiko = cellfun(@(x) x.m_fImageFlipON_TS_Kofiko, trialData);
-stimStartTimes = [ones(size(ImageFlipON_TS_Kofiko)), ImageFlipON_TS_Kofiko]*B; % plexon time
-stimStopTimes = stimStartTimes + StimulusON_MS./1e3;
-stimIntervals = [stimStartTimes stimStopTimes]';
-stimIntervals = stimIntervals(:);
 
-% stim seq on each trial
+% Get stimulus area on each trial
+StimulusArea = cellfun(@(x) x.m_aiStimulusArea, trialData, 'UniformOutput', false);
+StimulusArea(cellfun(@isempty, StimulusArea)) = {nan};
+
+% Get stimulus sequence on each trial
 stimseq = cellfun(@(x) x.stimseq, trialData, 'UniformOutput',false);
-numFrames = cellfun(@(x) x.numFrames, trialData);
-fps = 60;
-repFrames = numFrames./(fps*StimulusON_MS*1e-3);
-repFrames(~isfinite(repFrames)) = 0;
-numFrames = numFrames./repFrames;
-numFrames(~isfinite(numFrames)) = 0;
 
-% get actual sequence accounting for repFrames
-stimseq= cellfun(@(x,y) x(1:y:end), stimseq, num2cell(repFrames), 'UniformOutput', false);
+% Get actual sequence accounting for repFrames
+stimseq= cellfun(@(x,y) x(1:y:end), stimseq, repFrames, 'UniformOutput', false);
 
+% Get fixation locations
+pt2iFixationSpot = cellfun(@(x) x.m_pt2iFixationSpot, trialData, 'UniformOutput',false);
+pt2iFixationSpot(cellfun(@isempty,pt2iFixationSpot)) = {[0 0]}; % just in case
+X_fixationSpot = cellfun(@(x) x(1), pt2iFixationSpot, 'UniformOutput',false);
+Y_fixationSpot = cellfun(@(x) x(2), pt2iFixationSpot, 'UniformOutput',false);
 
-% bin eye data by trial
-% each bin tells you which stim interval ts belongs to
-% only odd numbered bins, correspond to stim on, other bins are period
-% between stim offset and next trial
-
+% Get Kofiko determination of monkey fixation
+MonkeyFixated = cellfun(@(x) logical(x.m_bMonkeyFixated), trialData);
 
 % To get kofiko eye date for trial trialNum(t):
 % Kofiko_ET_TS_PlexonTime(Kofiko_ET_TS_PlexonTime_Bin == stimON_Kofiko_ET_TS_PlexonTime_Bin(t))
+
+toc;
+
+%% Bin eye signal timestamps by stimulus intervals (i.e., by trial)
 
 [~,~,Kofiko_ET_TS_PlexonTime_Bin] = histcounts(Kofiko_ET_TS_PlexonTime, stimIntervals); % wont really need this ever, I think
 uniqueKofiko_ET_TS_PlexonTime_Bin= unique(Kofiko_ET_TS_PlexonTime_Bin);
 %stimON_Kofiko_ET_TS_PlexonTime_Bin = uniqueKofiko_ET_TS_PlexonTime_Bin(1:2:end);
 
-% % get trial number for each time bin
-% trialNumPerKofiko_ET_TS_PlexonTime_Bin =
-
-
-%[~,~,bin_t_dpi_plexon] = histcounts(t_dpi_plexon, stim_intervals_plexon);
-%[~,~,bin_t_kofiko_plexon] = histcounts(t_kofiko_plexon, stim_intervals_plexon);
-
-% t_dpi_plexon
-% which bins correspond to which trials?
-% bin 0 should be times not within range of stim_intervals_plexon
-% bin 1 should be times within first stim interval. If it's empty, dpi
-% wasnt recording for this stim presentation.
-
-
+% I use accumarray to create cell array where even numbered cells give eye
+% signal timestamps for stimulus on periods (stimulus onset to offset),
+% and odd numbered (starting at 3) cells give eye signal timestamps between stimulus on
+% periods (stimulus offset to subsequent onset).The first cell corresponds
+% to invalid timestamps (i.e. outside of stimIntervals)
 Kofiko_ET_TS_PlexonTime_cellArray =accumarray(Kofiko_ET_TS_PlexonTime_Bin(:)+1, Kofiko_ET_TS_PlexonTime(:), [], @(x){x});
+
+% Do as above for eye signal X and Y coordinates:
 Kofiko_Xpix_cellArray = accumarray(Kofiko_ET_TS_PlexonTime_Bin(:)+1, Kofiko_Xpix(:), [], @(x){x});
 Kofiko_Ypix_cellArray = accumarray(Kofiko_ET_TS_PlexonTime_Bin(:)+1, Kofiko_Ypix(:), [], @(x){x});
 
-% Kofiko_Xpix_mean = cellfun(@mean, Kofiko_Xpix_cellArray(2:2:end));
-% Kofiko_Xpix_iqr = cellfun(@iqr, Kofiko_Xpix_cellArray(2:2:end));
-% Kofiko_Xpix_iqr(isnan(Kofiko_Xpix_iqr)) = Inf;
-%
-% Kofiko_Ypix_mean = cellfun(@mean, Kofiko_Ypix_cellArray(2:2:end));
-% Kofiko_Ypix_iqr = cellfun(@iqr, Kofiko_Ypix_cellArray(2:2:end));
-% Kofiko_Ypix_iqr(isnan(Kofiko_Ypix_iqr)) = Inf;
-%
-% goodFixationIdx = Kofiko_Xpix_iqr < 20 & Kofiko_Ypix_iqr < 20 & abs(Kofiko_Xpix_mean-ScreenSizeX_pix/2) < 30 & abs(Kofiko_Ypix_mean-ScreenSizeY_pix/2) < 30;
+%% Determine trials with good fixation
+fix_thresh = 0.6; 
 
-fix_thresh = 0.6;
-MonkeyFixated = cellfun(@(x) logical(x.m_bMonkeyFixated), trialData);
-goodFixationX = cellfun(@(x) sum(abs(x - ScreenSizeX_pix/2) < 45)./numel(x) > fix_thresh, Kofiko_Xpix_cellArray(2:2:end)) ;
-goodFixationY = cellfun(@(x) sum(abs(x - ScreenSizeY_pix/2) < 45)./numel(x) > fix_thresh, Kofiko_Ypix_cellArray(2:2:end)) ;
+goodFixationX = cellfun(@(x, x_fix) sum(abs(x - x_fix) < 45)./numel(x)...
+    > fix_thresh, Kofiko_Xpix_cellArray(2:2:end), X_fixationSpot) ;
+
+goodFixationY = cellfun(@(y, y_fix) sum(abs(y - y_fix) < 45)./numel(y) ...
+    > fix_thresh, Kofiko_Ypix_cellArray(2:2:end), Y_fixationSpot) ;
 
 goodFixationIdx = MonkeyFixated | (goodFixationX & goodFixationY);
 
-%% load in spike data
-
-load('/home/bizon/Data/V1_Fovea/Sprout/260205/preprocessingInfo.mat')
-
-% drop test chech
-pl2 = PL2ReadFileIndex(plexon_fname);
-numDigitsInLastSpkChan = ceil(log10(length(pl2.SpikeChannels)));
-
-numAIchans = sum(cellfun(@(x) contains(x.Name, 'AI'), pl2.AnalogChannels));
-numDigitsInLastAIchan = ceil(log10(numAIchans));
-disp('Drop test check starting')
-
-[fs, n, ts, fn, ~] = plx_ad_v(plexon_fname,...
-    ['SPKC' num2str(1, ['%0' num2str(numDigitsInLastSpkChan) '.f'])]);
-
-[fs_aux, n_aux, ts_aux, fn_aux, ~] = plx_ad_v(plexon_fname, ['AI' num2str(1, ['%0' num2str(numDigitsInLastAIchan), '.f'])] );
-
-spikeChannel1SignalDurSec = n/fs; % samples / (samples/sec)
-dpiSyncSignalDurSec = n_aux/fs_aux;
-
-droptestcheck = n_aux/fs_aux - n/fs;
-disp(['Plexon-Kofiko offset in seconds: ' num2str(droptestcheck)]) % this will tell us if the plexon time alignment issue is present
-
-if abs(droptestcheck)>0.1
-    warning("Danger - Plexon might have dropped frames! Check pl2 file.")
-    opts.spk_offset = droptestcheck;
-else
-    disp('Experiment kilosorted and ready for curation!')
-    opts.spk_offset = 0;
-end
-
-disp('Drop test check complete')
-% end drop test check %%%%
-
-ii = 1;
-for a = 1:numel(arrayLabels)
-    for c = 1:numel(curChannels{a})
-        if contains(arrayLabels{a}, 'lam')
-            ksFolders{ii} = fullfile(dirpath, filenameP, 'kilosorting_laminar');
-            ks_nChans(ii) = length(str2num(curChannels{a}{c}));
-            ks_arraylabels_rep{ii} = arrayLabels{a};
-        else
-            ksFolders{ii} = ['kilosorting_' arrayLabels{a} '_' num2str(min(str2num(curChannels{a}{c}))) 'to' num2str(max(str2num(curChannels{a}{c})))];
-            ksFolders{ii} = fullfile(dirpath, filenameP, ksFolders{ii});
-            ks_nChans(ii) = length(str2num(curChannels{a}{c}));
-            ks_arraylabels_rep{ii} = arrayLabels{a};
-            ii = ii + 1;
-        end
-    end
-end
-
-ks.filepath = ksFolders; % point this at array folders or the "stiched" folder if you want to sort data from multiple arrays
-%ks.filepath = [dirpath filenameP filesep 'kilosorting_stitched' filesep]; % point this at array folders or the "stiched" folder if you want to sort data from multiple arrays
-ks.arraylabels_rep = ks_arraylabels_rep;
-ks.ks_nChans = ks_nChans;
-
-for f = 1:numel(ks.filepath)
-    spk_times{f} = readNPY(fullfile(ks.filepath{f}, 'spike_times_seconds.npy')) + opts.spk_offset;
-    spk_clusters{f} = readNPY(fullfile(ks.filepath{f}, 'spike_clusters.npy')); % zero indexed
-    spk_info{f} = tdfread(fullfile(ks.filepath{f}, 'cluster_info.tsv'));
-end
-
-% get array label for each individual channel
-arrayLabelPerChan = repelem(ks.arraylabels_rep, ks.ks_nChans);
-arrayLabelPerCluster = repelem(ks.arraylabels_rep, cellfun(@numel, spk_clusters));
-plexonChanNum= 1:sum(ks.ks_nChans);
-ksChanNum = arrayfun(@(x) 0:x, ks.ks_nChans-1, 'UniformOutput', false);
-ksChanNum = horzcat(ksChanNum{:});
-
-ks_spk_clusters = vertcat(spk_clusters{:});
-% concatenate these cell arrays, carefully
-% each cluster must be unique, so add maximum cluster number of
-% previous cell
-max_cluster_nums = cellfun(@max, spk_clusters);
-max_cluster_nums_cumsum = cumsum(max_cluster_nums + 1);
-max_cluster_nums_cumsum = [0 max_cluster_nums_cumsum(1:end-1)];
-
-ks_chnOffset = [0 cumsum(ks.ks_nChans(1:end-1))];
-for f = 1:numel(ks.filepath)
-    spk_clusters{f} = spk_clusters{f} + max_cluster_nums_cumsum(f);
-    spk_info{f}.cluster_id = unique(spk_clusters{f});
-    spk_info{f}.ch = spk_info{f}.ch + ks_chnOffset(f);
-end
-
-spk_times = vertcat(spk_times{:});
-spk_clusters = vertcat(spk_clusters{:});
-
-% now concatenate fields of spk_info
-spk_info_temp = [spk_info{:}];
-spk_info_fields = fieldnames(spk_info_temp);
-spk_info_new = struct;
-
-for i = 1:numel(spk_info_fields)
-    spk_info_new.(spk_info_fields{i}) = vertcat(spk_info_temp.(spk_info_fields{i}));
-end
-
-spk_info = spk_info_new;
-
-spk_clustIDs = unique(spk_clusters);
-
-% get indices of good, mua, noise
-
-goodStr = 'good ';
-muaStr = 'mua  ';
-noiseStr = 'noise';
-blankStr = '     ';
-
-SU_IDs = spk_info.cluster_id(sum(spk_info.group == goodStr, 2) == numel(goodStr) & spk_info.n_spikes > 1000);
-MU_IDs = spk_info.cluster_id((sum(spk_info.group == muaStr, 2) == numel(muaStr) | sum(spk_info.group == blankStr, 2) == numel(blankStr))  & spk_info.n_spikes > 1000);
-
-SU_MU_IDs =[SU_IDs; MU_IDs];
-
-% bin spikes by trial
-[~,~,spk_times_Bin] = histcounts(spk_times, stimIntervals);
-spk_times_cellArray =accumarray(spk_times_Bin(:)+1, spk_times(:), [], @(x){x});
-
-% IMPORTANT: spk_times_Bin will work on spk_clusters as well!!!
-
-spk_clusters_cellArray = accumarray(spk_times_Bin(:)+1, spk_clusters(:), [], @(x){x});
-% for each unique cloud condition (binary, spatial scale, blockID) load the
-% clouds, and organize stimuli into array where each cell is a trial
-
-%% stimulus
-
+%% Bin stimulus sequences by trial
+tic;
+fprintf('Loading stimuli\n')
 stimulus_cellArray = cell(size(trialData,1),1);
 
 for i = 1:size(uniqueCloudConditions,1)
@@ -419,102 +320,206 @@ for i = 1:size(uniqueCloudConditions,1)
 
 end
 
-% to get back stimulus j of trial i into 60 x 60 x 3 form, do reshape(stimulus_cellArray{i}(:,j), [60 60 3]);
-
-% now, prepare bins to group spike times by frame
-
-stimFrameBins = cellfun(@(x, y, z) linspace(x,y,z+1), num2cell(stimStartTimes), num2cell(stimStopTimes), num2cell(numFrames), 'UniformOutput', false);
-
-spksPerFrame_cellArray =  cell(size(trialData,1),1);
-
-% element of each cell is the frame on which spike occured -- cluster to
-% which spike belongs given by spk_cluster_cellArray;
-
-valid_stimFrameBinIdx = cellfun(@(x) numel(x)>=2, stimFrameBins);
-
-[~,~,spkFrameIdx_cellArray(valid_stimFrameBinIdx)] = cellfun(@(x,y) histcounts(x, 'BinEdges', y), spk_times_cellArray(2*find(valid_stimFrameBinIdx)), stimFrameBins(valid_stimFrameBinIdx), 'UniformOutput',false);
-spkFrameIdx_cellArray = transpose(spkFrameIdx_cellArray);
-
-%nSpkPerFrame_cellArray(valid_stimFrameBinIdx) = cellfun(@(x,y) histcounts(x, 'BinEdges', y), spk_times_cellArray(2*find(valid_stimFrameBinIdx)), stimFrameBins(valid_stimFrameBinIdx), 'UniformOutput',false);
-
 % find dualstim elemetns
 
 dualStimIdx = strcmpi(trialType, 'Dual Stim');
-DualstimPrimaryuseRGBCloud=cellfun(@(x) x.DualstimPrimaryuseRGBCloud, trialData, 'UniformOutput',false);
-StimulusArea = cellfun(@(x) x.m_aiStimulusArea, trialData, 'UniformOutput', false);
-
-highContrastIdx = cellfun(@(x) x==0, usebinary);
-
 trlonset_diffs = [4; diff(stimStartTimes)];
+CCidx = cellfun(@(x) any(x==8), DualstimPrimaryuseRGBCloud);
+areaOverZeroIdx = cellfun(@(x) x>0, StimulusArea);
 
-trialsOfInterestIdx = dualStimIdx & goodFixationIdx & trlonset_diffs > 4 &...
-    cellfun(@(x) any(x>0), StimulusArea) & cellfun(@(x) any(x==8), DualstimPrimaryuseRGBCloud);
-% horizontally concatenate stimuli
+trialsOfInterestIdx = dualStimIdx & ...
+                      goodFixationIdx &...
+                      trlonset_diffs > 4 &...
+                      CCidx & ...
+                      areaOverZeroIdx;
 
 stimulus_matrix = horzcat(stimulus_cellArray{trialsOfInterestIdx});
 
+stimFrameBins = cellfun(@(x, y, z) linspace(x,y,z+1), num2cell(stimStartTimes), num2cell(stimStopTimes), num2cell(numFrames), 'UniformOutput', false);
+valid_stimFrameBinIdx = cellfun(@(x) numel(x)>=2, stimFrameBins);
+toc;
+%% load in spike data
+tic;
+fprintf('Loaidng spike data and computing Robs\n');
+% drop test check
+pl2 = PL2ReadFileIndex(plexon_fname);
+numDigitsInLastSpkChan = ceil(log10(length(pl2.SpikeChannels)));
 
-%stimulus_matrix = reshape(stimulus_matrix, 60, 60, 3, []);
+numAIchans = sum(cellfun(@(x) contains(x.Name, 'AI'), pl2.AnalogChannels));
+numDigitsInLastAIchan = ceil(log10(numAIchans));
+disp('Drop test check starting')
 
-% to get stas multiply simulus matrix by matrix of spike trains
+[fs, n, ts, fn, ~] = plx_ad_v(plexon_fname,...
+    ['SPKC' num2str(1, ['%0' num2str(numDigitsInLastSpkChan) '.f'])]);
 
-Robs = single(zeros(numel(SU_MU_IDs),  sum(numFrames(trialsOfInterestIdx))));
+[fs_aux, n_aux, ts_aux, fn_aux, ~] = plx_ad_v(plexon_fname, ['AI' num2str(1, ['%0' num2str(numDigitsInLastAIchan), '.f'])] );
 
-for i = 1: numel(SU_MU_IDs)
-    unitID = SU_MU_IDs(i);
+spikeChannel1SignalDurSec = n/fs; % samples / (samples/sec)
+dpiSyncSignalDurSec = n_aux/fs_aux;
 
-    % each cell is a trial, and contains frame indicies where spikes
-    % occurred (repeated frames == multiple spikes on that frame)
+droptestcheck = n_aux/fs_aux - n/fs;
+disp(['Plexon-Kofiko offset in seconds: ' num2str(droptestcheck)]) % this will tell us if the plexon time alignment issue is present
 
-    spksPerFrameThisUnit_cellArray = cellfun(@(x,y) x(y == unitID), spkFrameIdx_cellArray, spk_clusters_cellArray(2:2:end) ,'UniformOutput', false);
-
-    %compute spiks per bin (frame)
-
-    % computes spikes/bin (frame) on trials where its possible (at least 2
-    % frames)
-    spksPerFrame_cellArray(trialsOfInterestIdx) = cellfun(@(x,y) histcounts(x, 'BinEdges',0.5:(y+0.5)),...
-        spksPerFrameThisUnit_cellArray(trialsOfInterestIdx), num2cell(numFrames(trialsOfInterestIdx)) ,'UniformOutput',false);
-
-    Robs(i,:) = [spksPerFrame_cellArray{:}];
-
+if abs(droptestcheck)>0.1
+    warning("Danger - Plexon might have dropped frames! Check pl2 file.")
+    opts.spk_offset = droptestcheck;
+else
+    disp('Experiment kilosorted and ready for curation!')
+    opts.spk_offset = 0;
 end
 
+disp('Drop test check complete')
+% end drop test check %%%%
+%% cluster label strings
 
-disp('Calculating and plotting STAst')
-for i = 1:size(Robs,1)
-    r = transpose(Robs(i,:));
-    spkTimes = find(r);
-    nSpks = numel(spkTimes);
-    nLags = 10;
-    maxLag = nLags - 1;
+goodStr = 'good ';
+muaStr = 'mua  ';
+noiseStr = 'noise';
+blankStr = '     ';
+%% Load and organize spike data
 
-    tempSTA = zeros(size(stimulus_matrix,1), nLags, 'like', stimulus_matrix);
-    countsPerLag = zeros(1,nLags);
+% Find folders with kilosort output
+spike_times_seconds_dir = dir(fullfile(ks_path, '**/spike_times_seconds.npy'));
+spike_clusters_dir = dir(fullfile(ks_path, '**/spike_clusters.npy'));
+cluster_info_dir = dir(fullfile(ks_path, '**/cluster_info.tsv'));
 
-    for j = 1:nSpks
-        t = spkTimes(j);
-        if t <= maxLag
-            continue;
+spike_times_seconds_folders = {spike_times_seconds_dir(:).folder};
+spike_clusters_folders = {spike_clusters_dir(:).folder};
+cluster_info_folders = {cluster_info_dir(:).folder};
+
+% For each folder with kilosort outputs
+for ks_batch = 1:length(spike_times_seconds_dir)
+
+    try
+         % Get label of kilosort batch (often corresponding to array name and range of channels processed)
+        [~,ks_folders{ks_batch},~] = fileparts(spike_times_seconds_folders{ks_batch});
+
+        % Read in kilosort outputs
+        spk_times = readNPY(fullfile(spike_times_seconds_folders{ks_batch}, 'spike_times_seconds.npy')) + opts.spk_offset;
+        spk_clusters = readNPY(fullfile(spike_times_seconds_folders{ks_batch}, 'spike_clusters.npy'));
+        spk_info = tdfread(fullfile(spike_times_seconds_folders{ks_batch}, 'cluster_info.tsv'));
+
+        % Find indices of units labeled "good", "mua", or ""
+        isGood = cellfun(@(x) strcmpi(deblank(x), 'good'), cellstr(spk_info.group));
+        isMua = cellfun(@(x) strcmpi(deblank(x), 'mua'), cellstr(spk_info.group));
+        isBlank = cellfun(@(x) isempty(deblank(x)), cellstr(spk_info.group));
+        minSpikes = 2000;
+        hasMinSpikes = spk_info.n_spikes > minSpikes;
+
+        SU_IDs{ks_batch} = spk_info.cluster_id(isGood & hasMinSpikes);
+        MU_IDs{ks_batch} = spk_info.cluster_id((isMua | isBlank) & hasMinSpikes);
+        allUnit_IDs{ks_batch} =[SU_IDs{ks_batch}; MU_IDs{ks_batch}];
+
+        % bin spikes by trial
+        [~,~,spk_times_bin{ks_batch}] = histcounts(spk_times, stimIntervals);
+
+        % each cell gives spike times for stim ON and stim OFF periods
+        spk_times_cellArray{ks_batch} =accumarray(spk_times_bin{ks_batch}(:)+1, spk_times(:), [], @(x){x});
+        clusterIDForEachSpk_cellArray{ks_batch} = accumarray(spk_times_bin{ks_batch}(:)+1, spk_clusters(:), [], @(x){x});
+
+        clusterIDForEachSpk_stimON_cellArray = clusterIDForEachSpk_cellArray{ks_batch}(2:2:end); 
+        spk_times_stimON_cellArray =  spk_times_cellArray{ks_batch}(2:2:end);
+
+        spksPerFrame_cellArray =  cell(size(trialData,1),1);
+
+        stimFrameNumForEachSpk_cellArray = cell(size(trialData,1),1);
+
+        [~,~,stimFrameNumForEachSpk_cellArray(valid_stimFrameBinIdx)] =...
+            cellfun(@(x,y) histcounts(x, 'BinEdges', y), ...
+            spk_times_stimON_cellArray(valid_stimFrameBinIdx),...
+            stimFrameBins(valid_stimFrameBinIdx), 'UniformOutput',false);
+        %spkFrameIdx_cellArray = transpose(spkFrameIdx_cellArray);
+
+        Robs{ks_batch} = single(zeros(numel(allUnit_IDs{ks_batch}),  sum(numFrames(trialsOfInterestIdx))));
+
+        for unit = 1: numel(allUnit_IDs{ks_batch})
+            unitID = allUnit_IDs{ks_batch}(unit);
+
+            % each cell is a trial, and contains frame indicies where spikes
+            % occurred (repeated frames == multiple spikes on that frame)
+
+
+            stimFrameNumForEachSpk_thisUnit_cellArray = cell(size(trialData,1),1);
+            stimFrameNumForEachSpk_thisUnit_cellArray(valid_stimFrameBinIdx) = ...
+                cellfun(@(x,y) x(y==unitID), ...
+                stimFrameNumForEachSpk_cellArray(valid_stimFrameBinIdx), ...
+                clusterIDForEachSpk_stimON_cellArray(valid_stimFrameBinIdx),...
+                'UniformOutput', false);
+
+  
+            spksPerFrame_cellArray(trialsOfInterestIdx) = cellfun(@(x,y) histcounts(x, 'BinEdges',0.5:(y+0.5)),...
+                stimFrameNumForEachSpk_thisUnit_cellArray(trialsOfInterestIdx), num2cell(numFrames(trialsOfInterestIdx)) ,'UniformOutput',false);
+
+            Robs{ks_batch}(unit,:) = [spksPerFrame_cellArray{:}];
+
         end
-        cols = (t - (0:maxLag));
-        tempSTA = single(tempSTA) + (single(stimulus_matrix(:,cols))./127)*r(t);
-        countsPerLag = countsPerLag + r(t);
+    catch ME
+        warning("Could not process %s", ks_folders{ks_batch})
+        disp(ME.message)
     end
-    countsPerLag(countsPerLag==0)=1;
-    tempSTA = bsxfun(@rdivide, single(tempSTA), single(countsPerLag));
 
-    STA(i,:,:) = tempSTA;
-    %STA(i,:,:,:,:) = reshape(tempSTA, 60,60,3, nLags);
-
-    % A = reshape(tempSTA(:,4), 60, 60, 3);
-    % A = circshift(A, [30 30]);
-    % figure, imagesc(A(:,:,1)); colormap gray
 end
 
-STA = reshape(STA, size(STA,1), 60, 60, 3, nLags);
+toc;
+
+%% Compute STAs
+tic;
+fprintf('Computing STAs\n');
+
+STA = cell(size(Robs));
+for ks_batch = 1:length(Robs)
+
+    for unit = 1:size(Robs{ks_batch},1)
+
+        r = transpose(Robs{ks_batch }(unit,:));
+        spkTimes = find(r);
+        nSpks = numel(spkTimes);
+        nLags = 10;
+        maxLag = nLags - 1;
+
+        tempSTA = zeros(size(stimulus_matrix,1), nLags, 'like', stimulus_matrix);
+        countsPerLag = zeros(1,nLags);
+
+        for spk = 1:nSpks
+            t = spkTimes(spk);
+            if t <= maxLag
+                continue;
+            end
+            cols = (t - (0:maxLag));
+            tempSTA = single(tempSTA) + (single(stimulus_matrix(:,cols))./127)*r(t);
+            countsPerLag = countsPerLag + r(t);
+        end
+        countsPerLag(countsPerLag==0)=1;
+        tempSTA = bsxfun(@rdivide, single(tempSTA), single(countsPerLag));
+
+        STA{ks_batch}(unit,:,:) = tempSTA;
 
 
-% for SU_MU_IDs(13);
-i =13;
-PhyClus = unqiue(ks_spk_clusters(spk_clusters == SU_MU_IDs(i)));
-PhyChan =  spk_info.ch(spk_info.cluster_id == SU_MU_IDs(i));
+    end
+
+    STA{ks_batch} = reshape(STA{ks_batch}, size(STA{ks_batch},1), 60, 60, 3, nLags);
+
+end
+toc;
+%% Plotting 
+
+for ks_batch = 1:length(STA)
+    for unit = 1:size(STA{ks_batch},1)
+        figure;
+
+        subplot(1,4,1); title('Lum lag 2')
+        imagesc(circshift(squeeze(STA{ks_batch}(unit,:,:,1,3)), [30 30])), colormap gray
+
+        subplot(1,4,2); title('Lum lag 3')
+        imagesc(circshift(squeeze(STA{ks_batch}(unit,:,:,1,4)), [30 30])), colormap gray
+
+        subplot(1,4,3); title('Lum lag 4')
+        imagesc(circshift(squeeze(STA{ks_batch}(unit,:,:,1,5)), [30 30])), colormap gray
+
+        subplot(1,4,4); title('Lum lag 5')
+        imagesc(circshift(squeeze(STA{ks_batch}(unit,:,:,1,6)), [30 30])), colormap gray
+
+
+        sgtitle(sprintf('%s, cluster ID: %i', replace(ks_folders{ks_batch}, '_', ' '), allUnit_IDs{ks_batch}(unit)))
+    end
+end

@@ -67,6 +67,8 @@ end
 
 % Pull necessary variables from meta-data
 exptname = metadata_struct.exptname;
+
+try
 arraylabel = metadata_struct.array_label;
 
 if numel(arraylabel) > 1
@@ -74,6 +76,10 @@ if numel(arraylabel) > 1
     arraylabel_filepart = [arraylabel_filepart{:}];
 else
     arraylabel_filepart = arraylabel{1};
+end
+catch
+    arraylabel = 'lam';
+    arraylabel_filepart = arraylabel;
 end
 
 useofflinesorting = metadata_struct.use_offline_sorting;
@@ -879,11 +885,14 @@ data.datafiltsMU = datafiltsMU;
 data.spike_ts = spk_times;
 data.spikeIDs = spk_IDs;
 
+try
 data.ks_spk_clusters = metadata_struct.ks_spk_clusters;
 data.arrayLabelPerChan = metadata_struct.arrayLabelPerChan;
 data.arrayLabelPerCluster = metadata_struct.arrayLabelPerCluster;
 data.plexonChanNum = metadata_struct.plexonChanNum;
 data.ksChanNum = metadata_struct.ksChanNum;
+catch
+end
 
 % Add hartley-specific or cloud-specific information 
 switch targ_stimtype
