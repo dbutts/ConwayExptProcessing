@@ -633,7 +633,7 @@ for nn = 1:size(exptdata_mod,1)
 	if isfield(exptdata_mod{end,1}, 'm_aiTiledStimulusRect')
 		stim_locs(nn, :, :) = exptdata_mod{nn, 1}.m_aiTiledStimulusRect;
 	else
-		stim_locs(nn, :, :) = exptdata_mod{nn, 1}.m_aiStimulusRect;
+		stimx_locs(nn, :, :) = exptdata_mod{nn, 1}.m_aiStimulusRect;
     end
     stim_area(nn) = exptdata_mod{nn, 1}.m_aiStimulusArea;
 end
