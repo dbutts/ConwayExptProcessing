@@ -584,7 +584,7 @@ for ks_batch = 1:num_ks_batch
 
         if isfile(fullfile(spike_times_folders{ks_batch}, 'cluster_info.tsv'))
             cluster_info = tdfread(fullfile(spike_times_folders{ks_batch}, 'cluster_info.tsv'));
-            cluster_id = cluster_info.cluster_id;
+            cluster_id = cluster_info.cluster_id + cluster_offset;
             group = cluster_info.group;
             n_spikes = cluster_info.n_spikes;
             chan_best = cluster_info.ch + double(chan_offset);
@@ -822,6 +822,8 @@ clusterIDs= cellfun(@(x) vertcat(x{2*find(isTrialOfInterest)}), clusterIDForEach
 clusterIDs = transpose(vertcat(clusterIDs{:}));
 clusterIDs = vertcat(clusterIDs);
 
+assert(numel(unique(clusterIDs)) == nSU + nMU);
+
 %spike_ts
 spike_ts = cellfun(@(x) vertcat(x{2*find(isTrialOfInterest)}), spk_times_cellArray, 'UniformOutput', false);
 spike_ts = transpose(vertcat(spike_ts{:}));
@@ -892,34 +894,17 @@ valid_data = use_inds_fix;
 spikeSortingBatch = vertcat(SU_ks_batch{:});
 spikeSortingBatchMU = vertcat(MU_ks_batch{:});
 
-
-
+cluster = vertcat(SU_clusterIDs{:});
+clusterMU = vertcat(MU_clusterIDs{:});
 
 %% reorganize cluster ids by array
 % make cell array identical to pks_times_cellArray where each element is ks
 % folder number
-ks_batchForEachSpk_trialsOfInterest =cellfun(@(x) vertcat(x{2*find(isTrialOfInterest)}), ks_batchForEachSpk_cellArray, 'UniformOutput', false);
-ks_batchForEachSpk_trialsOfInterest = transpose(vertcat(ks_batchForEachSpk_trialsOfInterest{:}));
-ks_batchForEachSpk_trialsOfInterest = vertcat(ks_batchForEachSpk_trialsOfInterest); % for each spike, what was the array subset it came from
 
-% find maximum cluster IDs for each batch, and make cluster IDs across
-% batches unique by adding the maximum number from the previous batch
+[clusterIDs_sorted,sortByClusterID] = sort(clusterIDs);
+spike_ts_sorted = spike_ts(sortByClusterID);
 
-clusterIDmax = accumarray(ks_batchForEachSpk_trialsOfInterest', clusterIDs',[num_ks_batch, 1] , @max, int32(0));
-clusterIDmax_cumsum = cumsum(clusterIDmax+1);
-newClusterIDs = clusterIDs;
-for ks_batch = 2:num_ks_batch
-    idx = ks_batchForEachSpk_trialsOfInterest == ks_batch;
-    newClusterIDs(idx) = clusterIDs(idx) + clusterIDmax_cumsum(ks_batch-1);
-end
-
-% each cluster now has a unique id --sort the new cluster ids and spike
-% times in same way
-
-[newClusterIDs_sorted, sortByNewClusterID] = sort(newClusterIDs);
-spike_ts_sorted = spike_ts(sortByNewClusterID);
-
-[~, ~, spikeIDs] = unique(newClusterIDs_sorted);
+spikeIDs = clusterIDs_sorted;
 
 %% add fields to data struct
 data.ETgains = ETgains;
@@ -948,7 +933,7 @@ data.fix_size = fix_size;
 data.pixel_size = pixel_size;
 data.sacc_inds = sacc_inds;
 data.spikeIDs = spikeIDs;
-data.spike_ts = spike_ts;
+data.spike_ts = spike_ts_sorted;
 data.stim = stim;
 data.stimET = stimET;
 data.stim_area = stim_area;
@@ -973,6 +958,9 @@ data.array_labels = array_labels;
 [C, IA, IC] = unique(array_labels);
 data.arrayPerSU = IC(data.spikeSortingBatch);
 data.arrayPerMU = IC(data.spikeSortingBatchMU);
+
+data.cluster = cluster;
+data.clusterMU = clusterMU;
 
 %% Compute STAs (optional)
 if compute_stas
