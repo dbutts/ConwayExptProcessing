@@ -965,7 +965,14 @@ data.valid_data = valid_data;
 data.spikeSortingBatch = spikeSortingBatch;
 data.spikeSortingBatchMU = spikeSortingBatchMU;
 
+data.ks_folders = ks_folders;
+data.chan_offsets = chan_offsets;
+data.cluster_offsets = cluster_offsets;
+data.array_labels = array_labels;
 
+[C, IA, IC] = unique(array_labels);
+data.arrayPerSU = IC(data.spikeSortingBatch);
+data.arrayPerMU = IC(data.spikeSortingBatchMU);
 
 %% Compute STAs (optional)
 if compute_stas
