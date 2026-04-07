@@ -1,9 +1,16 @@
 addpath(genpath('/home/bizon/Git/ConwayExptProcessing/Dependencies/'));
 addpath(genpath('/home/bizon/Processing'));
 
-dirpath = '~/Data/V1_Fovea/Sprout/260313';
+exptDate = '260313';
+exptTime = '163301';
+monkey_name = 'Sprout';
 
-filenameP = '260313_163301_Sprout';
+%dirpath = '~/Data/V1_Fovea/Sprout/260313';
+dirpath = fullfile('~', 'Data', 'V1_Fovea', monkey_name, exptDate);
+
+%filenameP = '260313_163301_Sprout';
+filenameP = [exptDate '_' exptTime '_' monkey_name];
+
 plexon_dir = dir(fullfile(dirpath, '**', [filenameP '.pl2']));
 plexon_fname = fullfile(plexon_dir(1).folder, plexon_dir(1).name);
 pl2 = PL2ReadFileIndex(plexon_fname);
@@ -215,7 +222,7 @@ trialData = trialData(trial_idx_for_sorting);
 
 % Determine stimulus intervals
 StimulusON_MS = cellfun(@(x) x.m_fStimulusON_MS, trialData);
-ImageFlipON_TS_Kofiko = cellfun(@(x) x.m_fImageFlipON_TS_Kofiko, close trialData);
+ImageFlipON_TS_Kofiko = cellfun(@(x) x.m_fImageFlipON_TS_Kofiko,trialData);
 stimStartTimes = [ones(size(ImageFlipON_TS_Kofiko)), ImageFlipON_TS_Kofiko]*B; % plexon time
 stimStopTimes = stimStartTimes + StimulusON_MS./1e3; % Note that dropped frames are not accounted for!
 stimIntervals = [stimStartTimes stimStopTimes]';
