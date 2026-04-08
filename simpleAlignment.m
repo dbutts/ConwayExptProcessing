@@ -3,6 +3,8 @@
 %% Set paths
 
 % Add ConwayExptProcessing Dependencies to path
+% whats needed from this are functions to read npy and tsv files
+
 addpath(genpath('/home/bizon/Git/ConwayExptProcessing/Dependencies/'));
 addpath(genpath('/home/bizon/Processing'));
 
@@ -14,27 +16,16 @@ addpath(genpath('/home/bizon/Processing'));
 % "ks_path" should contain:
 %   -Kilosort outputs (spike_times.npy, spike_clusters.npy, and
 %   cluster_info.tsv)
-
-dirpath = '~/Data/V1_Fovea/Jocamo/260403/';
-%dirpath = '/mnt/isilon/DATA/monkey_ephys/Jocamo/2025_Singleprobe/250529';
+% "stimpath" should contain:
+%   -Mat files with cloud stimuli
 
 dirpath = '/mnt/isilon/DATA/monkey_ephys/Jocamo/2022to23_ArrayExpts/';
-
-%ks_path = '/mnt/isilon/PROJECTS/V1_Fovea/processing/250529_152043_Jacomo/';
-%ks_path = '/home/bizon/Data/V1_Fovea/Jocamo/260403/260403_141736_Jacomo/kilosort_laminar_1to64';
 ks_path = '/home/bizon/Data/V1_Fovea/Jocamo/220715/220715_131937_Jacomo';
-
-
 stimpath = '/home/bizon/Processing/Cloudstims_calib_01_2022/'; % or 04_2024
-
-
 savepath = '/home/bizon/Data/V1_Fovea/Jocamo/220715/220715_131937_Jacomo/Analysis';
-
-
 
 % File prefix for Kofiko and plexon files
 monkey_name = 'Jocamo';
-
 filenameP = '220715_131937_Jacomo';
 plexon_dir = dir(fullfile(dirpath, '**', [filenameP '.pl2']));
 plexon_fname = fullfile(plexon_dir(1).folder, plexon_dir(1).name);
@@ -246,7 +237,7 @@ PlexET_ad_calib(:,8) = leftEyeY_plexon;
 
 % save(
 
-%% trial analysis
+%% Trial analysis
 tic;
 fprintf('Extracting important trial variables\n')
 
@@ -450,7 +441,7 @@ for i = 1:size(uniqueCloudConditions,1)
     end
 
     % reshape stimuli into matrix where each row is stimulus, each col is
-    % framez
+    % frame
 
     % make first dim frames
 
@@ -545,12 +536,9 @@ spike_times_dir = dir(fullfile(ks_path, '**/spike_times.npy'));
 spike_clusters_dir = dir(fullfile(ks_path, '**/spike_clusters.npy'));
 cluster_info_dir = dir(fullfile(ks_path, '**/cluster_info.tsv'));
 
-
 spike_times_folders = {spike_times_dir(:).folder};
 spike_clusters_folders = {spike_clusters_dir(:).folder};
 cluster_info_folders = {cluster_info_dir(:).folder};
-
-
 
 % For each folder with kilosort outputs
 num_ks_batch = length(spike_times_dir);
@@ -563,8 +551,6 @@ chan_offset = 0;
 cluster_offset = 0;
 
 chan_offsets{1} = chan_offset;
-
-
 
 for ks_batch = 1:num_ks_batch
     this_array_label = array_labels{ks_batch};
@@ -592,7 +578,6 @@ for ks_batch = 1:num_ks_batch
         else
             cluster_group = tdfread(fullfile(spike_times_folders{ks_batch}, 'cluster_group.tsv'));
             cluster_group.cluster_id = cluster_group.cluster_id + cluster_offset;
-
             
             % account for blank units which may not be in cluster_group
             blank_cluster_id = setdiff(unique(spk_clusters), cluster_group.cluster_id);
@@ -613,7 +598,6 @@ for ks_batch = 1:num_ks_batch
             chan_best = chan_map(I); % best channel for each unique cluster
 
         end
-
 
         % Find indices of units labeled "good", "mua", or ""
         isGood = cellfun(@(x) strcmpi(deblank(x), 'good'), cellstr(group));
@@ -898,15 +882,13 @@ cluster = vertcat(SU_clusterIDs{:});
 clusterMU = vertcat(MU_clusterIDs{:});
 
 %% reorganize cluster ids by array
-% make cell array identical to pks_times_cellArray where each element is ks
-% folder number
 
 [clusterIDs_sorted,sortByClusterID] = sort(clusterIDs);
 spike_ts_sorted = spike_ts(sortByClusterID);
 
 spikeIDs = clusterIDs_sorted;
 
-%% add fields to data struct
+%% Add fields to data struct
 data.ETgains = ETgains;
 data.ETstim_location = ETstim_location;
 data.ETtrace = ETtrace;
@@ -1019,7 +1001,7 @@ if compute_stas && plotting
     end
 end
 
-%% saving
+%% Saving
 if saving
 
     if ~isdir(savepath)
@@ -1031,7 +1013,6 @@ if saving
         case 1; curETstimtype='1D';
         case 7; curETstimtype='CC';
     end
-
 
     switch_stimtype = unique(vertcat(DualstimPrimaryuseRGBCloud{isTrialOfInterest}));
     switch switch_stimtype
@@ -1054,4 +1035,3 @@ if saving
     save(fullfile(savepath, FullExpt_ET_filename), 'PlexET_ad_calib', 'PlexET_times', '-v7.3'); % save FullExpt_ET
 
 end
-
