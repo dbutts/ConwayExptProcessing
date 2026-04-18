@@ -19,27 +19,30 @@ addpath(genpath('/home/bizon/Processing'));
 % "stimpath" should contain:
 %   -Mat files with cloud stimuli
 
-dirpath = '/mnt/isilon/DATA/monkey_ephys/Jocamo/2022to23_ArrayExpts/';
-ks_path = '/home/bizon/Data/V1_Fovea/Jocamo/220715/220715_131937_Jacomo';
-stimpath = '/home/bizon/Processing/Cloudstims_calib_01_2022/'; % or 04_2024
-savepath = '/home/bizon/Data/V1_Fovea/Jocamo/220715/220715_131937_Jacomo/Analysis';
+dirpath = '/mnt/isilon/DATA/monkey_ephys/Jocamo/2025_Singleprobe/250529/'; %/mnt/isilon/DATA/monkey_ephys/Jocamo/2022to23_ArrayExpts/';
+ks_path = '/mnt/isilon/PROJECTS/V1_Fovea/processing/250529_152043_Jacomo/kilosorting_laminar';%'/home/bizon/Data/V1_Fovea/Jocamo/220715/220715_131937_Jacomo';
+stimpath = '/home/bizon/Processing/Cloudstims_calib_04_2024'; % or 01_2022
+savepath = []; %'/home/bizon/Data/V1_Fovea/Jocamo/220715/220715_131937_Jacomo/Analysis';
+
+% save time with these assertions
+assert(isdir(dirpath) & isdir(ks_path) & isdir(stimpath), 'Check that dirpath, ks_path, and stimpath exist!');
 
 % File prefix for Kofiko and plexon files
 monkey_name = 'Jocamo';
-filenameP = '220715_131937_Jacomo';
+filenameP = '250529_152043_Jacomo';%'220715_131937_Jacomo';
 plexon_dir = dir(fullfile(dirpath, '**', [filenameP '.pl2']));
 plexon_fname = fullfile(plexon_dir(1).folder, plexon_dir(1).name);
 pl2 = PL2ReadFileIndex(plexon_fname);
 %% flags
-saving = 1;
-compute_stas = 0;
-plotting = 0;
+saving = 0;
+compute_stas = 1;
+plotting = 1;
 %% Hardcoded values
 plexonAnalogScale = 1e-3;
 LumScale = 0.1085;
 minFixationDuration = 0.6;
 maxFixationErrorPix = 45;
-minSpikes = 5000;
+minSpikes = 2000;
 targ_ETstimtype = 0;
 %% Load kofiko data
 
@@ -449,7 +452,7 @@ for i = 1:size(uniqueCloudConditions,1)
     stimulus_cellArray(trialIdx) = cellfun(@(x) reshape(x, [size(x,1), prod(size(x,2:4))]),stimulus_cellArray(trialIdx), 'UniformOutput', false);
     stimulus_cellArray(trialIdx) = cellfun(@transpose, stimulus_cellArray(trialIdx), 'UniformOutput', false);
 end
-
+Ar
 % find dualstim elemetns
 
 trialTypeOfInterestIdx = strcmpi(trialType, 'Dual Stim');
@@ -542,6 +545,7 @@ cluster_info_folders = {cluster_info_dir(:).folder};
 
 % For each folder with kilosort outputs
 num_ks_batch = length(spike_times_dir);
+assert(~isempty(spike_times_dir));
 
 [~, ks_folders, ~] =  cellfun(@fileparts, spike_times_folders, 'UniformOutput', false);
 tokens = regexp(ks_folders, '^[^_]+_([^_]+)', 'tokens');
@@ -578,7 +582,7 @@ for ks_batch = 1:num_ks_batch
         else
             cluster_group = tdfread(fullfile(spike_times_folders{ks_batch}, 'cluster_group.tsv'));
             cluster_group.cluster_id = cluster_group.cluster_id + cluster_offset;
-            
+
             % account for blank units which may not be in cluster_group
             blank_cluster_id = setdiff(unique(spk_clusters), cluster_group.cluster_id);
             temp_cluster_id = [cluster_group.cluster_id; blank_cluster_id];
@@ -590,10 +594,13 @@ for ks_batch = 1:num_ks_batch
             group = temp_group_sorted;
 
             % find best channel of each cluster
-            
+
             templates = readNPY(fullfile(spike_times_folders{ks_batch}, 'templates.npy'));
-            n_spikes = accumarray(spk_clusters+1, spk_clusters, [], @numel);
-            n_spikes = n_spikes(n_spikes>0);
+            % n_spikes = accumarray(spk_clusters+1, spk_clusters, [], @numel);
+            % n_spikes = n_spikes(n_spikes>0);
+
+            n_spikes = accumarray(spk_clusters+1, 1, [], @sum);
+            n_spikes = n_spikes(cluster_id + 1);
             [~,I]= max(sum(templates.^2,2),[],3);
             chan_best = chan_map(I); % best channel for each unique cluster
 
@@ -809,9 +816,23 @@ clusterIDs = vertcat(clusterIDs);
 assert(numel(unique(clusterIDs)) == nSU + nMU);
 
 %spike_ts
-spike_ts = cellfun(@(x) vertcat(x{2*find(isTrialOfInterest)}), spk_times_cellArray, 'UniformOutput', false);
-spike_ts = transpose(vertcat(spike_ts{:}));
-spike_ts = vertcat(spike_ts);
+spike_ts_raw = cellfun(@(x) vertcat(x{2*find(isTrialOfInterest)}), spk_times_cellArray, 'UniformOutput', false);
+spike_ts_raw = transpose(vertcat(spike_ts_raw{:}));
+spike_ts_raw = vertcat(spike_ts_raw);
+
+% this will get you spike times relative to trial start, ie in range 0 to
+% 4:
+
+trlsecs = unique(StimulusON_MS(isTrialOfInterest))./1000;
+[~,~, spk_times_all_bin] = histcounts(spike_ts_raw, stimIntervals);
+spk_times_all_bin = spk_times_all_bin((ismember(spk_times_all_bin, 2*find(isTrialOfInterest)-1)));
+spk_times_all_idx =(spk_times_all_bin+1)/2;
+spike_ts = spike_ts_raw - transpose(stimStartTimes(spk_times_all_idx));
+
+trialList = find(isTrialOfInterest);   % original trial indices
+[~, packedIdx] = ismember(spk_times_all_idx, trialList);
+
+spike_ts = spike_ts + (packedIdx - 1) * trlsecs;
 
 %stim
 stim  = reshape(stimulus_matrix, 60,60,3,[]);
@@ -978,7 +999,9 @@ if compute_stas
 else
 end
 %% Plotting
+temp = cluster_offsets;
 
+temp = horzcat({0}, cluster_offsets);
 lags = 2:5;
 if compute_stas && plotting
     fprintf('Now plotting\n')
@@ -993,8 +1016,8 @@ if compute_stas && plotting
                 end
             end
 
-            unitChanNum = allUnit_chanNums{ks_batch}(unit);
-            unitClusterID = allUnit_clusterIDs{ks_batch}(unit);
+            unitChanNum = allUnit_chanNums{ks_batch}(unit) - chan_offsets{ks_batch};
+            unitClusterID = allUnit_clusterIDs{ks_batch}(unit) - temp{ks_batch};
 
             sgtitle(sprintf('%s, channel: %i, clusterID: %i',  replace(ks_folders{ks_batch}, '_', ' '),unitChanNum, unitClusterID))
         end
