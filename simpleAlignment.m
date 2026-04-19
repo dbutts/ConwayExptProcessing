@@ -35,8 +35,8 @@ plexon_fname = fullfile(plexon_dir(1).folder, plexon_dir(1).name);
 pl2 = PL2ReadFileIndex(plexon_fname);
 %% flags
 saving = 0;
-compute_stas = 1;
-plotting = 1;
+compute_stas = 0;
+plotting = 10;
 %% Hardcoded values
 plexonAnalogScale = 1e-3;
 LumScale = 0.1085;
@@ -286,9 +286,18 @@ usebinary(cellfun(@isempty, usebinary)) = {nan};
 useBinaryPerFrame = cellfun(@(x, y) repelem(x, y), usebinary, num2cell(numFrames), 'UniformOutput', false);
 
 % Cloud spatial scale
-spatialscale = cellfun(@(x) x.spatialscale, trialData, 'UniformOutput', false);
-spatialscale(cellfun(@isempty, spatialscale)) = {nan};
-spatialScalePerFrame =  cellfun(@(x, y) repelem(x, y),spatialscale, num2cell(numFrames), 'UniformOutput', false);
+% spatialscale = cellfun(@(x) x.spatialscale, trialData, 'UniformOutput', false);
+% spatialscale(cellfun(@isempty, spatialscale)) = {nan};
+
+spatialscale_buffer = g_astrctAllParadigms{1}.DualstimScale.Buffer;
+spatialscale_TS = g_astrctAllParadigms{1}.DualstimScale.TimeStamp;
+spatialscale = nan(size(trialData));
+for i = 1:numel(spatialscale_buffer)
+    spatialscale(ImageFlipON_TS_Kofiko >= spatialscale_TS(i)) = spatialscale_buffer(i);
+end
+
+%spatialScalePerFrame =  cellfun(@(x, y) repelem(x, y),spatialscale, num2cell(numFrames), 'UniformOutput', false);
+spatialScalePerFrame = repelem(spatialscale, numFrames)  ;
 
 % Stimulus blocks
 BlockID = cellfun(@(x) x.BlockID, trialData, 'UniformOutput', false);
@@ -296,7 +305,7 @@ BlockID(cellfun(@isempty, BlockID)) = {nan};
 BlockIDPerFrame =  cellfun(@(x, y) repelem(x, y), BlockID, num2cell(numFrames), 'UniformOutput', false);
 
 % Matrix of unique conditions defined by cloud parameters and block
-uniqueCloudConditions =  unique([[usebinary{:}]' [spatialscale{:}]' [BlockID{:}]'], 'rows');
+uniqueCloudConditions =  unique([[usebinary{:}]' spatialscale [BlockID{:}]'], 'rows');
 uniqueCloudConditions(any(isnan(uniqueCloudConditions),2),:) = [];
 
 % Get trial/stimulus types
@@ -427,7 +436,7 @@ for i = 1:size(uniqueCloudConditions,1)
     thisSpatialscale = uniqueCloudConditions(i,2);
     thisBlockID = uniqueCloudConditions(i,3);
 
-    trialIdx = [usebinary{:}]' == thisUsebinary & [spatialscale{:}]' == thisSpatialscale & [BlockID{:}]' == thisBlockID;
+    trialIdx = [usebinary{:}]' == thisUsebinary & spatialscale== thisSpatialscale & [BlockID{:}]' == thisBlockID;
     if thisUsebinary == 0 % full contrast
         load(fullfile(stimpath, sprintf('Cloudstims_Chrom_size60_scale%d_%02d.mat', thisSpatialscale, thisBlockID)));
         DensenoiseChromcloud_DKlspace=int8(127*(DensenoiseChromcloud_DKlspace));
@@ -452,7 +461,7 @@ for i = 1:size(uniqueCloudConditions,1)
     stimulus_cellArray(trialIdx) = cellfun(@(x) reshape(x, [size(x,1), prod(size(x,2:4))]),stimulus_cellArray(trialIdx), 'UniformOutput', false);
     stimulus_cellArray(trialIdx) = cellfun(@transpose, stimulus_cellArray(trialIdx), 'UniformOutput', false);
 end
-Ar
+
 % find dualstim elemetns
 
 trialTypeOfInterestIdx = strcmpi(trialType, 'Dual Stim');
@@ -709,11 +718,11 @@ for ks_batch = 1:num_ks_batch
         else
             chan_offset = 0; % new array, reset offset to 0
         end
-        chan_offsets{ks_batch+1} = chan_offset;
+        chan_offsets(ks_batch+1) = chan_offset;
     end
     % update cluster offset, and keep track of them
     cluster_offset = max(cluster_id)+1;
-    cluster_offsets{ks_batch} = cluster_offset;
+    cluster_offsets(ks_batch+1) = cluster_offset;
 
 end
 
@@ -776,7 +785,7 @@ cloud_area = [StimulusAreaPerFrame{isTrialOfInterest}];
 cloud_binary = [useBinaryPerFrame{isTrialOfInterest}];
 
 %cloud_scale
-cloud_scale = [spatialScalePerFrame{isTrialOfInterest}];
+cloud_scale = spatialScalePerFrame(isTrialOfInterest);
 
 %datafilts
 
@@ -823,16 +832,38 @@ spike_ts_raw = vertcat(spike_ts_raw);
 % this will get you spike times relative to trial start, ie in range 0 to
 % 4:
 
-trlsecs = unique(StimulusON_MS(isTrialOfInterest))./1000;
-[~,~, spk_times_all_bin] = histcounts(spike_ts_raw, stimIntervals);
-spk_times_all_bin = spk_times_all_bin((ismember(spk_times_all_bin, 2*find(isTrialOfInterest)-1)));
-spk_times_all_idx =(spk_times_all_bin+1)/2;
-spike_ts = spike_ts_raw - transpose(stimStartTimes(spk_times_all_idx));
+ trlsecs = unique(StimulusON_MS(isTrialOfInterest))./1000;
+% [~,~, spk_times_all_bin] = histcounts(spike_ts_raw, stimIntervals);
+% spk_times_all_bin = spk_times_all_bin((ismember(spk_times_all_bin, 2*find(isTrialOfInterest)-1)));
+% spk_times_all_idx =(spk_times_all_bin+1)/2;
+% spike_ts = spike_ts_raw - transpose(stimStartTimes(spk_times_all_idx));
+% 
+% trialList = find(isTrialOfInterest);   % original trial indices
+% [~, packedIdx] = ismember(spk_times_all_idx, trialList);
+% 
+% spike_ts = spike_ts + (packedIdx - 1) * trlsecs;
 
-trialList = find(isTrialOfInterest);   % original trial indices
-[~, packedIdx] = ismember(spk_times_all_idx, trialList);
+%
+trialStart = stimStartTimes(isTrialOfInterest);
+trialStop  = stimStopTimes(isTrialOfInterest);
+spike_ts_raw = spike_ts_raw(:);
+trialStart   = trialStart(:);
+trialStop    = trialStop(:);
 
-spike_ts = spike_ts + (packedIdx - 1) * trlsecs;
+trialIdx = discretize(spike_ts_raw, [trialStart; inf]);
+
+valid = ~isnan(trialIdx) & trialIdx >= 1 & trialIdx <= numel(trialStart);
+
+valid2 = false(size(valid));
+valid2(valid) = spike_ts_raw(valid) >= trialStart(trialIdx(valid)) & ...
+                spike_ts_raw(valid) <= trialStop(trialIdx(valid));
+
+valid = valid & valid2;
+
+spike_ts_raw = spike_ts_raw(valid);
+trialIdx     = trialIdx(valid);
+spike_ts     = spike_ts_raw - trialStart(trialIdx) + (trialIdx - 1) * trlsecs;
+%
 
 %stim
 stim  = reshape(stimulus_matrix, 60,60,3,[]);
@@ -902,12 +933,17 @@ spikeSortingBatchMU = vertcat(MU_ks_batch{:});
 cluster = vertcat(SU_clusterIDs{:});
 clusterMU = vertcat(MU_clusterIDs{:});
 
-%% reorganize cluster ids by array
+%% remap cluster ids from 1 to number of 
+% 
+% [clusterIDs_sorted,sortByClusterID] = sort(clusterIDs);
+% spike_ts_sorted = spike_ts(sortByClusterID);
+% 
+% spikeIDs = clusterIDs_sorted;
 
-[clusterIDs_sorted,sortByClusterID] = sort(clusterIDs);
-spike_ts_sorted = spike_ts(sortByClusterID);
-
-spikeIDs = clusterIDs_sorted;
+uniqueClusterIDs = vertcat(allUnit_clusterIDs{:});
+spikeIDs_unsorted = accumarray(transpose(1:numel(clusterIDs)), clusterIDs', [], @(x) find(uniqueClusterIDs==x));
+[spikeIDs, sortBySpikeID] = sort(spikeIDs_unsorted);
+spike_ts_sorted = spike_ts(sortBySpikeID);
 
 %% Add fields to data struct
 data.ETgains = ETgains;
@@ -965,6 +1001,7 @@ data.arrayPerMU = IC(data.spikeSortingBatchMU);
 data.cluster = cluster;
 data.clusterMU = clusterMU;
 
+
 %% Compute STAs (optional)
 if compute_stas
     tic;
@@ -999,9 +1036,7 @@ if compute_stas
 else
 end
 %% Plotting
-temp = cluster_offsets;
 
-temp = horzcat({0}, cluster_offsets);
 lags = 2:5;
 if compute_stas && plotting
     fprintf('Now plotting\n')
@@ -1016,8 +1051,8 @@ if compute_stas && plotting
                 end
             end
 
-            unitChanNum = allUnit_chanNums{ks_batch}(unit) - chan_offsets{ks_batch};
-            unitClusterID = allUnit_clusterIDs{ks_batch}(unit) - temp{ks_batch};
+            unitChanNum = allUnit_chanNums{ks_batch}(unit) - chan_offsets(ks_batch);
+            unitClusterID = allUnit_clusterIDs{ks_batch}(unit) - cluster_offsets(ks_batch);
 
             sgtitle(sprintf('%s, channel: %i, clusterID: %i',  replace(ks_folders{ks_batch}, '_', ' '),unitChanNum, unitClusterID))
         end

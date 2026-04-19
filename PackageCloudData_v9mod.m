@@ -916,11 +916,12 @@ end
 
 % SAVE
 disp('Saving...') 
-save( fullfile(output_path, cur_filename), '-struct', 'data', '-v7.3')
+%save( fullfile(output_path, cur_filename), '-struct', 'data', '-v7.3')
 
 disp('Done saving output for modeling.') 
 
 %% SAVE LFPs
+skipLFP = 1;
 if ~skipLFP
 	disp('Saving LFPs...') 
 	switch targ_stimtype

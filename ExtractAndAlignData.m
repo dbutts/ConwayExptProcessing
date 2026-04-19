@@ -217,9 +217,9 @@ if useofflinesorting==1
     spk_labels_SU = find(cellfun(@(x) strcmp(deblank(x), 'good'), cellstr(spk_info.group)));
     spk_labels_MU = find(cellfun(@(x) strcmp(deblank(x), 'mua') | isempty(deblank(x)), cellstr(spk_info.group)));
 
-    bad_chans_SU = find(spk_info.n_spikes(spk_labels_SU)<1000);
+    bad_chans_SU = find(spk_info.n_spikes(spk_labels_SU)<2000);
     spk_labels_SU(bad_chans_SU)=[];
-    bad_chans_MU = find(spk_info.n_spikes(spk_labels_MU)<1000); 
+    bad_chans_MU = find(spk_info.n_spikes(spk_labels_MU)<2000); 
     spk_labels_MU(bad_chans_MU)=[];
     spk_ID_SU = spk_clustIDs(spk_labels_SU);
     spk_channels_SU = spk_info.ch(spk_labels_SU);
