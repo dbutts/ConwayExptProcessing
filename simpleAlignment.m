@@ -19,17 +19,17 @@ addpath(genpath('/home/bizon/Processing'));
 % "stimpath" should contain:
 %   -Mat files with cloud stimuli
 
-dirpath = '/mnt/isilon/DATA/monkey_ephys/Jocamo/2025_Singleprobe/250529/'; %/mnt/isilon/DATA/monkey_ephys/Jocamo/2022to23_ArrayExpts/';
-ks_path = '/mnt/isilon/PROJECTS/V1_Fovea/processing/250529_152043_Jacomo/kilosorting_laminar';%'/home/bizon/Data/V1_Fovea/Jocamo/220715/220715_131937_Jacomo';
-stimpath = '/home/bizon/Processing/Cloudstims_calib_04_2024'; % or 01_2022
-savepath = []; %'/home/bizon/Data/V1_Fovea/Jocamo/220715/220715_131937_Jacomo/Analysis';
+dirpath =  '/mnt/isilon/DATA/monkey_ephys/Jocamo/2022to23_ArrayExpts/';
+ks_path = '/home/bizon/Data/V1_Fovea/Jocamo/220715/220715_131937_Jacomo';
+stimpath = '/home/bizon/Processing/Cloudstims_calib_01_2022'; % or 01_2022
+savepath = '/home/bizon/Data/V1_Fovea/Jocamo/220715/220715_131937_Jacomo/Analysis';
 
 % save time with these assertions
 assert(isdir(dirpath) & isdir(ks_path) & isdir(stimpath), 'Check that dirpath, ks_path, and stimpath exist!');
 
 % File prefix for Kofiko and plexon files
 monkey_name = 'Jocamo';
-filenameP = '250529_152043_Jacomo';%'220715_131937_Jacomo';
+filenameP = '220715_131937_Jacomo';
 plexon_dir = dir(fullfile(dirpath, '**', [filenameP '.pl2']));
 plexon_fname = fullfile(plexon_dir(1).folder, plexon_dir(1).name);
 pl2 = PL2ReadFileIndex(plexon_fname);
@@ -42,7 +42,7 @@ plexonAnalogScale = 1e-3;
 LumScale = 0.1085;
 minFixationDuration = 0.6;
 maxFixationErrorPix = 45;
-minSpikes = 2000;
+minSpikes = 5300;
 targ_ETstimtype = 0;
 %% Load kofiko data
 
@@ -229,6 +229,7 @@ leftEyeY_plexon_calib = plexonAnalogScale.*Kofiko_GainY_forEachPlexonSample.*lef
 
 % create PlexET_ad structure
 PlexET_times = t_plexon;
+PlexET_ad_calib = [];
 PlexET_ad_calib(:,1) = sync_ad;
 PlexET_ad_calib(:,2) = arc_ad;
 PlexET_ad_calib(:,3) = leftEyePupil_plexon;
@@ -563,10 +564,11 @@ unique_array_labels = unique(array_labels);
 chan_offset = 0;
 cluster_offset = 0;
 
-chan_offsets{1} = chan_offset;
+%chan_offsets(1) = chan_offset;
 
 for ks_batch = 1:num_ks_batch
     this_array_label = array_labels{ks_batch};
+    disp(ks_batch)
 
     try
         % Get label of kilosort batch (often corresponding to array name and range of channels processed)
@@ -603,23 +605,26 @@ for ks_batch = 1:num_ks_batch
             group = temp_group_sorted;
 
             % find best channel of each cluster
-
             templates = readNPY(fullfile(spike_times_folders{ks_batch}, 'templates.npy'));
             % n_spikes = accumarray(spk_clusters+1, spk_clusters, [], @numel);
             % n_spikes = n_spikes(n_spikes>0);
 
             n_spikes = accumarray(spk_clusters+1, 1, [], @sum);
             n_spikes = n_spikes(cluster_id + 1);
+            
             [~,I]= max(sum(templates.^2,2),[],3);
             chan_best = chan_map(I); % best channel for each unique cluster
 
         end
+        
 
         % Find indices of units labeled "good", "mua", or ""
         isGood = cellfun(@(x) strcmpi(deblank(x), 'good'), cellstr(group));
         isMua = cellfun(@(x) strcmpi(deblank(x), 'mua'), cellstr(group));
         isBlank = cellfun(@(x) isempty(deblank(x)), cellstr(group));
         hasMinSpikes = n_spikes > minSpikes;
+
+       
 
         % get cluster IDs
         SU_clusterIDs{ks_batch} = cluster_id(isGood & hasMinSpikes);
@@ -641,6 +646,8 @@ for ks_batch = 1:num_ks_batch
         %
         spk_times = spk_times(ismember(spk_clusters, allUnit_clusterIDs{ks_batch}));
         spk_clusters = spk_clusters(ismember(spk_clusters, allUnit_clusterIDs{ks_batch}));
+
+         n_spikes_cellArray{ks_batch} = n_spikes(hasMinSpikes);
 
         ks_batchForEachSpk= repelem(ks_batch, numel(spk_times))';
 
