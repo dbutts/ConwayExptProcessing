@@ -569,7 +569,6 @@ cluster_offset = 0;
 for ks_batch = 1:num_ks_batch
     this_array_label = array_labels{ks_batch};
     disp(ks_batch)
-
     try
         % Get label of kilosort batch (often corresponding to array name and range of channels processed)
 
@@ -589,7 +588,6 @@ for ks_batch = 1:num_ks_batch
             group = cluster_info.group;
             n_spikes = cluster_info.n_spikes;
             chan_best = cluster_info.ch + double(chan_offset);
-
         else
             cluster_group = tdfread(fullfile(spike_times_folders{ks_batch}, 'cluster_group.tsv'));
             cluster_group.cluster_id = cluster_group.cluster_id + cluster_offset;
@@ -614,10 +612,8 @@ for ks_batch = 1:num_ks_batch
             
             [~,I]= max(sum(templates.^2,2),[],3);
             chan_best = chan_map(I); % best channel for each unique cluster
-
         end
         
-
         % Find indices of units labeled "good", "mua", or ""
         isGood = cellfun(@(x) strcmpi(deblank(x), 'good'), cellstr(group));
         isMua = cellfun(@(x) strcmpi(deblank(x), 'mua'), cellstr(group));
@@ -999,6 +995,11 @@ data.spikeSortingBatchMU = spikeSortingBatchMU;
 data.ks_folders = ks_folders;
 data.chan_offsets = chan_offsets;
 data.cluster_offsets = cluster_offsets;
+
+% modify array_labels so its python readable
+array_labels = cellfun(@(num,lab) [num2str(num) lab], num2cell(1:num_ks_batch), array_labels, 'UniformOutput', false);
+array_labels = horzcat(array_labels{:});
+
 data.array_labels = array_labels;
 
 [C, IA, IC] = unique(array_labels);
@@ -1058,8 +1059,8 @@ if compute_stas && plotting
                 end
             end
 
-            unitChanNum = allUnit_chanNums{ks_batch}(unit) - chan_offsets(ks_batch);
-            unitClusterID = allUnit_clusterIDs{ks_batch}(unit) - cluster_offsets(ks_batch);
+            unitChanNum = allUnit_chanNums{ks_batch}(unit);% - chan_offsets(ks_batch);
+            unitClusterID = allUnit_clusterIDs{ks_batch}(unit);% - cluster_offsets(ks_batch);
 
             sgtitle(sprintf('%s, channel: %i, clusterID: %i',  replace(ks_folders{ks_batch}, '_', ' '),unitChanNum, unitClusterID))
         end
