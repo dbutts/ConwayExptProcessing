@@ -1,5 +1,3 @@
-
-
 %% Set paths
 
 % Add ConwayExptProcessing Dependencies to path
@@ -19,24 +17,24 @@ addpath(genpath('/home/bizon/Processing'));
 % "stimpath" should contain:
 %   -Mat files with cloud stimuli
 
-dirpath =  '/mnt/isilon/DATA/monkey_ephys/Jocamo/2022to23_ArrayExpts/';
-ks_path = '/home/bizon/Data/V1_Fovea/Jocamo/220715/220715_131937_Jacomo';
-stimpath = '/home/bizon/Processing/Cloudstims_calib_01_2022'; % or 01_2022
-savepath = '/home/bizon/Data/V1_Fovea/Jocamo/220715/220715_131937_Jacomo/Analysis';
+dirpath =  '/home/bizon/Data/V1_Fovea/Jocamo/250529';
+ks_path ='/home/bizon/Data/V1_Fovea/Jocamo/250529/250529_152043_Jacomo';%'/home/bizon/Data/V1_Fovea/Jocamo/220715/220715_131937_Jacomo';
+stimpath = '/home/bizon/Processing/Cloudstims_calib_04_2024'; % or 01_2022
+savepath = '/home/bizon/Data/V1_Fovea/Jocamo/250529/250529_152043_Jacomo/Analysis';%'/home/bizon/Data/V1_Fovea/Jocamo/220715/220715_131937_Jacomo/Analysis';
 
 % save time with these assertions
 assert(isdir(dirpath) & isdir(ks_path) & isdir(stimpath), 'Check that dirpath, ks_path, and stimpath exist!');
 
 % File prefix for Kofiko and plexon files
 monkey_name = 'Jocamo';
-filenameP = '220715_131937_Jacomo';
+filenameP = '250529_152043_Jacomo';%'220715_131937_Jacomo';
 plexon_dir = dir(fullfile(dirpath, '**', [filenameP '.pl2']));
 plexon_fname = fullfile(plexon_dir(1).folder, plexon_dir(1).name);
 pl2 = PL2ReadFileIndex(plexon_fname);
 %% flags
 saving = 0;
-compute_stas = 0;
-plotting = 10;
+compute_stas = 1;
+plotting = 0;
 %% Hardcoded values
 plexonAnalogScale = 1e-3;
 LumScale = 0.1085;
@@ -113,13 +111,23 @@ fprintf('Loading Kofiko eye signals and converting to plexon time\n')
 
 % Read kofiko strobes from plexon and kofiko files
 [events.count, events.timeStamps, events.strobeNumber] = plx_event_ts(plexon_fname, 257);
+
 kofikoSyncStrobesTS = transpose(g_strctDAQParams.LastStrobe.TimeStamp(g_strctDAQParams.LastStrobe.Buffer == g_strctSystemCodes.m_iSync));
 plexonSyncStrobesTS = events.timeStamps(events.strobeNumber == g_strctSystemCodes.m_iSync);
-
 % Linear regression to get kofiko time stamps into plexon time
 B = [ones(size(kofikoSyncStrobesTS)) kofikoSyncStrobesTS]\plexonSyncStrobesTS;
 
 %% Plexon eye data
+
+% sync_ch = 'AI01';
+% arc_ch = 'AI02';
+% leftEyePupil_ch = %'AI03';
+% rightEyePupil_ch = %'AI04';
+% rightEyeX_ch = 'AI04'; %'AI05';
+% rightEyeY_ch = %'AI06';
+% leftEyeX_ch ='AI03';%'AI07';
+% leftEyeY_ch =[]; %'AI08';
+
 
 [adfreq, n, ts, fn, sync_ad] = plx_ad_v(plexon_fname, 'AI01');
 [~, ~, ~, arc_ad] = plx_ad_v(plexon_fname, 'AI02');
@@ -620,8 +628,6 @@ for ks_batch = 1:num_ks_batch
         isBlank = cellfun(@(x) isempty(deblank(x)), cellstr(group));
         hasMinSpikes = n_spikes > minSpikes;
 
-       
-
         % get cluster IDs
         SU_clusterIDs{ks_batch} = cluster_id(isGood & hasMinSpikes);
         MU_clusterIDs{ks_batch} = cluster_id((isMua | isBlank) & hasMinSpikes);
@@ -721,11 +727,12 @@ for ks_batch = 1:num_ks_batch
         else
             chan_offset = 0; % new array, reset offset to 0
         end
-        chan_offsets(ks_batch+1) = chan_offset;
+     %   chan_offsets(ks_batch+1) = chan_offset;
     end
     % update cluster offset, and keep track of them
     cluster_offset = max(cluster_id)+1;
     cluster_offsets(ks_batch+1) = cluster_offset;
+    chan_offsets(ks_batch+1) = chan_offset;
 
 end
 
@@ -997,6 +1004,7 @@ data.chan_offsets = chan_offsets;
 data.cluster_offsets = cluster_offsets;
 
 % modify array_labels so its python readable
+unique_array_labels = unique(array_labels);
 array_labels = cellfun(@(num,lab) [num2str(num) lab], num2cell(1:num_ks_batch), array_labels, 'UniformOutput', false);
 array_labels = horzcat(array_labels{:});
 
@@ -1088,7 +1096,7 @@ if saving
         case 8; curstimstype='CC';
     end
 
-    unique_array_labels = unique(array_labels);
+    
     array_label_filepart = [cellfun(@(x) [x '_'], unique_array_labels(1:end-1), 'UniformOutput', false) unique_array_labels(end)];
     array_label_filepart = horzcat(array_label_filepart{:});
 
