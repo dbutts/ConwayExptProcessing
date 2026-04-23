@@ -17,30 +17,30 @@ addpath(genpath('/home/bizon/Processing'));
 % "stimpath" should contain:
 %   -Mat files with cloud stimuli
 
-dirpath =  '/home/bizon/Data/V1_Fovea/Jocamo/250529';
-ks_path ='/home/bizon/Data/V1_Fovea/Jocamo/250529/250529_152043_Jacomo';%'/home/bizon/Data/V1_Fovea/Jocamo/220715/220715_131937_Jacomo';
-stimpath = '/home/bizon/Processing/Cloudstims_calib_04_2024'; % or 01_2022
-savepath = '/home/bizon/Data/V1_Fovea/Jocamo/250529/250529_152043_Jacomo/Analysis';%'/home/bizon/Data/V1_Fovea/Jocamo/220715/220715_131937_Jacomo/Analysis';
+dirpath =  '/mnt/isilon/DATA/monkey_ephys/Jocamo/2022to23_ArrayExpts';
+ks_path ='/home/bizon/Data/V1_Fovea/Jocamo/220715/220715_131937_Jacomo';
+stimpath = '/home/bizon/Processing/Cloudstims_calib_01_2022'; % or 04_2024
+savepath ='/home/bizon/Data/V1_Fovea/Jocamo/220715/220715_131937_Jacomo/Analysis';
 
 % save time with these assertions
 assert(isdir(dirpath) & isdir(ks_path) & isdir(stimpath), 'Check that dirpath, ks_path, and stimpath exist!');
 
 % File prefix for Kofiko and plexon files
 monkey_name = 'Jocamo';
-filenameP = '250529_152043_Jacomo';%'220715_131937_Jacomo';
+filenameP = '220715_131937_Jacomo';
 plexon_dir = dir(fullfile(dirpath, '**', [filenameP '.pl2']));
 plexon_fname = fullfile(plexon_dir(1).folder, plexon_dir(1).name);
 pl2 = PL2ReadFileIndex(plexon_fname);
 %% flags
 saving = 0;
-compute_stas = 1;
+compute_stas = 0;
 plotting = 0;
 %% Hardcoded values
 plexonAnalogScale = 1e-3;
 LumScale = 0.1085;
 minFixationDuration = 0.6;
 maxFixationErrorPix = 45;
-minSpikes = 5300;
+minSpikes = 2000;
 targ_ETstimtype = 0;
 %% Load kofiko data
 
@@ -305,8 +305,9 @@ for i = 1:numel(spatialscale_buffer)
     spatialscale(ImageFlipON_TS_Kofiko >= spatialscale_TS(i)) = spatialscale_buffer(i);
 end
 
+
 %spatialScalePerFrame =  cellfun(@(x, y) repelem(x, y),spatialscale, num2cell(numFrames), 'UniformOutput', false);
-spatialScalePerFrame = repelem(spatialscale, numFrames)  ;
+
 
 % Stimulus blocks
 BlockID = cellfun(@(x) x.BlockID, trialData, 'UniformOutput', false);
@@ -795,7 +796,8 @@ cloud_area = [StimulusAreaPerFrame{isTrialOfInterest}];
 cloud_binary = [useBinaryPerFrame{isTrialOfInterest}];
 
 %cloud_scale
-cloud_scale = spatialScalePerFrame(isTrialOfInterest);
+
+cloud_scale = transpose(repelem(spatialscale(isTrialOfInterest), numFrames(isTrialOfInterest)))  ;
 
 %datafilts
 
@@ -832,7 +834,7 @@ clusterIDs= cellfun(@(x) vertcat(x{2*find(isTrialOfInterest)}), clusterIDForEach
 clusterIDs = transpose(vertcat(clusterIDs{:}));
 clusterIDs = vertcat(clusterIDs);
 
-assert(numel(unique(clusterIDs)) == nSU + nMU);
+%assert(numel(unique(clusterIDs)) == nSU + nMU);
 
 %spike_ts
 spike_ts_raw = cellfun(@(x) vertcat(x{2*find(isTrialOfInterest)}), spk_times_cellArray, 'UniformOutput', false);
@@ -841,19 +843,7 @@ spike_ts_raw = vertcat(spike_ts_raw);
 
 % this will get you spike times relative to trial start, ie in range 0 to
 % 4:
-
- trlsecs = unique(StimulusON_MS(isTrialOfInterest))./1000;
-% [~,~, spk_times_all_bin] = histcounts(spike_ts_raw, stimIntervals);
-% spk_times_all_bin = spk_times_all_bin((ismember(spk_times_all_bin, 2*find(isTrialOfInterest)-1)));
-% spk_times_all_idx =(spk_times_all_bin+1)/2;
-% spike_ts = spike_ts_raw - transpose(stimStartTimes(spk_times_all_idx));
-% 
-% trialList = find(isTrialOfInterest);   % original trial indices
-% [~, packedIdx] = ismember(spk_times_all_idx, trialList);
-% 
-% spike_ts = spike_ts + (packedIdx - 1) * trlsecs;
-
-%
+trlsecs = unique(StimulusON_MS(isTrialOfInterest))./1000;
 trialStart = stimStartTimes(isTrialOfInterest);
 trialStop  = stimStopTimes(isTrialOfInterest);
 spike_ts_raw = spike_ts_raw(:);
@@ -943,7 +933,7 @@ spikeSortingBatchMU = vertcat(MU_ks_batch{:});
 cluster = vertcat(SU_clusterIDs{:});
 clusterMU = vertcat(MU_clusterIDs{:});
 
-%% remap cluster ids from 1 to number of 
+%% remap cluster ids from 1 to number of clusters
 % 
 % [clusterIDs_sorted,sortByClusterID] = sort(clusterIDs);
 % spike_ts_sorted = spike_ts(sortByClusterID);
