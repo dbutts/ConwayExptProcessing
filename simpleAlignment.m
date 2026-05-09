@@ -17,17 +17,21 @@ addpath(genpath('/home/bizon/Processing'));
 % "stimpath" should contain:
 %   -Mat files with cloud stimuli
 
-dirpath =  '/mnt/isilon/DATA/monkey_ephys/Jocamo/2022to23_ArrayExpts';
-ks_path ='/home/bizon/Data/V1_Fovea/Jocamo/220715/220715_131937_Jacomo';
+dirpath = '/mnt/isilon/DATA/monkey_ephys/Jocamo/2022to23_ArrayExpts';
+ks_path ='/home/bizon/Data/V1_Fovea/Jocamo/220715/220715_131937_Jacomo/';
 stimpath = '/home/bizon/Processing/Cloudstims_calib_01_2022'; % or 04_2024
-savepath ='/home/bizon/Data/V1_Fovea/Jocamo/220715/220715_131937_Jacomo/Analysis';
+savepath = '' ;%'/home/bizon/Data/V1_Fovea/Sprout/260505/260505_150945_Sprout/Analysis';%' ;%'/mnt/isilon/users/greenemj/V1_Fovea/Jocamo/220715/Analysis';
 
+rig = 'C';
+
+
+%'/home/bizon/Data/V1_Fovea/Jocamo/250529_152043_Jacomo/Analysis';%
 % save time with these assertions
 assert(isdir(dirpath) & isdir(ks_path) & isdir(stimpath), 'Check that dirpath, ks_path, and stimpath exist!');
 
 % File prefix for Kofiko and plexon files
 monkey_name = 'Jocamo';
-filenameP = '220715_131937_Jacomo';
+filenameP = '220715_131937_Jacomo';%';
 plexon_dir = dir(fullfile(dirpath, '**', [filenameP '.pl2']));
 plexon_fname = fullfile(plexon_dir(1).folder, plexon_dir(1).name);
 pl2 = PL2ReadFileIndex(plexon_fname);
@@ -113,30 +117,45 @@ fprintf('Loading Kofiko eye signals and converting to plexon time\n')
 [events.count, events.timeStamps, events.strobeNumber] = plx_event_ts(plexon_fname, 257);
 
 kofikoSyncStrobesTS = transpose(g_strctDAQParams.LastStrobe.TimeStamp(g_strctDAQParams.LastStrobe.Buffer == g_strctSystemCodes.m_iSync));
-plexonSyncStrobesTS = events.timeStamps(events.strobeNumber == g_strctSystemCodes.m_iSync);
+plexonSyncStrobesTS = events.timeStamps(events.strobeNumber ==  g_strctSystemCodes.m_iSync);
 % Linear regression to get kofiko time stamps into plexon time
 B = [ones(size(kofikoSyncStrobesTS)) kofikoSyncStrobesTS]\plexonSyncStrobesTS;
 
 %% Plexon eye data
 
-% sync_ch = 'AI01';
-% arc_ch = 'AI02';
-% leftEyePupil_ch = %'AI03';
-% rightEyePupil_ch = %'AI04';
-% rightEyeX_ch = 'AI04'; %'AI05';
-% rightEyeY_ch = %'AI06';
-% leftEyeX_ch ='AI03';%'AI07';
-% leftEyeY_ch =[]; %'AI08';
+
+if strcmpi(rig, 'B')
+    % Rig B
+    sync_ch = 'AI01';
+    arc_ch = 'AI02';
+    leftEyePupil_ch = 'AI07';
+    rightEyePupil_ch = 'AI08';
+    rightEyeX_ch = 'AI05';
+    rightEyeY_ch = 'AI06';
+    leftEyeX_ch ='AI03';
+    leftEyeY_ch ='AI04';
+elseif strcmpi(rig, 'C')
+    % % Rig C
+    sync_ch = 'AI01';
+    arc_ch = 'AI02';
+    leftEyePupil_ch = 'AI03';
+    rightEyePupil_ch = 'AI04';
+    rightEyeX_ch = 'AI05';
+    rightEyeY_ch = 'AI06';
+    leftEyeX_ch ='AI07';
+    leftEyeY_ch ='AI08';
+
+end
 
 
-[adfreq, n, ts, fn, sync_ad] = plx_ad_v(plexon_fname, 'AI01');
-[~, ~, ~, arc_ad] = plx_ad_v(plexon_fname, 'AI02');
-[~, ~, ~, ~, leftEyePupil_plexon] = plx_ad_v(plexon_fname, 'AI03');
-[~, ~, ~, ~, rightEyePupil_plexon] = plx_ad_v(plexon_fname, 'AI04');
-[~, ~, ~, ~, rightEyeX_plexon] = plx_ad_v(plexon_fname, 'AI05');
-[~, ~, ~, ~, rightEyeY_plexon] = plx_ad_v(plexon_fname, 'AI06');
-[~, ~, ~, ~, leftEyeX_plexon] = plx_ad_v(plexon_fname, 'AI07');
-[~, ~, ~, ~, leftEyeY_plexon] = plx_ad_v(plexon_fname, 'AI08');
+[adfreq, n, ts, fn, sync_ad] = plx_ad_v(plexon_fname, sync_ch);
+[~, ~, ~, arc_ad] = plx_ad_v(plexon_fname, arc_ch);
+[~, ~, ~, ~, leftEyePupil_plexon] = plx_ad_v(plexon_fname, leftEyePupil_ch);
+[~, ~, ~, ~, rightEyePupil_plexon] = plx_ad_v(plexon_fname, rightEyePupil_ch);
+[~, ~, ~, ~, rightEyeX_plexon] = plx_ad_v(plexon_fname,rightEyeX_ch);
+[~, ~, ~, ~, rightEyeY_plexon] = plx_ad_v(plexon_fname, rightEyeY_ch);
+[~, ~, ~, ~, leftEyeX_plexon] = plx_ad_v(plexon_fname, leftEyeX_ch);
+[~, ~, ~, ~, leftEyeY_plexon] = plx_ad_v(plexon_fname, leftEyeY_ch);
 
 t_plexon = 0:(1/adfreq):(length(sync_ad)-1)/adfreq;
 
@@ -298,12 +317,20 @@ useBinaryPerFrame = cellfun(@(x, y) repelem(x, y), usebinary, num2cell(numFrames
 % spatialscale = cellfun(@(x) x.spatialscale, trialData, 'UniformOutput', false);
 % spatialscale(cellfun(@isempty, spatialscale)) = {nan};
 
+try
 spatialscale_buffer = g_astrctAllParadigms{1}.DualstimScale.Buffer;
 spatialscale_TS = g_astrctAllParadigms{1}.DualstimScale.TimeStamp;
 spatialscale = nan(size(trialData));
 for i = 1:numel(spatialscale_buffer)
     spatialscale(ImageFlipON_TS_Kofiko >= spatialscale_TS(i)) = spatialscale_buffer(i);
 end
+catch
+    spatialscale = cellfun(@(x) x.spatialscale, trialData, 'UniformOutput', false);
+    spatialscale(cellfun(@isempty, spatialscale)) = {nan};
+    spatialscale = vertcat(spatialscale{:});
+
+end
+
 
 
 %spatialScalePerFrame =  cellfun(@(x, y) repelem(x, y),spatialscale, num2cell(numFrames), 'UniformOutput', false);
@@ -720,6 +747,15 @@ for ks_batch = 1:num_ks_batch
         warning("Could not process %s", ks_folders{ks_batch})
         disp(ME.message)
     end
+
+    %%%% Added 5/9/26
+
+    nSU{ks_batch} = length(SU_clusterIDs{ks_batch});
+    nMU{ks_batch} = length(MU_clusterIDs{ks_batch});
+    RobsSU{ks_batch} = Robs{ks_batch}(1:nSU{ks_batch},:);
+    RobsMU{ks_batch} = Robs{ks_batch}(nSU{ks_batch}+1:nSU{ks_batch}+nMU{ks_batch},:);
+    %%%%
+
     % update chan_offset
     if ks_batch < num_ks_batch % if we still got a batch ahead
         next_array_label = array_labels{ks_batch+1};
@@ -744,7 +780,13 @@ toc;
 
 %% Format output like PackageCloud
 
-allRobs = vertcat(Robs{:});
+%allRobs = vertcat(Robs{:});
+
+%%%% Added 5/9/26
+allRobsSU = vertcat(RobsSU{:});
+allRobsMU = vertcat(RobsMU{:});
+allRobs = vertcat(allRobsSU, allRobsMU);
+%%%%
 
 %ETgains
 ETgains = [Kofiko_GainX(end), Kofiko_GainY(end)];
@@ -807,7 +849,7 @@ datafilts = ones(size(RobsSU));
 datafiltsMU = ones(size(RobsMU));
 
 %dt
-dt = 0.0160; % why not 0.0167?
+dt = 1/60; 
 
 %electrode_info
 electrode_info =[];
@@ -925,8 +967,6 @@ use_inds_fix(use_inds_fix==0)=[];
 
 valid_data = use_inds_fix;
 
-% added by me: ks batch
-
 spikeSortingBatch = vertcat(SU_ks_batch{:});
 spikeSortingBatchMU = vertcat(MU_ks_batch{:});
 
@@ -940,7 +980,11 @@ clusterMU = vertcat(MU_clusterIDs{:});
 % 
 % spikeIDs = clusterIDs_sorted;
 
-uniqueClusterIDs = vertcat(allUnit_clusterIDs{:});
+%uniqueClusterIDs = vertcat(allUnit_clusterIDs{:});
+
+%%%%% Added 5/9/26
+uniqueClusterIDs = vertcat(vertcat(SU_clusterIDs{:}), vertcat(MU_clusterIDs{:}));
+%%%%%
 spikeIDs_unsorted = accumarray(transpose(1:numel(clusterIDs)), clusterIDs', [], @(x) find(uniqueClusterIDs==x));
 [spikeIDs, sortBySpikeID] = sort(spikeIDs_unsorted);
 spike_ts_sorted = spike_ts(sortBySpikeID);
@@ -993,6 +1037,9 @@ data.ks_folders = ks_folders;
 data.chan_offsets = chan_offsets;
 data.cluster_offsets = cluster_offsets;
 
+[C, IA, IC] = unique(array_labels);
+data.arrayPerSU = IC(data.spikeSortingBatch);
+data.arrayPerMU = IC(data.spikeSortingBatchMU);
 % modify array_labels so its python readable
 unique_array_labels = unique(array_labels);
 array_labels = cellfun(@(num,lab) [num2str(num) lab], num2cell(1:num_ks_batch), array_labels, 'UniformOutput', false);
@@ -1000,13 +1047,9 @@ array_labels = horzcat(array_labels{:});
 
 data.array_labels = array_labels;
 
-[C, IA, IC] = unique(array_labels);
-data.arrayPerSU = IC(data.spikeSortingBatch);
-data.arrayPerMU = IC(data.spikeSortingBatchMU);
 
 data.cluster = cluster;
 data.clusterMU = clusterMU;
-
 
 %% Compute STAs (optional)
 if compute_stas
@@ -1036,7 +1079,6 @@ if compute_stas
             STA{ks_batch}(unit,:,:) = tempSTA;
         end
         STA{ks_batch} = reshape(STA{ks_batch}, size(STA{ks_batch},1), 60, 60, 3, nLags);
-
     end
     toc;
 else
@@ -1047,7 +1089,7 @@ lags = 2:5;
 if compute_stas && plotting
     fprintf('Now plotting\n')
     for ks_batch = 1:length(STA)
-        for unit = 1:size(STA{ks_batch},1)
+        for unit = 1:nSU
             figure; i = 1;
             for chromatic_channel = 1:3
                 for lag = lags
@@ -1085,7 +1127,6 @@ if saving
         case 6; curstimstype='HC';
         case 8; curstimstype='CC';
     end
-
     
     array_label_filepart = [cellfun(@(x) [x '_'], unique_array_labels(1:end-1), 'UniformOutput', false) unique_array_labels(end)];
     array_label_filepart = horzcat(array_label_filepart{:});
