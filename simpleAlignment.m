@@ -1169,3 +1169,10 @@ if saving
     save(fullfile(savepath, FullExpt_ET_filename), 'PlexET_ad_calib', 'PlexET_times', '-v7.3'); % save FullExpt_ET
 
 end
+
+%% Disc probe
+T_DKL2RGB = [1 1 0.1982; 1 -0.2472 -0.1876; 1 0.0097 1];
+dp_RGB= vertcat(vars.DiscprobeColor{:})./255;
+bkg_RGB = vertcat(vars.m_afLocalBackgroundColor{:})./255;
+dp_RGB_wcon = (dp_RGB - bkg_RGB)./bkg_RGB;
+dp_DKL = transpose(inv(T_DKL2RGB)*dp_RGB_wcon');
