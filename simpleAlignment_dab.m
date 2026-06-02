@@ -188,7 +188,7 @@ disp(filenameP)
 
 % File prefix for Kofiko and plexon files
 monkey_name = 'Jocamo';
-%plexon_dir = dir(fullfile(dirpath, '**', [filenameP '.pl2']));
+plexon_dir = dir(fullfile(dirpath, '**', [filenameP '.pl2']));
 plexon_dir = dirpath;
 plexon_fname = [dirpath filenameP '.pl2']; %fullfile(plexon_dir(1).folder, plexon_dir(1).name);
 pl2 = PL2ReadFileIndex(plexon_fname);
@@ -234,7 +234,7 @@ fprintf('Loading Kofiko trial data\n')
 %kofiko_dir = dirpath; %dir(fullfile(dirpath, '**', [filenameP '*.mat']));
 %kofiko_dir = dir(fullfile(dirpath, '*.mat'));   % fast, no recursion[web:43]
 %kofiko_dir = dir(fullfile(dirpath, '*.mat'));
-kofiko_dir = dir(fullfile(ks_path, '*.mat'));
+kofiko_dir = dir(fullfile(dirpath, '*.mat')); %was ks_path
 all_names = {kofiko_dir.name};
 kofiko_fname_re = ['^' filenameP '(?:_\d+)?\.mat$'];
 matches = regexp(all_names, kofiko_fname_re, 'once');
@@ -729,7 +729,7 @@ goodFixationX = cellfun(@(x, x_fix) sum(abs(x - x_fix) < maxFixationErrorPix)./n
 goodFixationY = cellfun(@(y, y_fix) sum(abs(y - y_fix) < maxFixationErrorPix)./numel(y) ...
     > minFixationDuration, Kofiko_Ypix_cellArray(2:2:end), Y_fixationSpot) ;
 
-goodFixationIdx = MonkeyFixated | (goodFixationX & goodFixationY);
+goodFixationIdx = vertcat(vars.m_bMonkeyFixated{:}) | (goodFixationX & goodFixationY);
 
 %% Bin stimulus sequences by trial
 tic;
@@ -747,19 +747,19 @@ for i = 1:size(uniqueCloudConditions,1)
         load(fullfile(stimpath, sprintf('Cloudstims_Chrom_size60_scale%d_%02d.mat', thisSpatialscale, thisBlockID)));
         DensenoiseChromcloud_DKlspace=int8(127*(DensenoiseChromcloud_DKlspace));
         stimulus_cellArray(trialIdx) = cellfun(@(x) DensenoiseChromcloud_DKlspace(:,:,x,:), stimseq(trialIdx), 'UniformOutput', false);
-        stimulusET_cellArray(trialIdx) = cellfun(@(x) DensenoiseChromcloud_DKlspace(:,:,x,:), stimseqET(trialIdx), 'UniformOutput', false);
+        %stimulusET_cellArray(trialIdx) = cellfun(@(x) DensenoiseChromcloud_DKlspace(:,:,x,:), stimseqET(trialIdx), 'UniformOutput', false);
     elseif thisUsebinary == 1
         load(fullfile(stimpath,sprintf('Cloudstims_BinaryChrom_size60_scale%d_SPscale6_%02d.mat', thisSpatialscale, thisBlockID)))
         DensenoiseChromcloud_DKlspace=int8(127*(DensenoiseChromcloud_DKlspace));
         stimulus_cellArray(trialIdx) = cellfun(@(x) DensenoiseChromcloud_DKlspace(:,:,x,:), stimseq(trialIdx), 'UniformOutput', false);
-        stimulusET_cellArray(trialIdx) = cellfun(@(x) DensenoiseChromcloud_DKlspace(:,:,x,:), stimseqET(trialIdx), 'UniformOutput', false);
+        %stimulusET_cellArray(trialIdx) = cellfun(@(x) DensenoiseChromcloud_DKlspace(:,:,x,:), stimseqET(trialIdx), 'UniformOutput', false);
 
     elseif thisUsebinary == 2 % matched contrast
         load(fullfile(stimpath,sprintf('Cloudstims_ContrastMatched_size60_scale%d_%02d.mat', thisSpatialscale, thisBlockID)));
         DensenoiseChromcloud_DKlspace(:,:,:,2:3)=int8(127*(DensenoiseChromcloud_DKlspace(:,:,:,2:3)));
         DensenoiseChromcloud_DKlspace(:,:,:,1)=int8((1/LumScale)*127*(DensenoiseChromcloud_DKlspace(:,:,:,1)));
         stimulus_cellArray(trialIdx) = cellfun(@(x) DensenoiseChromcloud_DKlspace(:,:,x,:), stimseq(trialIdx), 'UniformOutput', false);
-        stimulusET_cellArray(trialIdx) = cellfun(@(x) DensenoiseChromcloud_DKlspace(:,:,x,:), stimseqET(trialIdx), 'UniformOutput', false);
+        %stimulusET_cellArray(trialIdx) = cellfun(@(x) DensenoiseChromcloud_DKlspace(:,:,x,:), stimseqET(trialIdx), 'UniformOutput', false);
     end
 
     % reshape stimuli into matrix where each row is stimulus, each col is frame
@@ -772,14 +772,14 @@ for i = 1:size(uniqueCloudConditions,1)
     % modified by dab
     tI2 = find(trialIdx == 1);
     stimulus_cellArray(tI2) = cellfun(@(x) permute(x, [3 1 2 4]), stimulus_cellArray(tI2), 'UniformOutput', false);
-    stimulusET_cellArray(tI2) = cellfun(@(x) permute(x, [3 1 2 4]), stimulusET_cellArray(tI2), 'UniformOutput', false);
+    %stimulusET_cellArray(tI2) = cellfun(@(x) permute(x, [3 1 2 4]), stimulusET_cellArray(tI2), 'UniformOutput', false);
     for ii = 1:length(tI2)
         sz = size(stimulus_cellArray{tI2(ii)});
         stimulus_cellArray{tI2(ii)} = reshape( stimulus_cellArray{tI2(ii)}, [sz(1), prod(sz(2:4))] );
-        stimulusET_cellArray{tI2(ii)} = reshape( stimulusET_cellArray{tI2(ii)}, [sz(1), prod(sz(2:4))] );
+        %stimulusET_cellArray{tI2(ii)} = reshape( stimulusET_cellArray{tI2(ii)}, [sz(1), prod(sz(2:4))] );
     end
     stimulus_cellArray(tI2) = cellfun(@transpose, stimulus_cellArray(tI2), 'UniformOutput', false);
-    stimulusET_cellArray(tI2) = cellfun(@transpose, stimulusET_cellArray(tI2), 'UniformOutput', false);
+   % stimulusET_cellArray(tI2) = cellfun(@transpose, stimulusET_cellArray(tI2), 'UniformOutput', false);
 
     %
 end
