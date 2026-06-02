@@ -1,4 +1,6 @@
 %% 
+
+function outstruct = simpleAlignment(instruct, saving, compute_stas, plotting)
 % 3/2026 mjg -- wrote it
 % cell arrays:
 
@@ -82,29 +84,32 @@ addpath(genpath('/home/bizon/Processing'));
 % "stimpath" should contain:
 %   -Mat files with cloud stimuli
 
-dirpath =  '/home/bizon/Data/V1_Fovea/Jocamo/250529/';
-ks_path ='/home/bizon/Data/V1_Fovea/Jocamo/250529/250529_152043_Jacomo/';
-stimpath = '/home/bizon/Processing/Cloudstims_calib_04_2024'; % or 01_2022
-savepath = '' ;%'/home/bizon/Data/V1_Fovea/Sprout/260505/260505_150945_Sprout/Analysis';%' ;%'/mnt/isilon/users/greenemj/V1_Fovea/Jocamo/220715/Analysis';
+dirpath =  instruct.dirpath;%'/home/bizon/Data/V1_Fovea/Jocamo/250529/';
+ks_path = instruct.ks_path;%'/home/bizon/Data/V1_Fovea/Jocamo/250529/250529_152043_Jacomo/';
+stimpath = instruct.stimpath;%'/home/bizon/Processing/Cloudstims_calib_04_2024'; % or 01_2022
+savepath = instruct.savepath ;%'/home/bizon/Data/V1_Fovea/Sprout/260505/260505_150945_Sprout/Analysis';%' ;%'/mnt/isilon/users/greenemj/V1_Fovea/Jocamo/220715/Analysis';
 
-rig = 'C';
+rig = instruct.rig;
 
 %'/home/bizon/Data/V1_Fovea/Jocamo/250529_152043_Jacomo/Analysis';%
 % save time with these assertions
 assert(isdir(dirpath) & isdir(ks_path) & isdir(stimpath), 'Check that dirpath, ks_path, and stimpath exist!');
 
 % File prefix for Kofiko and plexon files
-monkey_name = 'Jocamo';
-filenameP = '250529_152043_Jacomo';%';
+monkey_name = instruct.monkey_name; %'Jocamo';
+filenameP = instruct.filenameP; %'250529_152043_Jacomo';%';
 plexon_dir = dir(fullfile(dirpath, '**', [filenameP '.pl2']));
 plexon_fname = fullfile(plexon_dir(1).folder, plexon_dir(1).name);
 pl2 = PL2ReadFileIndex(plexon_fname);
 
 trialTypeOfInterest = 'Dual Stim';
 %% flags
-saving = 0;
-compute_stas = 0;
-plotting = 0;
+
+if nargin == 1
+    saving = 0;
+    compute_stas = 0;
+    plotting = 0;
+end
 %% Hardcoded values
 plexonAnalogScale = 1e-3;
 LumScale = 0.1085;
@@ -387,7 +392,6 @@ TrialIDPerFrame = cellfun(@(x, y) repelem(x, y), vars.TrialID, num2cell(numFrame
 
 useBinaryPerFrame = cellfun(@(x, y) repelem(x, y), vars.usebinary, num2cell(numFrames), 'UniformOutput', false);
 
-
 try
     spatialscale = [vars.spatialscale{:}];
 catch
@@ -532,7 +536,6 @@ end
 % find dualstim elemetns
 
 trialTypeOfInterestIdx = strcmpi( vars.m_strTrialType, trialTypeOfInterest);
-
 
 trlonset_diffs = [4; diff(stimStartTimes)];
 CCidx = cellfun(@(x) any(x==8), vars.DualstimPrimaryuseRGBCloud);
@@ -1076,7 +1079,6 @@ array_labels = horzcat(array_labels{:});
 
 data.array_labels = array_labels;
 
-
 data.cluster = cluster;
 data.clusterMU = clusterMU;
 
@@ -1176,3 +1178,33 @@ dp_RGB= vertcat(vars.DiscprobeColor{:})./255;
 bkg_RGB = vertcat(vars.m_afLocalBackgroundColor{:})./255;
 dp_RGB_wcon = (dp_RGB - bkg_RGB)./bkg_RGB;
 dp_DKL = transpose(inv(T_DKL2RGB)*dp_RGB_wcon');
+
+C = vertcat(clusterIDForEachSpk_cellArray{ks_batch});
+S = vertcat(spk_times_cellArray{ks_batch});
+
+spksPerTrial = spksPerInterval(2:2:end, :);
+
+dp_trial_idx =  strcmpi( vars.m_strTrialType, 'Disc Probe') & ...
+goodFixationIdx;
+
+%spksPerTrial = spksPerTrial(dp_trial_idx,:);
+
+%dp_DKLPerTrial = dp_DKL(dp_trial_idx,:);
+
+[uniqueColors, ~, ic] = unique(dp_DKL , 'rows');
+
+
+% spktsPerUnit: [(2*# trials) x num units]
+for unit = 1:numel(uniqueClusterIDs)
+    spktsPerUnit(:,unit) = cellfun(@(x,y) y(x==uniqueClusterIDs(unit)), C, S, 'UniformOutput', false);
+end
+
+spktsPerUnit_stimON = spktsPerUnit(2:2:end,:);
+spktsPerUnit_stimOFF = spktsPerUnit(3:2:end,:);
+
+outstruct.data = data;
+outstruct.trialData = trialData;
+outstruct.spktsPerUnit_stimON = spktsPerUnit_stimON;
+outstruct.spksPerUnit_stimOFF = spktsPerUnit_stimOFF;
+
+end
