@@ -134,7 +134,10 @@ kofiko_fname = {kofiko_dir(valid_kofiko_fname_idx).name};
 % Get the Kofiko mat file numbers from their names
 kofiko_file_numStr = cellfun(@(x) regexp(x, '\d*(?=(.mat))', 'match'),...
     kofiko_fname, 'UniformOutput',false);
+try
 kofiko_file_numStr{cellfun(@isempty, kofiko_file_numStr)} = {'nan'};
+catch
+end
 kofiko_file_num = cellfun(@(x) str2num(x{:}), kofiko_file_numStr);
 kofiko_file_num(isnan(kofiko_file_num)) = max(kofiko_file_num)+1;
 
