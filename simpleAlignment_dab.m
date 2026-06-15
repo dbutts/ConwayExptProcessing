@@ -231,7 +231,6 @@ else
 end
 
 
-
 % Load the g_strctLocalExperimentRecording structs which contain
 % information about each trials
 g_strctLocalExperimentRecording = [];
@@ -743,6 +742,9 @@ noiseStr = 'noise';
 blankStr = '     ';
 
 %% %%%%%%%%%%%%% Load and organize spike data %%%%%%%%%%%%%
+
+% if using kilosort
+
 % Find folders with kilosort output
 spike_times_dir = dir(fullfile(ks_path, '**/spike_times.npy'));
 spike_clusters_dir = dir(fullfile(ks_path, '**/spike_clusters.npy'));
@@ -935,6 +937,136 @@ nSU = sum(cellfun(@length, SU_clusterIDs));
 nMU = sum(cellfun(@length, MU_clusterIDs));
 
 toc;
+
+%% online sorting
+
+[tscounts, wfcounts, evcounts, contcounts] = plx_info(plexon_fname, true);
+
+[onlineSortedUnits, onlineSortedChans] = find(wfcounts);
+
+% for each channel, and for each unit, make vector of timestamps and vector
+% of unit id
+
+
+onlineUnitID = 1;
+online_spk_times = [];
+online_spk_clusters = [];
+
+uniqueOnlineSortedChans = unique(onlineSortedChans);
+
+for ch = 1:numel(uniqueOnlineSortedChans)
+    onlineUnits = onlineSortedUnits(onlineSortedChans == uniqueOnlineSortedChans(ch));
+    for u = 1:numel(onlineUnits)
+        [n, npw, ts, wave] = plx_waves_v(plexon_fname,uniqueOnlineSortedChans(ch)-1, onlineUnits(u));
+        online_spk_times = [online_spk_times; ts];
+        online_spk_clusters = [online_spk_clusters; onlineUnitID*ones(size(ts))];
+        online_mean_wave{ch,u} = mean(wave,1); 
+        onlineUnitID = onlineUnitID + 1;
+    end
+
+end
+
+online_allUnit_clusterIDs = unique(online_spk_clusters);
+
+% bin spikes by trial
+        [~,~,online_spk_times_bin] = histcounts(online_spk_times, stimIntervals);
+
+        % each cell gives spike times for stim ON and stim OFF periods
+
+        online_spk_times_cellArray =accumarray(...
+            online_spk_times_bin(:)+1, ...
+            online_spk_times(:), ...
+            [nBins + 1, 1], ...
+            @(x){x}, ...
+            {[]});
+
+        online_clusterIDForEachSpk_cellArray = accumarray(...
+            online_spk_times_bin(:)+1, ...
+            online_spk_clusters(:), ...
+            [nBins + 1, 1], ...
+            @(x){x}, ...
+            {[]});
+
+        online_clusterIDForEachSpk_stimON_cellArray = online_clusterIDForEachSpk_cellArray(2:2:end);
+        online_spk_times_stimON_cellArray =  online_spk_times_cellArray(2:2:end);
+        %    ks_batchForEachSpk_stimON_cellArray = ks_batchForEachSpk_stimON_cellArray{ks_batch}(2:2:end);
+
+        online_stimFrameNumForEachSpk_cellArray = cell(size(trialData,1),1);
+
+        [~,~,online_stimFrameNumForEachSpk_cellArray(valid_stimFrameBinIdx)] =...
+            cellfun(@(x,y) histcounts(x, 'BinEdges', y), ...
+            online_spk_times_stimON_cellArray(valid_stimFrameBinIdx),...
+            stimFrameBins(valid_stimFrameBinIdx), 'UniformOutput',false);
+        %spkFrameIdx_cellArray = transpose(spkFrameIdx_cellArray);
+
+        online_Robs = single(zeros(numel(unique(online_spk_clusters)),  sum(numFrames(isTrialOfInterest))));
+
+        for unit = 1:numel(online_allUnit_clusterIDs)
+            unitID = online_allUnit_clusterIDs(unit);
+
+            % each cell is a trial, and contains frame indicies where spikes
+            % occurred (repeated frames == multiple spikes on that frame)
+
+            online_stimFrameNumForEachSpk_thisUnit_cellArray = cell(size(trialData,1),1);
+            online_stimFrameNumForEachSpk_thisUnit_cellArray(valid_stimFrameBinIdx) = ...
+                cellfun(@(x,y) x(y==unitID), ...
+                online_stimFrameNumForEachSpk_cellArray(valid_stimFrameBinIdx), ...
+                online_clusterIDForEachSpk_stimON_cellArray(valid_stimFrameBinIdx),...
+                'UniformOutput', false);
+
+            online_spksPerFrame_cellArray =  cell(size(trialData,1),1);
+
+            online_spksPerFrame_cellArray(isTrialOfInterest) = cellfun(@(x,y) histcounts(x, 'BinEdges',0.5:(y+0.5)),...
+                online_stimFrameNumForEachSpk_thisUnit_cellArray(isTrialOfInterest), num2cell(numFrames(isTrialOfInterest)) ,'UniformOutput',false);
+
+            online_Robs(unit,:) = [online_spksPerFrame_cellArray{:}];
+        end
+
+
+
+online_tempSTA = [];
+if compute_stas
+    S = single(stimulus_matrix)';
+    tic;
+    fprintf('Computing STAs\n');
+    
+        for lag = 0:nLags-1
+            online_tempSTA(:,:,:,:,lag+1) = online_Robs(:,lag+1:end) * S(1:end-lag,:);
+        end
+
+        online_STA = reshape(online_tempSTA, size(online_tempSTA,1), 60, 60, 3, nLags);
+
+    toc;
+else
+end
+
+lags = 3:6;
+
+chrom_chan_labels = {'Lum.', 'L-M', 'S'};
+if compute_stas && plotting
+    fprintf('Now plotting\n')
+
+        for unit = 1:size(online_STA,1)
+            figure; i = 1;
+            for chromatic_channel = 1:3
+                for lag = lags
+                    subplot(3, length(lags), i );
+                    imagesc(circshift(squeeze(online_STA(unit,:,:,chromatic_channel,lag+1)), [30 30])), colormap gray
+                    i = i+1;
+
+                    if lag == lags(1)
+                        ylabel(chrom_chan_labels{chromatic_channel}, 'fontsize', 16)
+                    end
+
+                    if chromatic_channel == 1
+                        title(lag)
+                    end
+                end
+            end
+
+            sgtitle(sprintf('channel: %i,unit: %i, total spikes: %i', onlineSortedChans(unit),onlineSortedUnits(unit), sum(online_Robs(unit,:))))
+        end
+end
 
 %% Process LFPs
 
@@ -1255,33 +1387,18 @@ data.cluster = cluster;
 data.clusterMU = clusterMU;
 
 %% Compute STAs (optional)
+tempSTA = [];
 if compute_stas
+    S = single(stimulus_matrix)';
     tic;
     fprintf('Computing STAs\n');
     STA = cell(size(Robs));
     for ks_batch = 1:length(Robs)
-        for unit = 1:nSU+nMU %size(Robs{ks_batch},1)
-            r = transpose(Robs{ks_batch }(unit,:)); % spike train of unit
-            spkTimes = find(r); % indices of frames where spike(s) occurred
-            nSpks = numel(spkTimes);
-            nLags = 10;
-            maxLag = nLags - 1;
-            tempSTA = zeros(size(stimulus_matrix,1), nLags, 'like', stimulus_matrix); % # frames x # lags matrix
-            countsPerLag = zeros(1,nLags);
-            for spk = 1:nSpks
-                t = spkTimes(spk);
-                if t <= maxLag
-                    continue;
-                end
-                cols = (t - (0:maxLag)); % indices of frames at different lags 
-                tempSTA = single(tempSTA) + (single(stimulus_matrix(:,cols))./127)*r(t);
-                countsPerLag = countsPerLag + r(t);
-            end
-            countsPerLag(countsPerLag==0)=1;
-            tempSTA = bsxfun(@rdivide, single(tempSTA), single(countsPerLag));
-            STA{ks_batch}(unit,:,:) = tempSTA;
+        for lag = 0:nLags-1
+            tempSTA(:,:,:,:,lag+1) = Robs{ks_batch}(:,lag+1:end) * S(1:end-lag,:);
         end
-        STA{ks_batch} = reshape(STA{ks_batch}, size(STA{ks_batch},1), 60, 60, 3, nLags);
+
+        STA{ks_batch} = reshape(tempSTA, size(tempSTA,1), 60, 60, 3, nLags);
 
     end
     toc;
