@@ -211,7 +211,10 @@ else % Dan's lab specific settings and prompts
 		files = dir(sprintf('%s*%d*', dirpath, exptdate));
 		names = string({files.name});
 		if isempty(names)
-				disp('Experiment with that date note found.')
+				if computerLocation == 11
+						disp('On MST: make sure legacy data drives are mounted.')
+				end
+				error('Experiment with that date not found.')
 		end
 		lens = strlength(names);
 		[~, idxMin] = min(lens);
@@ -1271,7 +1274,12 @@ if computerLocation < 10
 		medianTiledStimulusRect = median(cat(3, vars.m_aiTiledStimulusRect{:}),3, 'omitmissing');
 else
 		% previous code that worked
-		TiledStimulusRect = cellfun(@(x) x.m_aiTiledStimulusRect, trialData, 'UniformOutput', false);
+		if isfield(trialData{1}, 'm_aiTiledStimulusRect')
+				TiledStimulusRect = cellfun(@(x) x.m_aiTiledStimulusRect, trialData, 'UniformOutput', false);
+		else
+				StimulusRect = cellfun(@(x) x.m_aiStimulusRect, trialData, 'UniformOutput', false);
+				TiledStimulusRect = StimulusRect; %%%%% Only for old datasets before tiling (e.g., 7/07/22)
+		end
 		medianTiledStimulusRect = median(cat(3, TiledStimulusRect{:}),3);
 end
 
@@ -1280,7 +1288,11 @@ stim_location = [medianTiledStimulusRect(:,1:2) medianTiledStimulusRect(:,1:2)+6
 %stim_location_deltas: first two elements of first row of TiledStimulusRect
 %minus median stim_location x and y
 
-stim_location_deltas = cellfun(@(x) x(1,1:2) - stim_location(1,1:2), vars.m_aiTiledStimulusRect(isTrialOfInterest), 'UniformOutput',false);
+if (computerLocation < 10) || isfield(trialData{1}, 'm_aiTiledStimulusRect')
+		stim_location_deltas = cellfun(@(x) x(1,1:2) - stim_location(1,1:2), vars.m_aiTiledStimulusRect(isTrialOfInterest), 'UniformOutput',false);
+else
+		stim_location_deltas = cellfun(@(x) x(1,1:2) - stim_location(1,1:2), TiledStimulusRect(isTrialOfInterest), 'UniformOutput',false);
+end
 stim_location_deltas = vertcat(stim_location_deltas{:});
 
 %stimscale
