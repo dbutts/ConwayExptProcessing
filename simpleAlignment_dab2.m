@@ -204,7 +204,7 @@ else % Dan's lab specific settings and prompts
 		compute_stas = 0;
 		plotting = 0;
 		saving = 1;
-		rig = 'B'; % I don't know what this does
+		rig = 'C'; % I don't know what this does
 
 		% Enter date of experiment and figure out the filenameP
 		exptdate = input( 'Enter date of experiment (YYMMDD): ' ); % this makes integer date
@@ -369,8 +369,8 @@ end
 [~, ~, ~, ~, leftEyeY_plexon] = plx_ad_v(plexon_fname, leftEyeY_ch);
 
 t_plexon = (0:n-1)/adfreq;
-%% Kofiko eye data
 
+%% Kofiko eye data
 % Get the screen dimensions
 ScreenSizeX_pix = g_strctStimulusServer.m_aiScreenSize(3);
 ScreenSizeY_pix = g_strctStimulusServer.m_aiScreenSize(4);
@@ -783,9 +783,7 @@ noiseStr = 'noise';
 blankStr = '     ';
 
 %% %%%%%%%%%%%%% Load and organize spike data %%%%%%%%%%%%%
-
 % if using kilosort
-
 % Find folders with kilosort output
 spike_times_dir = dir(fullfile(ks_path, '**/spike_times.npy'));
 spike_clusters_dir = dir(fullfile(ks_path, '**/spike_clusters.npy'));
@@ -1111,16 +1109,29 @@ if online_sorting == 1
 end
 
 %% Process LFPs
-
 if ~skipLFP
-    [LFP_adfreq, LFP_n, LFP_ts, ~, ~] = plx_ad_v(plexon_fname, ['FP' num2str(1, ['%0' num2str(numDigitsInLastSpkChan) '.f'])]);
-    nchans = length(pl2.SpikeChannels);
+		disp('Processing LFPs')
+		tic;
+		if (exptdate/10000) < 24  % year less than 2024
+				LFPchans{1} = 1:24; % laminar
+				LFPchans{2} = [33,40,46,47,52,53,54,59,65,67,71,81,83,89,90,95,98,102,103,109,112,131,138,139,145,146,152,158]; % Nform channels that worked
+				LFPchans{3} = 161:256; % utah
+		else
+				LFPchans{1} = length(pl2.SpikeChannels); % one array so far
+		end
 
-    LFP_ad = zeros(nchans, LFP_n);
-    for i = 1:nchans
-        [~,~,~,~, LFP_ad(i,:)] = plx_ad_v(plexon_fname, ['FP' num2str(1, ['%0' num2str(numDigitsInLastSpkChan) '.f'])]);
-    end
+    [LFP_adfreq, LFP_n, LFP_ts, ~, ~] = plx_ad_v(plexon_fname, ['FP' num2str(1, ['%0' num2str(numDigitsInLastSpkChan) '.f'])]);
+		for ii=1:length(LFPchans)
+				nchans = length(LFPchans{ii});
+		    %LFP_ad = zeros(nchans, LFP_n);
+				LFPs{ii} = zeros(nchans, LFP_n);
+    		for ch = 1:nchans
+        		%[~,~,~,~, LFP_ad(i,:)] = plx_ad_v(plexon_fname, ['FP' num2str(1, ['%0' num2str(numDigitsInLastSpkChan) '.f'])]);
+						[~,~,~,~, LFPs{ii}(ch,:)] = plx_ad_v(plexon_fname, ['FP' num2str(LFPchans{ii}(ch), ['%0' num2str(numDigitsInLastSpkChan) '.f'])]);
+				end
+		end
     LFP_times=(0:LFP_n-1)/LFP_adfreq;
+		toc;
 end
 
 %% %%%%%%%%%%%% Format output like PackageCloud %%%%%%%%%%%%
@@ -1338,35 +1349,37 @@ spike_ts_sorted = spike_ts(sortBySpikeID);
 reward_on_ts = [];
 reward_off_ts = [];
 
-% for tr = 1:length(trial_start_ts)
-% 		t = trial_start_ts(tr);
-% 		% Identify reward times for the current trial
-% 		rewardON = REW_ON_ts(REW_ON_ts >= t & REW_ON_ts < t+4.0);
-% 		rewardOFF = REW_OFF_ts(REW_OFF_ts >= t & REW_OFF_ts < t+4.0);
-% 		for ii=1:length(rewardON)
-% 				reward_on_ts(end+1) = rewardON(ii)-t + 4*(tr-1);
-% 		end
-% 		for ii=1:length(rewardOFF)
-% 				reward_off_ts(end+1) = rewardOFF(ii)-t + 4*(tr-1);
-% 		end
-% end
-
-[~, ~, rew_off_bin] = histcounts(REW_OFF_ts, stimIntervals);
-REW_OFF_cellArray = accumarray(rew_off_bin(:)+1,...
-    REW_OFF_ts(:),...
-    [nBins + 1,1],...
-    @(x){x},...
-    {[]});
-
-[~, ~, rew_on_bin] = histcounts(REW_ON_ts, stimIntervals);
-REW_ON_cellArray = accumarray(rew_on_bin(:)+1,...
-    REW_ON_ts(:),...
-    [nBins + 1,1],...
-    @(x){x},...
-    {[]});
-
-reward_on_ts = vertcat(REW_ON_cellArray{2*find(isTrialOfInterest)});
-reward_off_ts = vertcat(REW_OFF_cellArray{2*find(isTrialOfInterest)});
+if computerLocation < 10
+		[~, ~, rew_off_bin] = histcounts(REW_OFF_ts, stimIntervals);
+		REW_OFF_cellArray = accumarray(rew_off_bin(:)+1,...
+    		REW_OFF_ts(:),...
+    		[nBins + 1,1],...
+    		@(x){x},...
+    		{[]});
+		
+		[~, ~, rew_on_bin] = histcounts(REW_ON_ts, stimIntervals);
+		REW_ON_cellArray = accumarray(rew_on_bin(:)+1,...
+    		REW_ON_ts(:),...
+    		[nBins + 1,1],...
+    		@(x){x},...
+    		{[]});
+		
+		reward_on_ts = vertcat(REW_ON_cellArray{2*find(isTrialOfInterest)});
+		reward_off_ts = vertcat(REW_OFF_cellArray{2*find(isTrialOfInterest)});
+else
+		for tr = 1:length(trial_start_ts)
+				t = trial_start_ts(tr);
+		 		% Identify reward times for the current trial
+		 		rewardON = REW_ON_ts(REW_ON_ts >= t & REW_ON_ts < t+4.0);
+		 		rewardOFF = REW_OFF_ts(REW_OFF_ts >= t & REW_OFF_ts < t+4.0);
+		 		for ii=1:length(rewardON)
+		 				reward_on_ts(end+1) = rewardON(ii)-t + 4*(tr-1);
+		 		end
+		 		for ii=1:length(rewardOFF)
+		 				reward_off_ts(end+1) = rewardOFF(ii)-t + 4*(tr-1);
+				end
+		end
+end
 
 %% Add fields to data struct
 data.ETgains = ETgains;
@@ -1518,11 +1531,14 @@ if saving
 
 		if computerLocation < 10
 				data_filename=[monkey_name '_' exptname(1:6) '_' array_label_filepart '_' curstimstype '_ET' curETstimtype '_v10.mat'];
+		    fixinfo_filename=[filenameP '_fixinfo.mat'];
 		else
 				data_filename = ['K' exptdate '_' curstimstype '_ET' curETstimtype '_v10.mat'];
+				fixinfo_filename = sprintf( 'K%s_fixinfo.mat', exptdate );
     end
+		LFPfilename = sprintf( 'K%s_LFPs.mat', exptdate );
 
-    fixinfo_filename=[filenameP '_fixinfo.mat'];
+		
     %data_filename=[ 'K' exptdate '_' curstimstype '_ET' curETstimtype '_v10.mat'];
     %fixinfo_filename=['K' exptdate '_fixinfo.mat'];
     save(fullfile(savepath, data_filename),  '-struct', 'data', '-v7.3'); % save packaged cloud data
@@ -1531,7 +1547,17 @@ if saving
 
     if ~skipLFP
         trial_start_inds = floor(trial_start_ts*1000);
-        save(fullfile(savepath, [filenameP '_LFP.mat']), 'LFP_ad', 'trial_start_ts', 'trial_start_inds', '-v7.3' )
+				LFP_ad = LFPs{1};
+				if length(LFPs) == 1  % then this is the only array
+						save(fullfile(savepath, LFPfilename), 'LFP_ad', 'trial_start_ts', 'trial_start_inds', '-v7.3' )
+				elseif length(LFPs) == 3  % then old-school (2022 expt date) 
+						LFPa2 = LFPs{2};
+						LFPa3 = LFPs{3};
+		        %save(fullfile(savepath, [filenameP '_LFP.mat']), 'LFP_ad', 'LFPa2', 'LFPa3', 'trial_start_ts', 'trial_start_inds', '-v7.3' )
+						save(fullfile(savepath, LFPfilename), 'LFP_ad', 'LFPa2', 'LFPa3', 'trial_start_ts', 'trial_start_inds', '-v7.3' )
+				else
+						disp('Have not programmed in this LFP-array config yet')
+				end
     end
 
 end
