@@ -410,104 +410,104 @@ isTrialOfInterest = trialTypeOfInterestIdx & ...
 
 % %% openiris data
 % 
-% % read in ddpi file
-% ET = readtable(dpi_fname);
+% read in ddpi file
+ET = readtable(dpi_fname);
+
+% ddpi timestamps
+t_dpi = ET.RightSeconds;
+t_dpi = t_dpi - t_dpi(1); % time stamps in s
+
+% ddpi sync signal
+sync_dpi = ET.Int0;
+sync_dpi = sync_dpi - min(sync_dpi);
+sync_dpi = sync_dpi & 1;
+
+% p1
+cr_x_right = ET.RightCR1X;
+cr_y_right = ET.RightCR1Y;
+
+% p4
+p4_x_right = ET.RightCR4X;
+p4_y_right = ET.RightCR4Y;
+
+% raw ddpi eye signal
+dpi_raw_right = [cr_x_right - p4_x_right, cr_y_right - p4_y_right];
+
+% p1
+cr_x_left = ET.LeftCR1X;
+cr_y_left = ET.LeftCR1Y;
+
+% p4
+p4_x_left = ET.LeftCR4X;
+p4_y_left = ET.LeftCR4Y;
+
+% raw ddpi eye signal
+dpi_raw_left = [cr_x_left - p4_x_left, cr_y_left - p4_y_left];
+
+%% Align DDPI to plexon
+
+% find rising and falling edges in ddpi computer
+
+sync_dpi_diff = diff(sync_dpi);
+t_rising_dpi = t_dpi(sync_dpi_diff > 0);
+t_falling_dpi = t_dpi(sync_dpi_diff < 0);
+
+% get rid of unpaired falling edge at beginning or rising edge at end
+if size(t_rising_dpi,1) > size(t_falling_dpi,1) % unpaired rising edge at the end
+    t_rising_dpi = t_rising_dpi(1:size(t_falling_dpi,1));
+elseif size(t_rising_dpi,1) < size(t_falling_dpi,1)
+    t_falling_dpi = t_falling_dpi(2:size(t_rising_dpi,1));
+end
+
+dt_dpi = median(t_falling_dpi - t_rising_dpi);
+
+% delays
+
+delays_dpi = (t_rising_dpi(2:end) - t_falling_dpi(1:end-1))./dt_dpi;
+delays_dpi_int = int8(delays_dpi);
+
+t_plexon = 0:(1/adfreq):(length(sync_ad)-1)/adfreq;
+
+% find rising and falling edges of pulse in plexon
+thresh = mean([min(sync_ad), max(sync_ad)]);
+
+sync_ad_bin = sync_ad > thresh;
+sync_ad_diff = diff(sync_ad_bin);
+
+t_rising_plexon = t_plexon(sync_ad_diff > 0);
+t_falling_plexon = t_plexon(sync_ad_diff < 0);
+
+if size(t_rising_plexon,1) > size(t_falling_plexon,1) % unpaired rising edge at the end
+    t_rising_plexon = t_rising_plexon(1:size(t_falling_plexon,1));
+elseif size(t_rising_plexon,1) < size(t_falling_plexon,1)
+    t_falling_plexon = t_falling_plexon(2:size(t_rising_plexon,1));
+end
+
+dt_plexon = median(t_falling_plexon - t_rising_plexon);
+
+% delays
+delays_plexon = (t_rising_plexon(2:end) - t_falling_plexon(1:end-1))./dt_plexon;
+delays_plexon_int = int8(delays_plexon);
+
+% alignment
+
+% cross-correlate delays
+[c,lags] = xcorr(delays_plexon_int, delays_dpi_int);
+
+best_lag = lags(c == max(c));
+
+x = t_rising_plexon(best_lag+1:end);
+t_rising_plexon_matched = x(1:numel(t_rising_dpi));
+
+b_dpi_plexon = [ones(size(t_rising_dpi)) t_rising_dpi]\t_rising_plexon_matched';
+% put dpi signal in plexon time
+
+t_dpi_plexon = [ones(size(t_dpi)) t_dpi]*b_dpi_plexon;
+
+% now compare openiris and plexon eye signals
 % 
-% % ddpi timestamps
-% t_dpi = ET.RightSeconds;
-% t_dpi = t_dpi - t_dpi(1); % time stamps in s
-% 
-% % ddpi sync signal
-% sync_dpi = ET.Int0;
-% sync_dpi = sync_dpi - min(sync_dpi);
-% sync_dpi = sync_dpi & 1;
-% 
-% % p1
-% cr_x_right = ET.RightCR1X;
-% cr_y_right = ET.RightCR1Y;
-% 
-% % p4
-% p4_x_right = ET.RightCR4X;
-% p4_y_right = ET.RightCR4Y;
-% 
-% % raw ddpi eye signal
-% dpi_raw_right = [cr_x_right - p4_x_right, cr_y_right - p4_y_right];
-% 
-% % p1
-% cr_x_left = ET.LeftCR1X;
-% cr_y_left = ET.LeftCR1Y;
-% 
-% % p4
-% p4_x_left = ET.LeftCR4X;
-% p4_y_left = ET.LeftCR4Y;
-% 
-% % raw ddpi eye signal
-% dpi_raw_left = [cr_x_left - p4_x_left, cr_y_left - p4_y_left];
-% 
-% %% Align DDPI to plexon
-% 
-% % find rising and falling edges in ddpi computer
-% 
-% sync_dpi_diff = diff(sync_dpi);
-% t_rising_dpi = t_dpi(sync_dpi_diff > 0);
-% t_falling_dpi = t_dpi(sync_dpi_diff < 0);
-% 
-% % get rid of unpaired falling edge at beginning or rising edge at end
-% if size(t_rising_dpi,1) > size(t_falling_dpi,1) % unpaired rising edge at the end
-%     t_rising_dpi = t_rising_dpi(1:size(t_falling_dpi,1));
-% elseif size(t_rising_dpi,1) < size(t_falling_dpi,1)
-%     t_falling_dpi = t_falling_dpi(2:size(t_rising_dpi,1));
-% end
-% 
-% dt_dpi = median(t_falling_dpi - t_rising_dpi);
-% 
-% % delays
-% 
-% delays_dpi = (t_rising_dpi(2:end) - t_falling_dpi(1:end-1))./dt_dpi;
-% delays_dpi_int = int8(delays_dpi);
-% 
-% t_plexon = 0:(1/adfreq):(length(sync_ad)-1)/adfreq;
-% 
-% % find rising and falling edges of pulse in plexon
-% thresh = mean([min(sync_ad), max(sync_ad)]);
-% 
-% sync_ad_bin = sync_ad > thresh;
-% sync_ad_diff = diff(sync_ad_bin);
-% 
-% t_rising_plexon = t_plexon(sync_ad_diff > 0);
-% t_falling_plexon = t_plexon(sync_ad_diff < 0);
-% 
-% if size(t_rising_plexon,1) > size(t_falling_plexon,1) % unpaired rising edge at the end
-%     t_rising_plexon = t_rising_plexon(1:size(t_falling_plexon,1));
-% elseif size(t_rising_plexon,1) < size(t_falling_plexon,1)
-%     t_falling_plexon = t_falling_plexon(2:size(t_rising_plexon,1));
-% end
-% 
-% dt_plexon = median(t_falling_plexon - t_rising_plexon);
-% 
-% % delays
-% delays_plexon = (t_rising_plexon(2:end) - t_falling_plexon(1:end-1))./dt_plexon;
-% delays_plexon_int = int8(delays_plexon);
-% 
-% % alignment
-% 
-% % cross-correlate delays
-% [c,lags] = xcorr(delays_plexon_int, delays_dpi_int);
-% 
-% best_lag = lags(c == max(c));
-% 
-% x = t_rising_plexon(best_lag+1:end);
-% t_rising_plexon_matched = x(1:numel(t_rising_dpi));
-% 
-% b_dpi_plexon = [ones(size(t_rising_dpi)) t_rising_dpi]\t_rising_plexon_matched';
-% % put dpi signal in plexon time
-% 
-% t_dpi_plexon = [ones(size(t_dpi)) t_dpi]*b_dpi_plexon;
-% 
-% % now compare openiris and plexon eye signals
-% % 
-% % figure, plot(t_dpi_plexon, dpi_raw(:,1)); title('dpi')
-% % figure, plot(t_plexon, rightEyeX_plexon); title('plexon')
+% figure, plot(t_dpi_plexon, dpi_raw(:,1)); title('dpi')
+% figure, plot(t_plexon, rightEyeX_plexon); title('plexon')
 
 %% Bin dpi eye signal by stimulus intervals
 % [~,~, t_dpi_plexon_bin] = histcounts(t_dpi_plexon, stimIntervals);

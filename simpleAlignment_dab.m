@@ -192,6 +192,7 @@ maxFixationErrorPix = 45;
 minSpikes = 2000;
 targ_ETstimtype = 0;
 ETdist_thresh=40;
+nLags = 10;
 
 %% Load kofiko data
 tic;
@@ -947,7 +948,6 @@ toc;
 % for each channel, and for each unit, make vector of timestamps and vector
 % of unit id
 
-
 onlineUnitID = 1;
 online_spk_times = [];
 online_spk_clusters = [];
@@ -1021,8 +1021,6 @@ online_allUnit_clusterIDs = unique(online_spk_clusters);
 
             online_Robs(unit,:) = [online_spksPerFrame_cellArray{:}];
         end
-
-
 
 online_tempSTA = [];
 if compute_stas

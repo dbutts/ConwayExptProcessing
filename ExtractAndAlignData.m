@@ -506,7 +506,6 @@ elseif ET_Eyelink == 0 % eyescan
 end
 PlexET_times=(1:ET_n)/ET_adfreq;
 
-
 ET_ad = g_strctEyeCalib.EyeRaw.Buffer(:,1:2)';
 ET_times = g_strctEyeCalib.EyeRaw.TimeStamp;
 
