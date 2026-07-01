@@ -1,14 +1,37 @@
-function [STA, STA_CC] = generate_stas(Robs, stim, nlags, plotflag, saveflag, v_bkg, varargin)
+function [STA, STA_CC] = generate_stas(Robs, stim, nlags, v_bkg, varargin)
 
 % Robs is expected to be a # units x # frames matrix, while stim is
 % expected to be Y pixels x X pixels x 3 x # frames
 
-if nargin < 5
-    saveflag = 0;
-end
-if nargin < 4
-    plotflag = 0;
-end
+% STA and STA_cc are # units x Y pixels x X pixels x 3 chromatic dimensions x nlags  
+
+% Example usage
+% rx   = 0.6280;
+% ry   = 0.3310;
+% gx   = 0.3059;
+% gy   = 0.5826;
+% bx   = 0.1639;
+% by   = 0.0617;
+
+% R_maxLumCdm2 = 18.6469;
+% G_maxLumCdm2 = 75.8449;
+% B_maxLumCdm2 = 10.5313;
+
+% xyMat = [rx ry; gx gy; bx by] 
+% lumMat = [R_maxLumCdm2;
+% G_maxLumCdm2; B_maxLumCdm2]
+
+% nlags = 10
+% v_bkg = [0.5; 0.5; 0.5];
+
+% [STA, STA_CC] = generate_stas(data.Robs, data.stim, nlags, v_bkg, 'xyMat', xyMat, 'lumMat', lumMat)
+
+% if nargin < 5
+%     saveflag = 0;
+% end
+% if nargin < 4
+%     plotflag = 0;
+% end
 
 nLags = 10;
 tempSTA = [];
