@@ -1413,6 +1413,10 @@ if computerLocation < 10
         @(x){x},...
         {[]});
 
+
+    REW_ON_cellArray = cellfun(@(rewardTime, trialStartTime) rewardTime - trialStartTime, REW_ON_cellArray, REW_OFF_cellArray)) 
+
+
     reward_on_ts = vertcat(REW_ON_cellArray{2*find(isTrialOfInterest)});
     reward_off_ts = vertcat(REW_OFF_cellArray{2*find(isTrialOfInterest)});
 else
