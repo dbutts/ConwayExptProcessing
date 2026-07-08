@@ -1398,7 +1398,7 @@ spike_ts_sorted = spike_ts(sortBySpikeID);
 reward_on_ts = [];
 reward_off_ts = [];
 
-if computerLocation < 10
+if computerLocation < -100
     [~, ~, rew_off_bin] = histcounts(REW_OFF_ts, stimIntervals);
     REW_OFF_cellArray = accumarray(rew_off_bin(:)+1,...
         REW_OFF_ts(:),...
@@ -1414,7 +1414,8 @@ if computerLocation < 10
         {[]});
 
 
-    REW_ON_cellArray = cellfun(@(rewardTime, trialStartTime) rewardTime - trialStartTime, REW_ON_cellArray, REW_OFF_cellArray)) 
+    REW_ON_cellArray = cellfun(@(rewardTime, trialStartTime) rewardTime - trialStartTime, REW_ON_cellArray, REW_OFF_cellArray);
+
 
 
     reward_on_ts = vertcat(REW_ON_cellArray{2*find(isTrialOfInterest)});
