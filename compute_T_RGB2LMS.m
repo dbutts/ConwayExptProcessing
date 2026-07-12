@@ -4,7 +4,7 @@ function T_RGB2LMS = compute_T_RGB2LMS(varargin)
 % Option set 2: xyMat = [rx ry; gx gy; bx by], lumMat = [R_maxLumCdm2;
 % G_maxLumCdm2; B_maxLumCdm2]
 % B_maxLumCdm2
-% Output: Matrix containing cone sensitivities to display primaries 
+% Output: Matrix containing cone sensitivities to display primaries
 % for conversion from RGB to LMS. Rows correspond to L, M, S and
 % columns to R, G, B
 
@@ -72,31 +72,40 @@ load T_xyzJuddVos.mat
 %% Do the calcuations
 
 T_XYZ2LMS = [0.15514 0.54312 -0.03286;
-            -0.15514 0.45684 0.03286;
-             0 0 0.01608];
+    -0.15514 0.45684 0.03286;
+    0 0 0.01608];
 
 if ~isempty(wavelengths) && ~isempty(red_spd) && ~isempty(green_spd) && ~isempty(blue_spd)
     T_XYZ = SplineCmf(SToWls(S_xyzJuddVos), T_xyzJuddVos, wavelengths);
     RGB = [red_spd green_spd blue_spd];
     P_XYZ = T_XYZ * RGB;
-    T_RGB2LMS = T_XYZ2LMS * P_XYZ;
+    P_xyz = P_XYZ./sum(P_XYZ,1);
+
+    load T_xyz1931
+    T_xyz1931_splined = SplineCmf(SToWls(S_xyz1931), T_xyz1931, wavelengths);
+
+    R_maxLumCdm2=683 * dot(red_spd, T_xyz1931_splined(2,:));
+    G_maxLumCdm2=683 * dot(green_spd, T_xyz1931_splined(2,:));
+    B_maxLumCdm2=683 * dot(blue_spd, T_xyz1931_splined(2,:));
+    %T_RGB2LMS = T_XYZ2LMS * P_XYZ;
 else
     try
         P_xyz = [rx gx bx;
-                 ry gy by; 
-                 1-rx-ry, 1-gx-gy, 1-bx-by];
+            ry gy by;
+            1-rx-ry, 1-gx-gy, 1-bx-by];
 
-        P_MB_num = T_XYZ2LMS * P_xyz;
-        P_MB_denom = sum(P_MB_num(1:2,:), 1);
-        P_MB = P_MB_num ./ P_MB_denom;
-        T_RGB2LMS = P_MB .* [R_maxLumCdm2 G_maxLumCdm2 B_maxLumCdm2];
+
     catch
         error('Missing/incorrect input arguments')
     end
 end
 
-% Normalize 
-T_RGB2LMS = T_RGB2LMS ./ max(T_RGB2LMS(:));
+P_MB_num = T_XYZ2LMS * P_xyz;
+P_MB_denom = sum(P_MB_num(1:2,:), 1);
+P_MB = P_MB_num ./ P_MB_denom;
+T_RGB2LMS = P_MB .* [R_maxLumCdm2 G_maxLumCdm2 B_maxLumCdm2];
+% Normalize
+%T_RGB2LMS = T_RGB2LMS ./ max(T_RGB2LMS(:));
 
 end
 

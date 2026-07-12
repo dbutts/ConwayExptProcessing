@@ -69,8 +69,6 @@ if size(blue_spd,1) < size(blue_spd,2)
     blue_spd = transpose(blue_spd);
 end
 
-load T_xyzJuddVos.mat
-
 %% Do the calcuations
 
 Wr = R_bkgIntensity;

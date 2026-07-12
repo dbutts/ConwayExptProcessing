@@ -1,4 +1,4 @@
-function [STA, STA_CC, STA_coneWeights] = generate_stas(Robs, stim, nlags, v_bkg, varargin)
+function STA = generate_stas(Robs, stim, nlags, v_bkg, varargin)
 
 % Robs is expected to be a # units x # frames matrix, while stim is
 % expected to be Y pixels x X pixels x 3 x # frames
@@ -44,7 +44,7 @@ for lag = 0:nLags-1
     tempSTA(:,:,:,:,lag+1) = (Robs(:,lag+1:end) * S(1:end-lag,:))./sum(Robs(:,lag+1:end),2);
 end
 
-STA = reshape(tempSTA, size(tempSTA,1), size(stim,1), size(stim,2), 3, nLags);
+STA.DKL = reshape(tempSTA, size(tempSTA,1), size(stim,1), size(stim,2), 3, nLags);
 
 
 % convert STA from DKL to LMS
@@ -57,25 +57,32 @@ if nargin > 5
 
    % for each STA and each lag, convert from DKL to RGB
 
-    for unit = 1:size(STA,1)
+    for unit = 1:size(STA.DKL,1)
         for lag = 1:nlags
-            thisSTA_DKL = squeeze(STA(unit,:,:,:,lag));
+            thisSTA_DKL = squeeze(STA.DKL(unit,:,:,:,lag));
             thisSTA_DKL = transpose(reshape(thisSTA_DKL, [],3));
+
+            thisSTA_RGB = v_bkg.*(T_DKL2RGB * thisSTA_DKL)+v_bkg;
+            thisSTA_RGB = reshape(thisSTA_RGB, 3, size(stim,1),size(stim,2));
+            thisSTA_RGB = permute(thisSTA_RGB, [2 3 1]);
+
+            STA.RGB(unit,:,:,:,lag) = thisSTA_RGB;
+
             thisSTA_LMS = T_RGB2LMS * (v_bkg .* (T_DKL2RGB * thisSTA_DKL) + v_bkg);
+
             thisSTA_CC = (thisSTA_LMS - bkg_LMS)./bkg_LMS;
             thisSTA_CC = reshape(thisSTA_CC, 3, size(stim,1),size(stim,2));
             thisSTA_CC = permute(thisSTA_CC, [2 3 1]);
-            STA_CC(unit,:,:,:,lag) = thisSTA_CC;
 
-            thisSTA_LMS2 = T_RGB2LMS * (T_DKL2RGB * thisSTA_DKL);
-            thisSTA_coneWeights = thisSTA_LMS ./ sum(abs(thisSTA_LMS),1);
-            thisSTA_coneWeights = reshape(thisSTA_coneWeights, 3, size(stim,1),size(stim,2));
-            thisSTA_coneWeights = permute(thisSTA_coneWeights, [2 3 1]);
-            STA_coneWeights(unit,:,:,:,lag) = thisSTA_coneWeights;
+            STA.coneContrast(unit,:,:,:,lag) = thisSTA_CC;
+
+            thisSTA_LMS = reshape(thisSTA_LMS, 3, size(stim,1), size(stim,2));
+            thisSTA_LMS = permute(thisSTA_LMS, [2 3 1]);
+
+            STA.LMS(unit,:,:,:,lag) = thisSTA_LMS;
 
         end
     end
-
 
 
 end
