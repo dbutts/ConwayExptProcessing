@@ -101,8 +101,15 @@ switch username
             stimpath = '/mnt/NTdata1/Conway/Cloudstims_calib_01_2022/';
             savepath = '/home/dab/ColorV1/Processed/';
         end
+    case 'greenemj' % Max Greene's laptop
+        codedir = fullfile(homeDir, 'Git');
+        stimpath = '/Volumes/lsr-conway/PROJECTS/V1_Fovea/stimuli/';
+        computerLocation = 1;
+        disp('Location: Max Greene''s laptop');
+        
 
 end
+
 
 %% flags
 fprintf('Flags \n')
