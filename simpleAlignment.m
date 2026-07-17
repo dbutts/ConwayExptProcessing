@@ -106,10 +106,7 @@ switch username
         stimpath = '/Volumes/lsr-conway/PROJECTS/V1_Fovea/stimuli/';
         computerLocation = 1;
         disp('Location: Max Greene''s laptop');
-        
-
 end
-
 
 %% flags
 fprintf('Flags \n')
@@ -128,7 +125,6 @@ skipLFP = input(['skip LFP? \n' ...
 % I don't need all these prompts so will just move the ones I do out and
 % all the rest can be for how you want to enter information
 
-
 if computerLocation < 10   % NIH-specific settings and prompts
     
     % is there a situation where we do not want to save the data? I'll
@@ -136,8 +132,7 @@ if computerLocation < 10   % NIH-specific settings and prompts
         '[1] Yes \n' ...
         '[0] No \n ']); %1;
 
-
-    online_sorting = input('online sorting? \n [0] No \n [1] Yes \n' );
+ 
 
     stimET = input(['stimET? \n' ...
         '[1] Yes \n' ...
@@ -202,7 +197,6 @@ if computerLocation < 10   % NIH-specific settings and prompts
 else % Dan's lab specific settings and prompts
 
     stimET = 1;   % need for old experiments (if included)
-    online_sorting = 0;
     saving = 1;
     rig = 'C'; % I don't know what this does
 
@@ -258,23 +252,6 @@ kofiko_file_numStr = cellfun(@(x) regexp(x, '\d*(?=(.mat))', 'match'),...
     kofiko_fname, 'UniformOutput',false);
 
 kofiko_file_num = cellfun(@(x) str2num(x{:}), kofiko_file_numStr);
-%else
-%    all_names = {kofiko_dir.name};
-%    kofiko_fname_re = ['^' filenameP '(?:_\d+)?\.mat$'];
-%    matches = regexp(all_names, kofiko_fname_re, 'once');
-%    valid_kofiko_fname_idx = ~cellfun(@isempty, matches);
-
-%    kofiko_folder = {kofiko_dir(valid_kofiko_fname_idx).folder};
-%    kofiko_fname  = {kofiko_dir(valid_kofiko_fname_idx).name};
-
-% Get the Kofiko mat file numbers from their names
-%    kofiko_file_numStr = cellfun(@(x) regexp(x, '\d*(?=(.mat))', 'match'), kofiko_fname, 'UniformOutput',false);
-%    if sum(cellfun(@isempty, kofiko_file_numStr)) > 0
-%    	kofiko_file_numStr{cellfun(@isempty, kofiko_file_numStr)} = {'nan'};
-%    end
-%    kofiko_file_num = cellfun(@(x) str2num(x{:}), kofiko_file_numStr);
-%    kofiko_file_num(isnan(kofiko_file_num)) = max(kofiko_file_num)+1;
-%end
 
 
 % Load the g_strctLocalExperimentRecording structs which contain
@@ -409,8 +386,6 @@ t_plexon = (0:n-1)/adfreq;
 [~, ~, ~, ~, leftEyeX_plexon] = plx_ad_v(plexon_fname, leftEyeX_ch);
 [~, ~, ~, ~, leftEyeY_plexon] = plx_ad_v(plexon_fname, leftEyeY_ch);
 
-
-
 %% Kofiko eye data
 % Get the screen dimensions
 ScreenSizeX_pix = g_strctStimulusServer.m_aiScreenSize(3);
@@ -510,18 +485,17 @@ leftEyeY_plexon_calib = plexonAnalogScale.*Kofiko_GainY_forEachPlexonSample.*lef
 
 % create PlexET_ad structure
 if bino_ddpi
-PlexET_times = t_plexon;
-PlexET_ad_calib = [];
-PlexET_ad_calib(:,1) = sync_ad;
-PlexET_ad_calib(:,2) = arc_ad;
-PlexET_ad_calib(:,3) = leftEyePupil_plexon;
-PlexET_ad_calib(:,4) = rightEyePupil_plexon;
-PlexET_ad_calib(:,5) = rightEyeX_plexon_calib;
-PlexET_ad_calib(:,6) = rightEyeY_plexon_calib;
-PlexET_ad_calib(:,7) = leftEyeX_plexon_calib;
-PlexET_ad_calib(:,8) = leftEyeY_plexon_calib;
+    PlexET_times = t_plexon;
+    PlexET_ad_calib = [];
+    PlexET_ad_calib(:,1) = sync_ad;
+    PlexET_ad_calib(:,2) = arc_ad;
+    PlexET_ad_calib(:,3) = leftEyePupil_plexon;
+    PlexET_ad_calib(:,4) = rightEyePupil_plexon;
+    PlexET_ad_calib(:,5) = rightEyeX_plexon_calib;
+    PlexET_ad_calib(:,6) = rightEyeY_plexon_calib;
+    PlexET_ad_calib(:,7) = leftEyeX_plexon_calib;
+    PlexET_ad_calib(:,8) = leftEyeY_plexon_calib;
 end
-
 
 %% %%%%%%%%%%%%%% Trial analysis %%%%%%%%%%%%%%
 tic;
@@ -858,144 +832,140 @@ nMU = [];
 RobsSU =[];
 RobsMU =[];
 
+Robs =  cell(1,num_ks_batch);
 for ks_batch = 1:num_ks_batch
     this_array_label = array_labels{ks_batch};
     disp(ks_batch)
-    try
-        % Get label of kilosort batch (often corresponding to array name and range of channels processed)
 
-        % Read in kilosort outputs
-        spk_times = readNPY(fullfile(spike_times_folders{ks_batch}, 'spike_times.npy'));
-        spk_times = double(spk_times)./fs + opts.spk_offset; % convert to seconds
-        spk_clusters = readNPY(fullfile(spike_times_folders{ks_batch}, 'spike_clusters.npy'))...
-            + cluster_offset;
-        cluster_KSLabel = tdfread(fullfile(spike_times_folders{ks_batch}, 'cluster_KSLabel.tsv'));
+    % Get label of kilosort batch (often corresponding to array name and range of channels processed)
 
-        chan_map = readNPY(fullfile(spike_times_folders{ks_batch}, 'channel_map.npy'));
-        chan_map = chan_map + chan_offset; % make channel numbers unique within array
+    % Read in kilosort outputs
+    spk_times = readNPY(fullfile(spike_times_folders{ks_batch}, 'spike_times.npy'));
+    spk_times = double(spk_times)./fs + opts.spk_offset; % convert to seconds
+    spk_clusters = readNPY(fullfile(spike_times_folders{ks_batch}, 'spike_clusters.npy'))...
+        + cluster_offset;
+    cluster_KSLabel = tdfread(fullfile(spike_times_folders{ks_batch}, 'cluster_KSLabel.tsv'));
 
-        if isfile(fullfile(spike_times_folders{ks_batch}, 'cluster_info.tsv'))
-            cluster_info = tdfread(fullfile(spike_times_folders{ks_batch}, 'cluster_info.tsv'));
-            cluster_id = cluster_info.cluster_id + cluster_offset;
-            group = cluster_info.group;
-            n_spikes = cluster_info.n_spikes;
-            chan_best = cluster_info.ch + double(chan_offset);
-        else
-            cluster_group = tdfread(fullfile(spike_times_folders{ks_batch}, 'cluster_group.tsv'));
-            cluster_group.cluster_id = cluster_group.cluster_id + cluster_offset;
+    chan_map = readNPY(fullfile(spike_times_folders{ks_batch}, 'channel_map.npy'));
+    chan_map = chan_map + chan_offset; % make channel numbers unique within array
 
-            % account for blank units which may not be in cluster_group
-            blank_cluster_id = setdiff(unique(spk_clusters), cluster_group.cluster_id);
-            temp_cluster_id = [cluster_group.cluster_id; blank_cluster_id];
-            temp_group = cluster_group.group;
-            temp_group(end+1:end+length(blank_cluster_id),:) = ' ';
-            [temp_cluster_id_sorted, I] = sort(temp_cluster_id);
-            temp_group_sorted = temp_group(I,:);
-            cluster_id = temp_cluster_id_sorted;
-            group = temp_group_sorted;
+    if isfile(fullfile(spike_times_folders{ks_batch}, 'cluster_info.tsv'))
+        cluster_info = tdfread(fullfile(spike_times_folders{ks_batch}, 'cluster_info.tsv'));
+        cluster_id = cluster_info.cluster_id + cluster_offset;
+        group = cluster_info.group;
+        n_spikes = cluster_info.n_spikes;
+        chan_best = cluster_info.ch + double(chan_offset);
+    else
+        cluster_group = tdfread(fullfile(spike_times_folders{ks_batch}, 'cluster_group.tsv'));
+        cluster_group.cluster_id = cluster_group.cluster_id + cluster_offset;
 
-            % find best channel of each cluster
-            templates = readNPY(fullfile(spike_times_folders{ks_batch}, 'templates.npy'));
-            % n_spikes = accumarray(spk_clusters+1, spk_clusters, [], @numel);
-            % n_spikes = n_spikes(n_spikes>0);
+        % account for blank units which may not be in cluster_group
+        blank_cluster_id = setdiff(unique(spk_clusters), cluster_group.cluster_id);
+        temp_cluster_id = [cluster_group.cluster_id; blank_cluster_id];
+        temp_group = cluster_group.group;
+        temp_group(end+1:end+length(blank_cluster_id),:) = ' ';
+        [temp_cluster_id_sorted, I] = sort(temp_cluster_id);
+        temp_group_sorted = temp_group(I,:);
+        cluster_id = temp_cluster_id_sorted;
+        group = temp_group_sorted;
 
-            n_spikes = accumarray(spk_clusters+1, 1, [], @sum);
-            n_spikes = n_spikes(cluster_id + 1);
+        % find best channel of each cluster
+        templates = readNPY(fullfile(spike_times_folders{ks_batch}, 'templates.npy'));
+        % n_spikes = accumarray(spk_clusters+1, spk_clusters, [], @numel);
+        % n_spikes = n_spikes(n_spikes>0);
 
-            [~,I]= max(sum(templates.^2,2),[],3);
-            chan_best = chan_map(I); % best channel for each unique cluster
-        end
+        n_spikes = accumarray(spk_clusters+1, 1, [], @sum);
+        n_spikes = n_spikes(cluster_id + 1);
 
-        % Find indices of units labeled "good", "mua", or ""
-        isGood = cellfun(@(x) strcmpi(deblank(x), 'good'), cellstr(group));
-        isMua = cellfun(@(x) strcmpi(deblank(x), 'mua'), cellstr(group));
-        isBlank = cellfun(@(x) isempty(deblank(x)), cellstr(group));
-        hasMinSpikes = n_spikes > minSpikes;
+        [~,I]= max(sum(templates.^2,2),[],3);
+        chan_best = chan_map(I); % best channel for each unique cluster
+    end
 
-        % get cluster IDs
-        SU_clusterIDs{ks_batch} = cluster_id(isGood & hasMinSpikes);
-        MU_clusterIDs{ks_batch} = cluster_id((isMua | isBlank) & hasMinSpikes);
-        allUnit_clusterIDs{ks_batch} =[SU_clusterIDs{ks_batch}; MU_clusterIDs{ks_batch}];
+    % Find indices of units labeled "good", "mua", or ""
+    isGood = cellfun(@(x) strcmpi(deblank(x), 'good'), cellstr(group));
+    isMua = cellfun(@(x) strcmpi(deblank(x), 'mua'), cellstr(group));
+    isBlank = cellfun(@(x) isempty(deblank(x)), cellstr(group));
+    hasMinSpikes = n_spikes > minSpikes;
 
-        % get channels
-        SU_chanNums{ks_batch} = chan_best(isGood & hasMinSpikes);
-        MU_chanNums{ks_batch} = chan_best((isMua | isBlank) & hasMinSpikes);
-        allUnit_chanNums{ks_batch} =  [SU_chanNums{ks_batch}; MU_chanNums{ks_batch}];
+    % get cluster IDs
+    SU_clusterIDs{ks_batch} = cluster_id(isGood & hasMinSpikes);
+    MU_clusterIDs{ks_batch} = cluster_id((isMua | isBlank) & hasMinSpikes);
+    allUnit_clusterIDs{ks_batch} =[SU_clusterIDs{ks_batch}; MU_clusterIDs{ks_batch}];
 
-        % get ks_batch
-        SU_ks_batch{ks_batch} = ks_batch.*ones(size(SU_clusterIDs{ks_batch}));
-        MU_ks_batch{ks_batch} = ks_batch.*ones(size(MU_clusterIDs{ks_batch}));
-        allUnit_ks_batch{ks_batch} = [SU_ks_batch{ks_batch}; MU_ks_batch{ks_batch}];
+    % get channels
+    SU_chanNums{ks_batch} = chan_best(isGood & hasMinSpikes);
+    MU_chanNums{ks_batch} = chan_best((isMua | isBlank) & hasMinSpikes);
+    allUnit_chanNums{ks_batch} =  [SU_chanNums{ks_batch}; MU_chanNums{ks_batch}];
 
-        % Get rid of spike times and clusterIDs that correspond to bad units
-        spk_times = spk_times(ismember(spk_clusters, allUnit_clusterIDs{ks_batch}));
-        spk_clusters = spk_clusters(ismember(spk_clusters, allUnit_clusterIDs{ks_batch}));
-        ks_batchForEachSpk= repelem(ks_batch, numel(spk_times))';
+    % get ks_batch
+    SU_ks_batch{ks_batch} = ks_batch.*ones(size(SU_clusterIDs{ks_batch}));
+    MU_ks_batch{ks_batch} = ks_batch.*ones(size(MU_clusterIDs{ks_batch}));
+    allUnit_ks_batch{ks_batch} = [SU_ks_batch{ks_batch}; MU_ks_batch{ks_batch}];
 
-        % bin spikes by trial
-        [~,~,spk_times_bin{ks_batch}] = histcounts(spk_times, stimIntervals);
+    % Get rid of spike times and clusterIDs that correspond to bad units
+    spk_times = spk_times(ismember(spk_clusters, allUnit_clusterIDs{ks_batch}));
+    spk_clusters = spk_clusters(ismember(spk_clusters, allUnit_clusterIDs{ks_batch}));
+    ks_batchForEachSpk= repelem(ks_batch, numel(spk_times))';
 
-        % each cell gives spike times for stim ON and stim OFF periods
+    % bin spikes by trial
+    [~,~,spk_times_bin{ks_batch}] = histcounts(spk_times, stimIntervals);
 
-        spk_times_cellArray{ks_batch} =accumarray(...
-            spk_times_bin{ks_batch}(:)+1, ...
-            spk_times(:), ...
-            [nBins + 1, 1], ...
-            @(x){x}, ...
-            {[]});
+    % each cell gives spike times for stim ON and stim OFF periods
 
-        clusterIDForEachSpk_cellArray{ks_batch} = accumarray(...
-            spk_times_bin{ks_batch}(:)+1, ...
-            spk_clusters(:), ...
-            [nBins + 1, 1], ...
-            @(x){x}, ...
-            {[]});
+    spk_times_cellArray{ks_batch} =accumarray(...
+        spk_times_bin{ks_batch}(:)+1, ...
+        spk_times(:), ...
+        [nBins + 1, 1], ...
+        @(x){x}, ...
+        {[]});
 
-        ks_batchForEachSpk_cellArray{ks_batch} = accumarray(...
-            spk_times_bin{ks_batch}(:)+1, ...
-            ks_batchForEachSpk(:), ...
-            [nBins + 1, 1], ...)
-            @(x){x}, ...
-            {[]});
+    clusterIDForEachSpk_cellArray{ks_batch} = accumarray(...
+        spk_times_bin{ks_batch}(:)+1, ...
+        spk_clusters(:), ...
+        [nBins + 1, 1], ...
+        @(x){x}, ...
+        {[]});
 
-        clusterIDForEachSpk_stimON_cellArray = clusterIDForEachSpk_cellArray{ks_batch}(2:2:end);
-        spk_times_stimON_cellArray =  spk_times_cellArray{ks_batch}(2:2:end);
-        %    ks_batchForEachSpk_stimON_cellArray = ks_batchForEachSpk_stimON_cellArray{ks_batch}(2:2:end);
+    ks_batchForEachSpk_cellArray{ks_batch} = accumarray(...
+        spk_times_bin{ks_batch}(:)+1, ...
+        ks_batchForEachSpk(:), ...
+        [nBins + 1, 1], ...)
+        @(x){x}, ...
+        {[]});
 
-        stimFrameNumForEachSpk_cellArray{ks_batch} = cell(size(trialData,1),1);
+    clusterIDForEachSpk_stimON_cellArray = clusterIDForEachSpk_cellArray{ks_batch}(2:2:end);
+    spk_times_stimON_cellArray =  spk_times_cellArray{ks_batch}(2:2:end);
+    %    ks_batchForEachSpk_stimON_cellArray = ks_batchForEachSpk_stimON_cellArray{ks_batch}(2:2:end);
 
-        [~,~,stimFrameNumForEachSpk_cellArray{ks_batch}(valid_stimFrameBinIdx)] =...
-            cellfun(@(x,y) histcounts(x, 'BinEdges', y), ...
-            spk_times_stimON_cellArray(valid_stimFrameBinIdx),...
-            stimFrameBins(valid_stimFrameBinIdx), 'UniformOutput',false);
-        %spkFrameIdx_cellArray = transpose(spkFrameIdx_cellArray);
+    stimFrameNumForEachSpk_cellArray{ks_batch} = cell(size(trialData,1),1);
 
-        Robs{ks_batch} = single(zeros(numel(allUnit_clusterIDs{ks_batch}),  sum(numFrames(isTrialOfInterest))));
+    [~,~,stimFrameNumForEachSpk_cellArray{ks_batch}(valid_stimFrameBinIdx)] =...
+        cellfun(@(x,y) histcounts(x, 'BinEdges', y), ...
+        spk_times_stimON_cellArray(valid_stimFrameBinIdx),...
+        stimFrameBins(valid_stimFrameBinIdx), 'UniformOutput',false);
+    %spkFrameIdx_cellArray = transpose(spkFrameIdx_cellArray);
 
-        for unit = 1:numel(allUnit_clusterIDs{ks_batch})
-            unitID = allUnit_clusterIDs{ks_batch}(unit);
+    Robs{ks_batch} = single(zeros(numel(allUnit_clusterIDs{ks_batch}),  sum(numFrames(isTrialOfInterest))));
 
-            % each cell is a trial, and contains frame indicies where spikes
-            % occurred (repeated frames == multiple spikes on that frame)
+    for unit = 1:numel(allUnit_clusterIDs{ks_batch})
+        unitID = allUnit_clusterIDs{ks_batch}(unit);
 
-            stimFrameNumForEachSpk_thisUnit_cellArray = cell(size(trialData,1),1);
-            stimFrameNumForEachSpk_thisUnit_cellArray(valid_stimFrameBinIdx) = ...
-                cellfun(@(x,y) x(y==unitID), ...
-                stimFrameNumForEachSpk_cellArray{ks_batch}(valid_stimFrameBinIdx), ...
-                clusterIDForEachSpk_stimON_cellArray(valid_stimFrameBinIdx),...
-                'UniformOutput', false);
+        % each cell is a trial, and contains frame indicies where spikes
+        % occurred (repeated frames == multiple spikes on that frame)
 
-            spksPerFrame_cellArray =  cell(size(trialData,1),1);
+        stimFrameNumForEachSpk_thisUnit_cellArray = cell(size(trialData,1),1);
+        stimFrameNumForEachSpk_thisUnit_cellArray(valid_stimFrameBinIdx) = ...
+            cellfun(@(x,y) x(y==unitID), ...
+            stimFrameNumForEachSpk_cellArray{ks_batch}(valid_stimFrameBinIdx), ...
+            clusterIDForEachSpk_stimON_cellArray(valid_stimFrameBinIdx),...
+            'UniformOutput', false);
 
-            spksPerFrame_cellArray(isTrialOfInterest) = cellfun(@(x,y) histcounts(x, 'BinEdges',0.5:(y+0.5)),...
-                stimFrameNumForEachSpk_thisUnit_cellArray(isTrialOfInterest), num2cell(numFrames(isTrialOfInterest)) ,'UniformOutput',false);
+        spksPerFrame_cellArray =  cell(size(trialData,1),1);
 
-            Robs{ks_batch}(unit,:) = [spksPerFrame_cellArray{:}];
-        end
+        spksPerFrame_cellArray(isTrialOfInterest) = cellfun(@(x,y) histcounts(x, 'BinEdges',0.5:(y+0.5)),...
+            stimFrameNumForEachSpk_thisUnit_cellArray(isTrialOfInterest), num2cell(numFrames(isTrialOfInterest)) ,'UniformOutput',false);
 
-    catch ME
-        warning("Could not process %s", ks_folders{ks_batch})
-        disp(ME.message)
+        Robs{ks_batch}(unit,:) = [spksPerFrame_cellArray{:}];
     end
 
     nSU{ks_batch} = length(SU_clusterIDs{ks_batch});
@@ -1025,135 +995,6 @@ nMU = sum(cellfun(@length, MU_clusterIDs));
 
 toc;
 
-%% online sorting
-if online_sorting == 1
-    [tscounts, wfcounts, evcounts, contcounts] = plx_info(plexon_fname, true);
-
-    [onlineSortedUnits, onlineSortedChans] = find(wfcounts);
-
-    % for each channel, and for each unit, make vector of timestamps and vector
-    % of unit id
-
-    onlineUnitID = 1;
-    online_spk_times = [];
-    online_spk_clusters = [];
-
-    uniqueOnlineSortedChans = unique(onlineSortedChans);
-
-    for ch = 1:numel(uniqueOnlineSortedChans)
-        onlineUnits = onlineSortedUnits(onlineSortedChans == uniqueOnlineSortedChans(ch));
-        for u = 1:numel(onlineUnits)
-            [n, npw, ts, wave] = plx_waves_v(plexon_fname,uniqueOnlineSortedChans(ch)-1, onlineUnits(u));
-            online_spk_times = [online_spk_times; ts];
-            online_spk_clusters = [online_spk_clusters; onlineUnitID*ones(size(ts))];
-            online_mean_wave{ch,u} = mean(wave,1);
-            onlineUnitID = onlineUnitID + 1;
-        end
-
-    end
-
-    online_allUnit_clusterIDs = unique(online_spk_clusters);
-
-    % bin spikes by trial
-    [~,~,online_spk_times_bin] = histcounts(online_spk_times, stimIntervals);
-
-    % each cell gives spike times for stim ON and stim OFF periods
-
-    online_spk_times_cellArray =accumarray(...
-        online_spk_times_bin(:)+1, ...
-        online_spk_times(:), ...
-        [nBins + 1, 1], ...
-        @(x){x}, ...
-        {[]});
-
-    online_clusterIDForEachSpk_cellArray = accumarray(...
-        online_spk_times_bin(:)+1, ...
-        online_spk_clusters(:), ...
-        [nBins + 1, 1], ...
-        @(x){x}, ...
-        {[]});
-
-    online_clusterIDForEachSpk_stimON_cellArray = online_clusterIDForEachSpk_cellArray(2:2:end);
-    online_spk_times_stimON_cellArray =  online_spk_times_cellArray(2:2:end);
-    %    ks_batchForEachSpk_stimON_cellArray = ks_batchForEachSpk_stimON_cellArray{ks_batch}(2:2:end);
-
-    online_stimFrameNumForEachSpk_cellArray = cell(size(trialData,1),1);
-
-    [~,~,online_stimFrameNumForEachSpk_cellArray(valid_stimFrameBinIdx)] =...
-        cellfun(@(x,y) histcounts(x, 'BinEdges', y), ...
-        online_spk_times_stimON_cellArray(valid_stimFrameBinIdx),...
-        stimFrameBins(valid_stimFrameBinIdx), 'UniformOutput',false);
-    %spkFrameIdx_cellArray = transpose(spkFrameIdx_cellArray);
-
-    online_Robs = single(zeros(numel(unique(online_spk_clusters)),  sum(numFrames(isTrialOfInterest))));
-
-    for unit = 1:numel(online_allUnit_clusterIDs)
-        unitID = online_allUnit_clusterIDs(unit);
-
-        % each cell is a trial, and contains frame indicies where spikes
-        % occurred (repeated frames == multiple spikes on that frame)
-
-        online_stimFrameNumForEachSpk_thisUnit_cellArray = cell(size(trialData,1),1);
-        online_stimFrameNumForEachSpk_thisUnit_cellArray(valid_stimFrameBinIdx) = ...
-            cellfun(@(x,y) x(y==unitID), ...
-            online_stimFrameNumForEachSpk_cellArray(valid_stimFrameBinIdx), ...
-            online_clusterIDForEachSpk_stimON_cellArray(valid_stimFrameBinIdx),...
-            'UniformOutput', false);
-
-        online_spksPerFrame_cellArray =  cell(size(trialData,1),1);
-
-        online_spksPerFrame_cellArray(isTrialOfInterest) = cellfun(@(x,y) histcounts(x, 'BinEdges',0.5:(y+0.5)),...
-            online_stimFrameNumForEachSpk_thisUnit_cellArray(isTrialOfInterest), num2cell(numFrames(isTrialOfInterest)) ,'UniformOutput',false);
-
-        online_Robs(unit,:) = [online_spksPerFrame_cellArray{:}];
-    end
-
-
-
-    online_tempSTA = [];
-    if compute_stas
-        S = single(stimulus_matrix)';
-        tic;
-        fprintf('Computing STAs\n');
-
-        for lag = 0:nLags-1
-            online_tempSTA(:,:,:,:,lag+1) = online_Robs(:,lag+1:end) * S(1:end-lag,:);
-        end
-
-        online_STA = reshape(online_tempSTA, size(online_tempSTA,1), 60, 60, 3, nLags);
-
-        toc;
-    else
-    end
-
-    lags = 3:6;
-
-    chrom_chan_labels = {'Lum.', 'L-M', 'S'};
-    if compute_stas && plotting
-        fprintf('Now plotting\n')
-
-        for unit = 1:size(online_STA,1)
-            figure; i = 1;
-            for chromatic_channel = 1:3
-                for lag = lags
-                    subplot(3, length(lags), i );
-                    imagesc(circshift(squeeze(online_STA(unit,:,:,chromatic_channel,lag+1)), [30 30])), colormap gray
-                    i = i+1;
-
-                    if lag == lags(1)
-                        ylabel(chrom_chan_labels{chromatic_channel}, 'fontsize', 16)
-                    end
-
-                    if chromatic_channel == 1
-                        title(lag)
-                    end
-                end
-            end
-
-            sgtitle(sprintf('channel: %i,unit: %i, total spikes: %i', onlineSortedChans(unit),onlineSortedUnits(unit), sum(online_Robs(unit,:))))
-        end
-    end
-end
 
 %% Process LFPs
 if ~skipLFP
@@ -1385,21 +1226,13 @@ cluster = vertcat(SU_clusterIDs{:});
 clusterMU = vertcat(MU_clusterIDs{:});
 
 %% remap cluster ids from 1 to number of clusters
-% [clusterIDs_sorted,sortByClusterID] = sort(clusterIDs);
-% spike_ts_sorted = spike_ts(sortByClusterID);
-%
-% spikeIDs = clusterIDs_sorted;
 
-%uniqueClusterIDs = vertcat(allUnit_clusterIDs{:});
 uniqueClusterIDs = vertcat(vertcat(SU_clusterIDs{:}), vertcat(MU_clusterIDs{:}));
 
 spikeIDs_unsorted = accumarray(transpose(1:numel(clusterIDs)), clusterIDs', [], @(x) find(uniqueClusterIDs==x));
 [spikeIDs, sortBySpikeID] = sort(spikeIDs_unsorted);
 spike_ts_sorted = spike_ts(sortBySpikeID);
 
-% Process reward times relative to trial onsets -- oops this is kofiko time
-%REWon_ts = g_strctDAQParams.LastStrobe.TimeStamp(g_strctDAQParams.LastStrobe.Buffer == 32765);
-%REWoff_ts = g_strctDAQParams.LastStrobe.TimeStamp(g_strctDAQParams.LastStrobe.Buffer == 32764);
 
 %% Make list of reward times on each trial
 reward_on_ts = [];
@@ -1420,10 +1253,7 @@ if computerLocation < -100
         @(x){x},...
         {[]});
 
-
     REW_ON_cellArray = cellfun(@(rewardTime, trialStartTime) rewardTime - trialStartTime, REW_ON_cellArray, REW_OFF_cellArray);
-
-
 
     reward_on_ts = vertcat(REW_ON_cellArray{2*find(isTrialOfInterest)});
     reward_off_ts = vertcat(REW_OFF_cellArray{2*find(isTrialOfInterest)});

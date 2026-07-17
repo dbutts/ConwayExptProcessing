@@ -48,8 +48,7 @@ STA.DKL = reshape(tempSTA, size(tempSTA,1), size(stim,1), size(stim,2), 3, nLags
 
 
 % convert STA from DKL to LMS
-STA_CC =[];
-STA_coneWeights = [];
+
 if nargin > 5
     T_RGB2LMS = compute_T_RGB2LMS(varargin{:});
     T_DKL2RGB = compute_T_DKL2RGB(varargin{:});
