@@ -3,7 +3,10 @@ function STA = generate_stas(Robs, stim, nlags, v_bkg, varargin)
 % Robs is expected to be a # units x # frames matrix, while stim is
 % expected to be Y pixels x X pixels x 3 x # frames
 
-% STA and STA_cc are # units x Y pixels x X pixels x 3 chromatic dimensions x nlags  
+% STA are # units x Y pixels x X pixels x 3 chromatic dimensions x nlags  
+
+% Need psychtoolbox on path
+%addpath(genpath('~/Psychtoolbox-3/Psychtoolbox/'))
 
 % Example usage
 % rx   = 0.6280;
@@ -33,18 +36,18 @@ function STA = generate_stas(Robs, stim, nlags, v_bkg, varargin)
 %     plotflag = 0;
 % end
 
-nLags = 10;
+%nLags = 10;
 tempSTA = [];
 S = transpose(single(reshape(stim,prod(size(stim,1:3)), [])))./127;
 
 tic;
 fprintf('Computing STAs\n');
 
-for lag = 0:nLags-1
+for lag = 0:nlags-1
     tempSTA(:,:,:,:,lag+1) = (Robs(:,lag+1:end) * S(1:end-lag,:))./sum(Robs(:,lag+1:end),2);
 end
 
-STA.DKL = reshape(tempSTA, size(tempSTA,1), size(stim,1), size(stim,2), 3, nLags);
+STA.DKL = reshape(tempSTA, size(tempSTA,1), size(stim,1), size(stim,2), 3, nlags);
 
 
 % convert STA from DKL to LMS

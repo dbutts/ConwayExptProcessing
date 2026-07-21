@@ -1,4 +1,9 @@
-function [xc_pix_abs, yc_pix_abs] = find_sta_center(STA, stim_location)
+function [xc_pix_abs, yc_pix_abs] = find_sta_center(STA, stim_location, ScreenSizeX_pix, ScreenSizeY_pix)
+
+if nargin < 3
+    ScreenSizeX_pix = 1920;
+    ScreenSizeY_pix = 1080;
+end
 
 xleft = stim_location(:,1); % from data.stim_location
 ytop = stim_location(:,2);
