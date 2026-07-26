@@ -66,14 +66,14 @@
 
 %% Set paths
 setPathsAndFlags;
-
+addpath(genpath(fullfile(codedir, 'ConwayExptProcessing')))
 
 %% Initialization for everyone given setup
-addpath(genpath(fullfile(codedir, 'ConwayExptProcessing')))
+
 %addpath(genpath(fullfile(codedir, 'ConwayExptProcessing', 'npy-matlab')))
 
 pl2 = PL2ReadFileIndex(plexon_fname);
-
+fs = pl2.SpikeChannels{1}.SamplesPerSecond;
 % Hardcoded values
 plexonAnalogScale = 1e-3;
 LumScale = 0.1085;
@@ -84,363 +84,83 @@ targ_ETstimtype = 0;
 ETdist_thresh=40;
 nLags = 10;
 %% Load kofiko data
-tic;
-fprintf('Loading Kofiko trial data\n')
-
-% I think this code works with Dan lab -- dont need if here
-%if computerLocation < 10
-kofiko_dir = dir(fullfile(kofiko_subfolder, [filenameP '*.mat']));
-kofiko_fname_re = [filenameP '(_\d*)?.mat'];
-valid_kofiko_fname_idx = cellfun(@(x) ~isempty(x), ...
-    cellfun(@(x) regexp(x, kofiko_fname_re), {kofiko_dir(:).name}, 'UniformOutput',false));
-kofiko_folder = {kofiko_dir(valid_kofiko_fname_idx).folder};
-kofiko_fname = {kofiko_dir(valid_kofiko_fname_idx).name};
-
-% Get the Kofiko mat file numbers from their names
-kofiko_file_numStr = cellfun(@(x) regexp(x, '\d*(?=(.mat))', 'match'),...
-    kofiko_fname, 'UniformOutput',false);
-
-kofiko_file_num = cellfun(@(x) str2num(x{:}), kofiko_file_numStr);
-
-% Load the g_strctLocalExperimentRecording structs which contain
-% information about each trials
-g_strctLocalExperimentRecording = [];
-for i = 1:length(kofiko_file_num)
-    idx = kofiko_file_num(i);
-    temp_full_fname = fullfile(kofiko_folder{i}, kofiko_fname{i});
-    temp_strct = load(temp_full_fname, 'g_strctLocalExperimentRecording');
-    temp_cell = temp_strct.g_strctLocalExperimentRecording;
-    g_strctLocalExperimentRecording{idx} = temp_cell;
-end
-
-% add main kofiko file
-
-temp_strct = load(mainKofiko_fname, 'g_strctLocalExperimentRecording');
-temp_cell = temp_strct.g_strctLocalExperimentRecording;
-g_strctLocalExperimentRecording{end+1} = temp_cell;
-
-% Load the file which should be the "main" Kofiko mat file (no number at the end)
-
-%mainKofikoFolderIdx = strcmpi(kofiko_fname, [filenameP '.mat']);
-%load(fullfile(kofiko_folder{mainKofikoFolderIdx}, kofiko_fname{mainKofikoFolderIdx}), 'g_strctDAQParams', ...
-load(mainKofiko_fname, 'g_strctDAQParams', ...
-    'g_astrctAllParadigms', 'g_strctLog', 'g_strctEyeCalib', ...
-    'g_strctAppConfig', 'g_strctSharedParadigmData', ...
-    'g_strctStimulusServer', 'g_strctSystemCodes');
-
-% Concatenate the g_strctLocalExperimentRecorindg structs and remove empty cells
-trialData = vertcat(g_strctLocalExperimentRecording{:});
-trialData(cellfun(@isempty, trialData)) = [];
-
-% Unify field names across g_strctLocalExperimentRecording to facilitate using cellfun
-fieldNames = cellfun(@(x) fieldnames(x), trialData, 'UniformOutput', false);
-uniqueFieldNames = unique(vertcat(fieldNames{:}));
-missingFieldNames = cellfun(@(x) setdiff(uniqueFieldNames, fieldnames(x)),...
-    trialData, 'UniformOutput',false);
-
-for i = 1:numel(trialData)
-    for  j = 1:numel(missingFieldNames{i})
-        trialData{i}.(missingFieldNames{i}{j}) = [];
-    end
-end
-toc;
-
+g_strcts = loadKofikoStructs(mainKofiko_fname);
+trial = loadKofikoTrialData(kofiko_subfolder,mainKofiko_fname,filenameP);
+monkey_name = g_strcts.g_strctAppConfig.m_strctSubject.m_strName;
 %% %%%%%%%% Time alignment %%%%%%%%%%
 tic;
 fprintf('Loading Kofiko eye signals and converting to plexon time\n')
-
-% Read kofiko strobes from plexon and kofiko files
-[events.count, events.timeStamps, events.strobeNumber] = plx_event_ts(plexon_fname, 257);
-
-kofikoSyncStrobesTS = transpose(g_strctDAQParams.LastStrobe.TimeStamp(g_strctDAQParams.LastStrobe.Buffer == g_strctSystemCodes.m_iSync));
-plexonSyncStrobesTS = events.timeStamps(events.strobeNumber == g_strctSystemCodes.m_iSync);
-
-% Linear regression to get kofiko time stamps into plexon time
-B = [ones(size(kofikoSyncStrobesTS)) kofikoSyncStrobesTS]\plexonSyncStrobesTS;
-
-% juice times in plexon time
-REW_ON_ts = events.timeStamps(events.strobeNumber == g_strctSystemCodes.m_iJuiceON);
-REW_OFF_ts = events.timeStamps(events.strobeNumber == g_strctSystemCodes.m_iJuiceOFF);
-
-
+B = KofikoPlexonStrobesLinReg(g_strcts, plexon_fname);
 
 %% Plexon eye data
 
-if strcmpi(rig, 'B')
-    % Rig B
-    sync_ch = 'AI01';
-    arc_ch = 'AI02';
-    leftEyePupil_ch = 'AI07';
-    rightEyePupil_ch = 'AI08';
-    rightEyeX_ch = 'AI05';
-    rightEyeY_ch = 'AI06';
-    leftEyeX_ch ='AI03';
-    leftEyeY_ch ='AI04';
-elseif strcmpi(rig, 'C')
-    % % Rig C
-    if bino_ddpi
-        sync_ch = 'AI01';
-        arc_ch = 'AI02';
-        leftEyePupil_ch = 'AI03';
-        rightEyePupil_ch = 'AI04';
-        rightEyeX_ch = 'AI05';
-        rightEyeY_ch = 'AI06';
-        leftEyeX_ch ='AI07';
-        leftEyeY_ch ='AI08';
-    else
-        if ET_Eyelink == 1
-            [~, ~, ~, ~, PlexET_ad(1,:)] = plx_ad_v(thisSessionFile, 'AI05');
-            [~, ~, ~, ~, PlexET_ad(2,:)] = plx_ad_v(thisSessionFile, 'AI06');
-            [~, ~, ~, ~, PlexET_ad(3,:)] = plx_ad_v(thisSessionFile, 'AI07');
-            [ET_adfreq, ET_n, ET_ts, ET_fn, PlexET_ad(4,:)] = plx_ad_v(thisSessionFile, 'AI08');
-            PlexET_ad_calib=PlexET_ad;
-            PlexET_ad_calib(1,:) = (PlexET_ad_calib(1,:)-median(PlexET_ad_calib(1,:)))*(g_strctEyeCalib.GainX.Buffer(end)./opts.plx_analogscale);
-            PlexET_ad_calib(2,:) = (PlexET_ad_calib(2,:)-median(PlexET_ad_calib(2,:)))*(g_strctEyeCalib.GainY.Buffer(end)./opts.plx_analogscale);
-            PlexET_ad_calib(3,:) = (PlexET_ad_calib(3,:)-median(PlexET_ad_calib(3,:)))*(g_strctEyeCalib.GainX.Buffer(end)./opts.plx_analogscale);
-            PlexET_ad_calib(4,:) = (PlexET_ad_calib(4,:)-median(PlexET_ad_calib(4,:)))*(g_strctEyeCalib.GainY.Buffer(end)./opts.plx_analogscale);
-
-        elseif ET_Eyelink== 2
-            [~, ~, ~, ~, PlexET_ad(1,:)] = plx_ad_v(thisSessionFile, 'AI07');
-            [ET_adfreq, ET_n, ET_ts, ET_fn, PlexET_ad(2,:)] = plx_ad_v(thisSessionFile, 'AI08');
-            PlexET_ad_calib=PlexET_ad;
-            PlexET_ad_calib(1,:) = (PlexET_ad_calib(1,:)-median(PlexET_ad_calib(1,:)))*(g_strctEyeCalib.GainX.Buffer(end)./opts.plx_analogscale);
-            PlexET_ad_calib(2,:) = (PlexET_ad_calib(2,:)-median(PlexET_ad_calib(2,:)))*(g_strctEyeCalib.GainY.Buffer(end)./opts.plx_analogscale);
-
-        elseif ET_Eyelink == 3
-            [~, ~, ~, ~, PlexET_ad(1,:)] = plx_ad_v(thisSessionFile, 'AI03');
-            [~, ~, ~, ~, PlexET_ad(2,:)] = plx_ad_v(thisSessionFile, 'AI04');
-            [~, ~, ~, ~, PlexET_ad(3,:)] = plx_ad_v(thisSessionFile, 'AI07');
-            [ET_adfreq, ET_n, ET_ts, ET_fn, PlexET_ad(4,:)] = plx_ad_v(thisSessionFile, 'AI08');
-            PlexET_ad_calib=PlexET_ad;
-            PlexET_ad_calib(3,:) = PlexET_ad_calib(3,:)*(g_strctEyeCalib.GainX.Buffer(end)./opts.plx_analogscale);
-            PlexET_ad_calib(4,:) = PlexET_ad_calib(4,:)*(g_strctEyeCalib.GainY.Buffer(end)./opts.plx_analogscale);
-
-        elseif ET_Eyelink == 0
-            [~, ~, ~, ~, PlexET_ad(1,:)] = plx_ad_v(thisSessionFile, 'AI07');
-            [ET_adfreq, ET_n, ET_ts, ET_fn, PlexET_ad(2,:)] = plx_ad_v(thisSessionFile, 'AI08');
-            PlexET_ad(1,:)=PlexET_ad(1,:)-median(PlexET_ad(1,:));
-            PlexET_ad(2,:)=PlexET_ad(2,:)-median(PlexET_ad(2,:));
-        end
-    end
-
-end
-
-[adfreq, n, ts, fn, sync_ad] = plx_ad_v(plexon_fname, sync_ch);
+% make vector of plexon sample times, starting at 0
+temp = vertcat(pl2.AnalogChannels{:});
+analogChanNames = {temp.Name};
+numDigitsInLastAIchan = ceil(log10(sum(contains(analogChanNames, 'AI'))));
+chanName =  ['AI' num2str(1, ['%0' num2str(numDigitsInLastAIchan) '.f'])];
+[adfreq, n, ~, ~, ~] = plx_ad_v(plexon_fname, chanName);
 t_plexon = (0:n-1)/adfreq;
 
-[~, ~, ~, arc_ad] = plx_ad_v(plexon_fname, arc_ch);
-[~, ~, ~, ~, leftEyePupil_plexon] = plx_ad_v(plexon_fname, leftEyePupil_ch);
-[~, ~, ~, ~, rightEyePupil_plexon] = plx_ad_v(plexon_fname, rightEyePupil_ch);
-[~, ~, ~, ~, rightEyeX_plexon] = plx_ad_v(plexon_fname,rightEyeX_ch);
-[~, ~, ~, ~, rightEyeY_plexon] = plx_ad_v(plexon_fname, rightEyeY_ch);
-[~, ~, ~, ~, leftEyeX_plexon] = plx_ad_v(plexon_fname, leftEyeX_ch);
-[~, ~, ~, ~, leftEyeY_plexon] = plx_ad_v(plexon_fname, leftEyeY_ch);
+[Kofiko_ET_TS, Kofiko_Xpix, Kofiko_Ypix, KofikoGains, KofikoOffsets, KofikoGains_Plexon, KofikoOffsets_Plexon]...
+    = loadKofikoEyeData(g_strcts,t_plexon, B);
 
-%% Kofiko eye data
-% Get the screen dimensions
-ScreenSizeX_pix = g_strctStimulusServer.m_aiScreenSize(3);
-ScreenSizeY_pix = g_strctStimulusServer.m_aiScreenSize(4);
-
-% Convert Kofiko eye signal timestamps to Plexon time
-Kofiko_ET_TS = g_strctEyeCalib.EyeRaw.TimeStamp';
 Kofiko_ET_TS_PlexonTime = [ones(size(Kofiko_ET_TS)) Kofiko_ET_TS]*B;
 
-% Get Kofiko raw eye signals
-Kofiko_EyeRawX = g_strctEyeCalib.EyeRaw.Buffer(:,1);
-Kofiko_EyeRawY = g_strctEyeCalib.EyeRaw.Buffer(:,2);
-% Get Kofiko eye signal gains
-Kofiko_GainX = g_strctEyeCalib.GainX.Buffer;
-Kofiko_GainY = g_strctEyeCalib.GainY.Buffer;
-% Get Kofiko eye signal gain timestamps & convert to plexon time
-Kofiko_GainX_TS = g_strctEyeCalib.GainX.TimeStamp;
-Kofiko_GainX_TS_PlexonTime = [ones(size(Kofiko_GainX_TS')) Kofiko_GainX_TS']*B;
+chanNums = 1:8;
+PlexET_ad_calib = loadPlexonEyeData(plexon_fname, chanNums, rig, plexonAnalogScale, KofikoGains_Plexon);
 
-Kofiko_GainY_TS = g_strctEyeCalib.GainY.TimeStamp;
-Kofiko_GainY_TS_PlexonTime = [ones(size(Kofiko_GainY_TS')) Kofiko_GainY_TS']*B;
-
-% Get Kofiko eye signal offsets
-Kofiko_CenterX = g_strctEyeCalib.CenterX.Buffer;
-Kofiko_CenterY = g_strctEyeCalib.CenterY.Buffer;
-% Get Kofiko eye signal offset timestamps
-Kofiko_CenterX_TS = g_strctEyeCalib.CenterX.TimeStamp;
-Kofiko_CenterX_TS_PlexonTime = [ones(size(Kofiko_CenterX_TS')) Kofiko_CenterX_TS']*B;
-
-Kofiko_CenterY_TS = g_strctEyeCalib.CenterY.TimeStamp;
-Kofiko_CenterY_TS_PlexonTime = [ones(size(Kofiko_CenterY_TS')) Kofiko_CenterY_TS']*B;
-
-% Determine the Kofiko gains and offsets for each eye signal time stamp
-
-% Kofiko X gain
-Kofiko_GainX_forEachTimeStamp = nan(size(Kofiko_ET_TS));
-Kofiko_GainX_forEachPlexonSample = nan(size(t_plexon));
-
-for i = 1:numel(Kofiko_GainX)
-    kidx = Kofiko_ET_TS >= Kofiko_GainX_TS(i);
-    pidx = t_plexon >= Kofiko_GainX_TS_PlexonTime(i);
-
-    Kofiko_GainX_forEachTimeStamp(kidx) = Kofiko_GainX(i);
-    Kofiko_GainX_forEachPlexonSample(pidx) = Kofiko_GainX(i);
-end
-
-% Kofiko Y gain
-Kofiko_GainY_forEachTimeStamp = nan(size(Kofiko_ET_TS));
-Kofiko_GainY_forEachPlexonSample = nan(size(t_plexon));
-
-for i = 1:numel(Kofiko_GainY)
-    kidx = Kofiko_ET_TS >= Kofiko_GainY_TS(i);
-    pidx = t_plexon >= Kofiko_GainY_TS_PlexonTime(i);
-
-    Kofiko_GainY_forEachTimeStamp(kidx) = Kofiko_GainY(i);
-    Kofiko_GainY_forEachPlexonSample(pidx) = Kofiko_GainY(i);
-end
-
-% Kofiko X center
-Kofiko_CenterX_forEachTimeStamp = nan(size(Kofiko_ET_TS));
-Kofiko_CenterX_forEachPlexonSample = nan(size(t_plexon));
-
-for i = 1:numel(Kofiko_CenterX)
-    kidx = Kofiko_ET_TS >= Kofiko_CenterX_TS(i);
-    pidx = t_plexon >= Kofiko_CenterX_TS_PlexonTime(i);
-
-    Kofiko_CenterX_forEachTimeStamp(kidx) = Kofiko_CenterX(i);
-    Kofiko_CenterX_forEachPlexonSample(pidx) = Kofiko_CenterX(i);
-end
-
-% Kofiko Y center
-Kofiko_CenterY_forEachTimeStamp = nan(size(Kofiko_ET_TS));
-Kofiko_CenterY_forEachPlexonSample = nan(size(t_plexon));
-
-for i = 1:numel(Kofiko_CenterY)
-    kidx = Kofiko_ET_TS >= Kofiko_CenterY_TS(i);
-    pidx = t_plexon >= Kofiko_CenterY_TS_PlexonTime(i);
-
-    Kofiko_CenterY_forEachTimeStamp(kidx) = Kofiko_CenterY(i);
-    Kofiko_CenterY_forEachPlexonSample(pidx) = Kofiko_CenterY(i);
-end
-
-% Convert raw eye signals to screen coordinates (pixels) by:
-% [RawSignal-SignalOffset]*Gain + ScreenCenter = FixationPoint
-% SignalOffset is CenterX or CenterY
-
-Kofiko_Xpix = Kofiko_GainX_forEachTimeStamp.*(Kofiko_EyeRawX - Kofiko_CenterX_forEachTimeStamp) + ScreenSizeX_pix/2;
-Kofiko_Ypix = Kofiko_GainY_forEachTimeStamp.*(Kofiko_EyeRawY - Kofiko_CenterY_forEachTimeStamp) + ScreenSizeY_pix/2;
-
-toc;
-
-%% Apply calibration to plexon signals
-rightEyeX_plexon_calib = plexonAnalogScale.*Kofiko_GainX_forEachPlexonSample.*rightEyeX_plexon';
-rightEyeY_plexon_calib = plexonAnalogScale.*Kofiko_GainY_forEachPlexonSample.*rightEyeY_plexon';
-leftEyeX_plexon_calib = plexonAnalogScale.*Kofiko_GainX_forEachPlexonSample.*leftEyeX_plexon';
-leftEyeY_plexon_calib = plexonAnalogScale.*Kofiko_GainY_forEachPlexonSample.*leftEyeY_plexon';
-
-% create PlexET_ad structure
-if bino_ddpi
-    PlexET_times = t_plexon;
-    PlexET_ad_calib = [];
-    PlexET_ad_calib(:,1) = sync_ad;
-    PlexET_ad_calib(:,2) = arc_ad;
-    PlexET_ad_calib(:,3) = leftEyePupil_plexon;
-    PlexET_ad_calib(:,4) = rightEyePupil_plexon;
-    PlexET_ad_calib(:,5) = rightEyeX_plexon_calib;
-    PlexET_ad_calib(:,6) = rightEyeY_plexon_calib;
-    PlexET_ad_calib(:,7) = leftEyeX_plexon_calib;
-    PlexET_ad_calib(:,8) = leftEyeY_plexon_calib;
-end
 
 %% %%%%%%%%%%%%%% Trial analysis %%%%%%%%%%%%%%
 tic;
-fprintf('Extracting important trial variables\n')
-
-% Find unique trials by finding unique Flip ON timestamps
-tempImageFlipON_TS_Kofiko = cellfun(@(x) x.m_fImageFlipON_TS_Kofiko, trialData);
-tempImageFlipON_TS_Kofiko_unique = unique(tempImageFlipON_TS_Kofiko);
-[~, uniqueTrialIdx, ~] = intersect(tempImageFlipON_TS_Kofiko, tempImageFlipON_TS_Kofiko_unique);
-trialData= trialData(uniqueTrialIdx);
-% Order trials by flip ON
-tempImageFlipON_TS_Kofiko = cellfun(@(x) x.m_fImageFlipON_TS_Kofiko, trialData);
-[~, trial_idx_for_sorting] = sort(tempImageFlipON_TS_Kofiko , 'ascend');
-trialData = trialData(trial_idx_for_sorting);
-
-allFieldNames = fieldnames(trialData{1});
-
-for i = 1:numel(allFieldNames)
-    temp = cellfun(@(x) x.(allFieldNames{i}), trialData, 'UniformOutput', false);
-    sz = cellfun(@size, temp, 'UniformOutput', false);
-    sz(cellfun(@isempty, sz)) = [];
-    sz(cellfun(@(x) any(x==0), sz)) = [];
-    try
-        sz = mode(vertcat(sz{:}), 1);
-        temp(cellfun(@isempty, temp)) = {nan(sz)};
-    catch
-    end
-    vars.(allFieldNames{i}) = temp;
-end
 
 % Determine stimulus intervals
-stimStartTimes = [ones(size([vars.m_fImageFlipON_TS_Kofiko{:}]')),...
-    [vars.m_fImageFlipON_TS_Kofiko{:}]']*B;
+stimStartTimes = [ones(size([trial.m_fImageFlipON_TS_Kofiko]')),...
+    [trial.m_fImageFlipON_TS_Kofiko]']*B;
 
-stimStopTimes = stimStartTimes + [vars.m_fStimulusON_MS{:}]'/1e3;
+stimStopTimes = stimStartTimes + [trial.m_fStimulusON_MS]'/1e3;
 
 stimIntervals = [stimStartTimes stimStopTimes]';
 stimIntervals = stimIntervals(:);
 
 % Number of frames per trial
-numFrames =  min([vars.numFrames{:}]', [vars.numFrames{:}]' ./ [vars.repframes{:}]');
+numFrames =  min([trial.numFrames], [trial.numFrames] ./ [trial.repframes]);
 
 % Expand relevant variables across frame
 
-% Get trial numbers
-trialNumPerFrame = cellfun(@(x, y) repelem(x, y), vars.TrialNum, num2cell(numFrames), 'UniformOutput', false);
-
 % Get trial IDs (insane that there are trial numbers and IDs....)
-TrialIDPerFrame = cellfun(@(x, y) repelem(x, y), vars.TrialID, num2cell(numFrames), 'UniformOutput', false);
+TrialIDPerFrame = cellfun(@(x, y) repelem(x, y), {trial.TrialID}', num2cell(numFrames)', 'UniformOutput', false);
 
-useBinaryPerFrame = cellfun(@(x, y) repelem(x, y), vars.usebinary, num2cell(numFrames), 'UniformOutput', false);
+useBinaryPerFrame = cellfun(@(x, y) repelem(x, y), {trial.usebinary}', num2cell(numFrames)', 'UniformOutput', false);
 
 try
-    spatialscale = [vars.spatialscale{:}];
+    spatialscale = {trial.spatialscale}';
+    
 catch
     spatialscale_buffer = g_astrctAllParadigms{1}.DualstimScale.Buffer;
-    spatialscale_TS = g_astrctAllParadigms{1}.DualstimScale.TimeStamp;
-    spatialscale = nan(size(trialData));
+    spatialscale_TS = g_strcts.g_astrctAllParadigms{1}.DualstimScale.TimeStamp;
+    spatialscale = nan(size(trial));
     for i = 1:numel(spatialscale_buffer)
         spatialscale(ImageFlipON_TS_Kofiko >= spatialscale_TS(i)) = spatialscale_buffer(i);
     end
 
 end
 
-BlockIDPerFrame =  cellfun(@(x, y) repelem(x, y), vars.BlockID, num2cell(numFrames), 'UniformOutput', false);
+BlockIDPerFrame =  cellfun(@(x, y) repelem(x, y), {trial.BlockID}', num2cell(numFrames)', 'UniformOutput', false);
 
-% Matrix of unique conditions defined by cloud parameters and block
-uniqueCloudConditions =  unique([[vars.usebinary{:}]' spatialscale' [vars.BlockID{:}]'], 'rows');
-uniqueCloudConditions(any(isnan(uniqueCloudConditions),2),:) = [];
+X_fixationSpot = cellfun(@(x) x(1), {trial.m_pt2iFixationSpot}', 'UniformOutput',false);
+Y_fixationSpot = cellfun(@(x) x(2), {trial.m_pt2iFixationSpot}', 'UniformOutput',false);
 
-DualstimPrimaryuseRGBCloudPerFrame = cellfun(@(x, y) repelem(x, y), vars.DualstimPrimaryuseRGBCloud, num2cell(numFrames), 'UniformOutput', false);
-
-StimulusAreaPerFrame =  cellfun(@(x, y) repelem(x, y), vars.m_aiStimulusArea, num2cell(numFrames), 'UniformOutput', false);
-
-stimseq= cellfun(@(x,y) x(1:y:end), vars.stimseq, num2cell(cellfun(@(x) max(0, x), vars.repframes)), 'UniformOutput', false);
-
-if stimET
-    stimseqET = cellfun(@(x,y) x(1:y:end), vars.stimseq_ET_Cclouds, num2cell(cellfun(@(x) max(0, x), vars.repframes)), 'UniformOutput', false);
-
-end
-%s
-
-X_fixationSpot = cellfun(@(x) x(1), vars.m_pt2iFixationSpot, 'UniformOutput',false);
-Y_fixationSpot = cellfun(@(x) x(2), vars.m_pt2iFixationSpot, 'UniformOutput',false);
-
-UseLeyePerFrame = cellfun(@(x, y) repelem(x, y), vars.UseLeye, num2cell(numFrames), 'UniformOutput', false);
-UseReyePerFrame = cellfun(@(x, y) repelem(x, y), vars.UseReye, num2cell(numFrames), 'UniformOutput', false);
+UseLeyePerFrame = cellfun(@(x, y) repelem(x, y), {trial.UseLeye}', num2cell(numFrames)', 'UniformOutput', false);
+UseReyePerFrame = cellfun(@(x, y) repelem(x, y), {trial.UseReye}', num2cell(numFrames)', 'UniformOutput', false);
 
 toc;
 
 %% %%%%%%%%%%%%% Extract fixinfo %%%%%%%%%%%%%
 calibrationTasks = {'Fivedot','FiveDot', 'Dotgrid'};
-isCalibrationTrial = cellfun(@(x) any(strcmpi(x, calibrationTasks)), vars.m_strTrialType);
+isCalibrationTrial = cellfun(@(x) any(strcmpi(x, calibrationTasks)), {trial.m_strTrialType});
 
-ETdata.fixloc = vertcat(vars.m_pt2iFixationSpot{isCalibrationTrial});
+ETdata.fixloc = vertcat(trial(isCalibrationTrial).m_pt2iFixationSpot);
 ETdata.plxonset = stimStartTimes(isCalibrationTrial);
 
 %% Bin Kofiko eye signal timestamps by stimulus intervals (i.e., by trial)
@@ -458,7 +178,7 @@ nBins = numel(stimIntervals) - 1;
 Kofiko_ET_TS_PlexonTime_cellArray = accumarray( ...
     Kofiko_ET_TS_PlexonTime_Bin(:) + 1, ...
     Kofiko_ET_TS_PlexonTime(:), ...
-    [nBins + 1, 1], ...   % force size (extra 1 for bin 0 → invalid)
+    [nBins + 1, 1], ...   % force size (extra 1 for bin 0)
     @(x){x}, ...
     {[]} ...              % fill empty bins with empty cells
     );
@@ -484,16 +204,16 @@ Kofiko_Ypix_cellArray = accumarray( ...
 t_plexon_cellArray = accumarray(t_plexon_bin(:)+1, t_plexon(:), [], @(x){x});
 
 % pupils
-leftEyePupil_plexon_cellArray = accumarray(t_plexon_bin(:)+1, leftEyePupil_plexon(:), [], @(x){x});
-rightEyePupil_plexon_cellArray = accumarray(t_plexon_bin(:)+1, rightEyePupil_plexon(:), [], @(x){x});
+pupil1_plexon_cellArray = accumarray(t_plexon_bin(:)+1, PlexET_ad_calib(:,3), [], @(x){x});
+pupil2_plexon_cellArray = accumarray(t_plexon_bin(:)+1, PlexET_ad_calib(:,4), [], @(x){x});
 
-% right eye
-rightEyeX_plexon_calib_cellArray = accumarray(t_plexon_bin(:)+1, rightEyeX_plexon_calib(:), [], @(x){x});
-rightEyeY_plexon_calib_cellArray = accumarray(t_plexon_bin(:)+1, rightEyeY_plexon_calib(:), [], @(x){x});
+% formerly "right eye"
+eyeX2_plexon_calib_cellArray = accumarray(t_plexon_bin(:)+1, PlexET_ad_calib(:,5), [], @(x){x});
+eyeY2_plexon_calib_cellArray = accumarray(t_plexon_bin(:)+1, PlexET_ad_calib(:,6), [], @(x){x});
 
-% left eye
-leftEyeX_plexon_calib_cellArray = accumarray(t_plexon_bin(:)+1, leftEyeX_plexon_calib(:), [], @(x){x});
-leftEyeY_plexon_calib_cellArray = accumarray(t_plexon_bin(:)+1, leftEyeY_plexon_calib(:), [], @(x){x});
+% formerly "left eye"
+eyeX1_plexon_calib_cellArray = accumarray(t_plexon_bin(:)+1, PlexET_ad_calib(:,7), [], @(x){x});
+eyeY1_plexon_calib_cellArray = accumarray(t_plexon_bin(:)+1, PlexET_ad_calib(:,8), [], @(x){x});
 
 %% Determine trials with good fixation
 goodFixationX = cellfun(@(x, x_fix) sum(abs(x - x_fix) < maxFixationErrorPix)./numel(x)...
@@ -502,94 +222,36 @@ goodFixationX = cellfun(@(x, x_fix) sum(abs(x - x_fix) < maxFixationErrorPix)./n
 goodFixationY = cellfun(@(y, y_fix) sum(abs(y - y_fix) < maxFixationErrorPix)./numel(y) ...
     > minFixationDuration, Kofiko_Ypix_cellArray(2:2:end), Y_fixationSpot) ;
 
-goodFixationIdx = vertcat(vars.m_bMonkeyFixated{:}) | (goodFixationX & goodFixationY);
+goodFixationIdx = vertcat(trial.m_bMonkeyFixated) | (goodFixationX & goodFixationY);
 
 %% Bin stimulus sequences by trial
 tic;
 fprintf('Loading stimuli\n')
-stimulus_cellArray = cell(size(trialData,1),1);
-stimulusET_cellArray = cell(size(trialData,1),1);
 
-for i = 1:size(uniqueCloudConditions,1)
-    thisUsebinary = uniqueCloudConditions(i,1);
-    thisSpatialscale = uniqueCloudConditions(i,2);
-    thisBlockID = uniqueCloudConditions(i,3);
-
-    trialIdx = [vars.usebinary{:}]' == thisUsebinary & spatialscale' == thisSpatialscale & [vars.BlockID{:}]' == thisBlockID;
-    if thisUsebinary == 0 % full contrast
-        load(fullfile(stimpath, sprintf('Cloudstims_Chrom_size60_scale%d_%02d.mat', thisSpatialscale, thisBlockID)));
-        DensenoiseChromcloud_DKlspace=int8(127*(DensenoiseChromcloud_DKlspace));
-        stimulus_cellArray(trialIdx) = cellfun(@(x) DensenoiseChromcloud_DKlspace(:,:,x,:), stimseq(trialIdx), 'UniformOutput', false);
-        if stimET
-            stimulusET_cellArray(trialIdx) = cellfun(@(x) DensenoiseChromcloud_DKlspace(:,:,x,:), stimseqET(trialIdx), 'UniformOutput', false);
-        end
-    elseif thisUsebinary == 1
-        load(fullfile(stimpath,sprintf('Cloudstims_BinaryChrom_size60_scale%d_SPscale6_%02d.mat', thisSpatialscale, thisBlockID)))
-        DensenoiseChromcloud_DKlspace=int8(127*(DensenoiseChromcloud_DKlspace));
-        stimulus_cellArray(trialIdx) = cellfun(@(x) DensenoiseChromcloud_DKlspace(:,:,x,:), stimseq(trialIdx), 'UniformOutput', false);
-        if stimET
-            stimulusET_cellArray(trialIdx) = cellfun(@(x) DensenoiseChromcloud_DKlspace(:,:,x,:), stimseqET(trialIdx), 'UniformOutput', false);
-        end
-    elseif thisUsebinary == 2 % matched contrast
-        load(fullfile(stimpath,sprintf('Cloudstims_ContrastMatched_size60_scale%d_%02d.mat', thisSpatialscale, thisBlockID)));
-        DensenoiseChromcloud_DKlspace(:,:,:,2:3)=int8(127*(DensenoiseChromcloud_DKlspace(:,:,:,2:3)));
-        DensenoiseChromcloud_DKlspace(:,:,:,1)=int8((1/LumScale)*127*(DensenoiseChromcloud_DKlspace(:,:,:,1)));
-        stimulus_cellArray(trialIdx) = cellfun(@(x) DensenoiseChromcloud_DKlspace(:,:,x,:), stimseq(trialIdx), 'UniformOutput', false);
-        if stimET
-            stimulusET_cellArray(trialIdx) = cellfun(@(x) DensenoiseChromcloud_DKlspace(:,:,x,:), stimseqET(trialIdx), 'UniformOutput', false);
-        end
-    end
-
-    % reshape stimuli into matrix where each row is stimulus, each col is frame
-
-    % make first dim frames
-    %stimulus_cellArray(trialIdx) = cellfun(@(x) permute(x, [3 1 2 4]), stimulus_cellArray(trialIdx), 'UniformOutput', false);
-    %stimulus_cellArray(trialIdx) = cellfun(@(x) reshape(x, [size(x,1), prod(size(x,2:4))]),stimulus_cellArray(trialIdx), 'UniformOutput', false);
-    %stimulus_cellArray(trialIdx) = cellfun(@transpose, stimulus_cellArray(trialIdx), 'UniformOutput', false);
-
-    % % modified by dab
-    tI2 = find(trialIdx == 1);
-    stimulus_cellArray(tI2) = cellfun(@(x) permute(x, [3 1 2 4]), stimulus_cellArray(tI2), 'UniformOutput', false);
-    stimulusET_cellArray(tI2) = cellfun(@(x) permute(x, [3 1 2 4]), stimulusET_cellArray(tI2), 'UniformOutput', false);
-    for ii = 1:length(tI2)
-        sz = size(stimulus_cellArray{tI2(ii)});
-        stimulus_cellArray{tI2(ii)} = reshape( stimulus_cellArray{tI2(ii)}, [sz(1), prod(sz(2:4))] );
-        if stimET
-            stimulusET_cellArray{tI2(ii)} = reshape( stimulusET_cellArray{tI2(ii)}, [sz(1), prod(sz(2:4))] );
-        end
-    end
-    stimulus_cellArray(tI2) = cellfun(@transpose, stimulus_cellArray(tI2), 'UniformOutput', false);
-    if stimET
-        stimulusET_cellArray(tI2) = cellfun(@transpose, stimulusET_cellArray(tI2), 'UniformOutput', false);
-    end
-
-    % stimulus_cellArray(trialIdx) = cellfun(@(x) permute(x, [3 1 2 4]), stimulus_cellArray(trialIdx), 'UniformOutput', false);
-    % stimulus_cellArray(trialIdx) = cellfun(@(x) reshape(x, [size(x,1), prod(size(x,2:4))]),stimulus_cellArray(trialIdx), 'UniformOutput', false);
-    % stimulus_cellArray(trialIdx) = cellfun(@transpose, stimulus_cellArray(trialIdx), 'UniformOutput', false);
-
-
-    %
-end
+[stim1_cellArray, stim2_cellArray, stim3_cellArray] = makeStimMatrix(stimpath, trial);
 
 % find dualstim elemetns
 trialTypeOfInterest = 'Dual Stim';
-trialTypeOfInterestIdx = strcmpi( vars.m_strTrialType, trialTypeOfInterest);
+trialTypeOfInterestIdx = strcmpi( {trial.m_strTrialType}, trialTypeOfInterest);
 
 trlonset_diffs = [4; diff(stimStartTimes)];
-CCidx = cellfun(@(x) any(x==8), vars.DualstimPrimaryuseRGBCloud);
-areaOverZeroIdx = cellfun(@(x) x>0, vars.m_aiStimulusArea);
+CCidx = cellfun(@(x) any(x==8), {trial.DualstimPrimaryuseRGBCloud});
+areaOverZeroIdx = cellfun(@(x) x>0, {trial.m_aiStimulusArea});
 
 isTrialOfInterest = trialTypeOfInterestIdx & ...
     goodFixationIdx &...
     trlonset_diffs > 4 &...
     CCidx & ...
     areaOverZeroIdx & ...
-    vertcat(vars.DualstimPrimaryuseRGBCloud{:}) == 8 ; % clouds
+    vertcat(trial.DualstimPrimaryuseRGBCloud) == 8 ; % clouds
 
 stimulus_matrix = horzcat(stimulus_cellArray{isTrialOfInterest});
 stimulusET_matrix = horzcat(stimulusET_cellArray{isTrialOfInterest});
 
-stimFrameBins = cellfun(@(x, y, z) linspace(x,y,z+1), num2cell(stimStartTimes), num2cell(stimStopTimes), num2cell(numFrames), 'UniformOutput', false);
+stimFrameBins = cellfun(@(t_start, t_stop, nFrames) linspace(t_start,t_stop,nFrames+1),...
+    num2cell(stimStartTimes), num2cell(stimStopTimes),...
+    num2cell(numFrames), 'UniformOutput', false);
+
 valid_stimFrameBinIdx = cellfun(@(x) numel(x)>=2, stimFrameBins);
 toc;
 
@@ -620,32 +282,8 @@ Kofiko_Ypix_frameRate_cellArray = ...
 tic;
 fprintf('Loading spike data and computing Robs\n');
 % drop test check
+spk_offset = droptestcheck(plexon_fname);
 
-numDigitsInLastSpkChan = ceil(log10(length(pl2.SpikeChannels)));
-
-numAIchans = sum(cellfun(@(x) contains(x.Name, 'AI'), pl2.AnalogChannels));
-numDigitsInLastAIchan = ceil(log10(numAIchans));
-disp('Drop test check starting')
-
-[fs, n, ts, fn, ~] = plx_ad_v(plexon_fname,...
-    ['SPKC' num2str(1, ['%0' num2str(numDigitsInLastSpkChan) '.f'])]);
-
-[fs_aux, n_aux, ts_aux, fn_aux, ~] = plx_ad_v(plexon_fname, ['AI' num2str(1, ['%0' num2str(numDigitsInLastAIchan), '.f'])] );
-
-spikeChannel1SignalDurSec = n/fs; % samples / (samples/sec)
-dpiSyncSignalDurSec = n_aux/fs_aux;
-
-droptestcheck = n_aux/fs_aux - n/fs;
-disp(['Plexon-Kofiko offset in seconds: ' num2str(droptestcheck)]) % this will tell us if the plexon time alignment issue is present
-
-if abs(droptestcheck)>0.1
-    warning("Danger - Plexon might have dropped frames! Check pl2 file.")
-    opts.spk_offset = droptestcheck;
-else
-    opts.spk_offset = 0;
-end
-
-disp('Drop test check complete')
 % end drop test check %%%%
 %% cluster label strings
 
@@ -691,7 +329,7 @@ for ks_batch = 1:num_ks_batch
 
     % Read in kilosort outputs
     spk_times = readNPY(fullfile(spike_times_folders{ks_batch}, 'spike_times.npy'));
-    spk_times = double(spk_times)./fs + opts.spk_offset; % convert to seconds
+    spk_times = double(spk_times)./fs + spk_offset; % convert to seconds
     spk_clusters = readNPY(fullfile(spike_times_folders{ks_batch}, 'spike_clusters.npy'))...
         + cluster_offset;
     cluster_KSLabel = tdfread(fullfile(spike_times_folders{ks_batch}, 'cluster_KSLabel.tsv'));
@@ -787,7 +425,7 @@ for ks_batch = 1:num_ks_batch
     spk_times_stimON_cellArray =  spk_times_cellArray{ks_batch}(2:2:end);
     %    ks_batchForEachSpk_stimON_cellArray = ks_batchForEachSpk_stimON_cellArray{ks_batch}(2:2:end);
 
-    stimFrameNumForEachSpk_cellArray{ks_batch} = cell(size(trialData,1),1);
+    stimFrameNumForEachSpk_cellArray{ks_batch} = cell(size(trial,1),1);
 
     [~,~,stimFrameNumForEachSpk_cellArray{ks_batch}(valid_stimFrameBinIdx)] =...
         cellfun(@(x,y) histcounts(x, 'BinEdges', y), ...
@@ -803,14 +441,14 @@ for ks_batch = 1:num_ks_batch
         % each cell is a trial, and contains frame indicies where spikes
         % occurred (repeated frames == multiple spikes on that frame)
 
-        stimFrameNumForEachSpk_thisUnit_cellArray = cell(size(trialData,1),1);
+        stimFrameNumForEachSpk_thisUnit_cellArray = cell(size(trial,1),1);
         stimFrameNumForEachSpk_thisUnit_cellArray(valid_stimFrameBinIdx) = ...
             cellfun(@(x,y) x(y==unitID), ...
             stimFrameNumForEachSpk_cellArray{ks_batch}(valid_stimFrameBinIdx), ...
             clusterIDForEachSpk_stimON_cellArray(valid_stimFrameBinIdx),...
             'UniformOutput', false);
 
-        spksPerFrame_cellArray =  cell(size(trialData,1),1);
+        spksPerFrame_cellArray =  cell(size(trial,1),1);
 
         spksPerFrame_cellArray(isTrialOfInterest) = cellfun(@(x,y) histcounts(x, 'BinEdges',0.5:(y+0.5)),...
             stimFrameNumForEachSpk_thisUnit_cellArray(isTrialOfInterest), num2cell(numFrames(isTrialOfInterest)) ,'UniformOutput',false);
@@ -882,19 +520,19 @@ allRobs = vertcat(allRobsSU, allRobsMU);
 ETgains = [Kofiko_GainX(end), Kofiko_GainY(end)];
 
 %ETstim_location
-ETstim_location =  [trialData{find(isTrialOfInterest,1, 'last')}.secondarystim_bar_rect;...
-    trialData{find(isTrialOfInterest,1, 'last')}.tertiarystim_bar_rect];
+ETstim_location =  [trial{find(isTrialOfInterest,1, 'last')}.secondarystim_bar_rect;...
+    trial{find(isTrialOfInterest,1, 'last')}.tertiarystim_bar_rect];
 
 % ETtrace
 ETtrace = [[Kofiko_Xpix_frameRate_cellArray{:}]; [Kofiko_Ypix_frameRate_cellArray{:}]];
 
 %ETtrace_raw
-ETtrace_raw = transpose([vertcat(rightEyeX_plexon_calib_cellArray{2*find(isTrialOfInterest)}),...
-    vertcat(rightEyeY_plexon_calib_cellArray{2*find(isTrialOfInterest)}),...
-    vertcat(leftEyeX_plexon_calib_cellArray{2*find(isTrialOfInterest)}),...
-    vertcat(leftEyeY_plexon_calib_cellArray{2*find(isTrialOfInterest)}),...
-    vertcat(rightEyePupil_plexon_cellArray{2*find(isTrialOfInterest)}),...
-    vertcat(leftEyePupil_plexon_cellArray{2*find(isTrialOfInterest)})]);
+ETtrace_raw = transpose([vertcat(eyeX2_plexon_calib_cellArray{2*find(isTrialOfInterest)}),...
+    vertcat(eyeY2_plexon_calib_cellArray{2*find(isTrialOfInterest)}),...
+    vertcat(eyeX1_plexon_calib_cellArray{2*find(isTrialOfInterest)}),...
+    vertcat(eyeY2_plexon_calib_cellArray{2*find(isTrialOfInterest)}),...
+    vertcat(pupil2_plexon_cellArray{2*find(isTrialOfInterest)}),...
+    vertcat(pupil1_plexon_cellArray{2*find(isTrialOfInterest)})]);
 
 %Robs
 RobsSU = allRobs(1:nSU,:);
@@ -946,10 +584,10 @@ exptdate = filenameP(1:6);
 exptname = filenameP;
 
 %fix_location
-fix_location = unique(vertcat(vars.m_pt2iFixationSpot{isTrialOfInterest}), 'rows');
+fix_location = unique(vertcat(trial(isTrialOfInterest).m_pt2iFixationSpot), 'rows');
 
 %fix_size
-fix_size = trialData{find(isTrialOfInterest, 1, 'last')}.m_fFixationSizePix -1;
+fix_size = trial{find(isTrialOfInterest, 1, 'last')}.m_fFixationSizePix -1;
 
 %pixel_size
 pixel_size = 1;
@@ -970,7 +608,7 @@ spike_ts_raw = transpose(vertcat(spike_ts_raw{:}));
 spike_ts_raw = vertcat(spike_ts_raw);
 
 % this will get you spike times relative to trial start, ie in range 0 to 4:
-trlsecs = unique([vars.m_fStimulusON_MS{isTrialOfInterest}])/1e3;
+trlsecs = unique([trial(isTrialOfInterest).m_fStimulusON_MS])/1e3;
 trialStart = stimStartTimes(isTrialOfInterest);
 trialStop  = stimStopTimes(isTrialOfInterest);
 spike_ts_raw = spike_ts_raw(:);
@@ -1000,19 +638,19 @@ if stimET
 end
 
 %stim_area
-stim_area = [vars.m_aiStimulusArea{isTrialOfInterest}]';
+stim_area = [trial(isTrialOfInterest).m_aiStimulusArea]';
 
 %stim_location
-modal_stim_area = mode([vars.m_aiStimulusArea{isTrialOfInterest}]');
+modal_stim_area = mode([trial(isTrialOfInterest).m_aiStimulusArea]');
 if computerLocation < 10
     % this line does not work in Dan lab
-    medianTiledStimulusRect = median(cat(3, vars.m_aiTiledStimulusRect{:}),3, 'omitmissing');
+    medianTiledStimulusRect = median(cat(3, trial.m_aiTiledStimulusRect),3, 'omitmissing');
 else
     % previous code that worked
-    if isfield(trialData{1}, 'm_aiTiledStimulusRect')
-        TiledStimulusRect = cellfun(@(x) x.m_aiTiledStimulusRect, trialData, 'UniformOutput', false);
+    if isfield(trial{1}, 'm_aiTiledStimulusRect')
+        TiledStimulusRect = cellfun(@(x) x.m_aiTiledStimulusRect, trial, 'UniformOutput', false);
     else
-        StimulusRect = cellfun(@(x) x.m_aiStimulusRect, trialData, 'UniformOutput', false);
+        StimulusRect = cellfun(@(x) x.m_aiStimulusRect, trial, 'UniformOutput', false);
         TiledStimulusRect = StimulusRect; %%%%% Only for old datasets before tiling (e.g., 7/07/22)
     end
     medianTiledStimulusRect = median(cat(3, TiledStimulusRect{:}),3);
@@ -1023,8 +661,8 @@ stim_location = [medianTiledStimulusRect(:,1:2) medianTiledStimulusRect(:,1:2)+6
 %stim_location_deltas: first two elements of first row of TiledStimulusRect
 %minus median stim_location x and y
 
-if (computerLocation < 10) || isfield(trialData{1}, 'm_aiTiledStimulusRect')
-    stim_location_deltas = cellfun(@(x) x(1,1:2) - stim_location(1,1:2), vars.m_aiTiledStimulusRect(isTrialOfInterest), 'UniformOutput',false);
+if (computerLocation < 10) || isfield(trial{1}, 'm_aiTiledStimulusRect')
+    stim_location_deltas = cellfun(@(x) x(1,1:2) - stim_location(1,1:2), {trial(isTrialOfInterest).m_aiTiledStimulusRect}, 'UniformOutput',false);
 else
     stim_location_deltas = cellfun(@(x) x(1,1:2) - stim_location(1,1:2), TiledStimulusRect(isTrialOfInterest), 'UniformOutput',false);
 end
@@ -1085,6 +723,11 @@ spike_ts_sorted = spike_ts(sortBySpikeID);
 
 
 %% Make list of reward times on each trial
+
+% juice times in plexon time
+REW_ON_ts = events.timeStamps(events.strobeNumber == g_strcts.g_strctSystemCodes.m_iJuiceON);
+REW_OFF_ts = events.timeStamps(events.strobeNumber == g_strcts.g_strctSystemCodes.m_iJuiceOFF);
+
 reward_on_ts = [];
 reward_off_ts = [];
 
@@ -1203,7 +846,7 @@ if saving
         case 7; curETstimtype='CC';
     end
 
-    switch_stimtype = unique(vertcat(vars.DualstimPrimaryuseRGBCloud{isTrialOfInterest}));
+    switch_stimtype = unique(vertcat(trial(isTrialOfInterest).DualstimPrimaryuseRGBCloud));
     switch switch_stimtype
         case 0; curstimstype='GT';
         case 3; curstimstype='HL';

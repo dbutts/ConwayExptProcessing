@@ -1,5 +1,6 @@
-function [trialData, vars, g_strct] = loadKofikoTrialData(kofiko_subfolder,mainKofiko_fname, filenameP)
+function trial = loadKofikoTrialData(kofiko_subfolder,mainKofiko_fname, filenameP)
 
+% formerly returend vars dont think i need it
 %% Load kofiko data
 
 fprintf('Loading Kofiko trial data\n')
@@ -40,52 +41,59 @@ g_strctLocalExperimentRecording{end+1} = temp_cell;
 
 %mainKofikoFolderIdx = strcmpi(kofiko_fname, [filenameP '.mat']);
 %load(fullfile(kofiko_folder{mainKofikoFolderIdx}, kofiko_fname{mainKofikoFolderIdx}), 'g_strctDAQParams', ...
-g_strct = load(mainKofiko_fname, 'g_strctDAQParams', ...
-    'g_astrctAllParadigms', 'g_strctLog', 'g_strctEyeCalib', ...
-    'g_strctAppConfig', 'g_strctSharedParadigmData', ...
-    'g_strctStimulusServer', 'g_strctSystemCodes');
 
 % Concatenate the g_strctLocalExperimentRecorindg structs and remove empty cells
-trialData = vertcat(g_strctLocalExperimentRecording{:});
-trialData(cellfun(@isempty, trialData)) = [];
+trial = vertcat(g_strctLocalExperimentRecording{:});
+trial(cellfun(@isempty, trial)) = [];
 
 % Unify field names across g_strctLocalExperimentRecording to facilitate using cellfun
-fieldNames = cellfun(@(x) fieldnames(x), trialData, 'UniformOutput', false);
+fieldNames = cellfun(@(x) fieldnames(x), trial, 'UniformOutput', false);
 uniqueFieldNames = unique(vertcat(fieldNames{:}));
 missingFieldNames = cellfun(@(x) setdiff(uniqueFieldNames, fieldnames(x)),...
-    trialData, 'UniformOutput',false);
+    trial, 'UniformOutput',false);
 
-for i = 1:numel(trialData)
+for i = 1:numel(trial)
     for  j = 1:numel(missingFieldNames{i})
-        trialData{i}.(missingFieldNames{i}{j}) = [];
+        trial{i}.(missingFieldNames{i}{j}) = [];
     end
 end
 
 % Find unique trials by finding unique Flip ON timestamps
-tempImageFlipON_TS_Kofiko = cellfun(@(x) x.m_fImageFlipON_TS_Kofiko, trialData);
+tempImageFlipON_TS_Kofiko = cellfun(@(x) x.m_fImageFlipON_TS_Kofiko, trial);
 tempImageFlipON_TS_Kofiko_unique = unique(tempImageFlipON_TS_Kofiko);
 [~, uniqueTrialIdx, ~] = intersect(tempImageFlipON_TS_Kofiko, tempImageFlipON_TS_Kofiko_unique);
-trialData= trialData(uniqueTrialIdx);
+trial= trial(uniqueTrialIdx);
 % Order trials by flip ON
-tempImageFlipON_TS_Kofiko = cellfun(@(x) x.m_fImageFlipON_TS_Kofiko, trialData);
+tempImageFlipON_TS_Kofiko = cellfun(@(x) x.m_fImageFlipON_TS_Kofiko, trial);
 [~, trial_idx_for_sorting] = sort(tempImageFlipON_TS_Kofiko , 'ascend');
-trialData = trialData(trial_idx_for_sorting);
+trial = trial(trial_idx_for_sorting);
+trial = [trial{:}];
 
-allFieldNames = fieldnames(trialData{1});
-
-for i = 1:numel(allFieldNames)
-    temp = cellfun(@(x) x.(allFieldNames{i}), trialData, 'UniformOutput', false);
-    sz = cellfun(@size, temp, 'UniformOutput', false);
-    sz(cellfun(@isempty, sz)) = [];
-    sz(cellfun(@(x) any(x==0), sz)) = [];
+% figure out maximum size of variable in each field
+allFieldNames = fieldnames(trial);
+for f = 1:numel(allFieldNames)
     try
-        sz = mode(vertcat(sz{:}), 1);
-        temp(cellfun(@isempty, temp)) = {nan(sz)};
+        temp = cellfun(@size, {trial.(allFieldNames{f})}, 'UniformOutput', false);
+        maxSize{f} = max(vertcat(temp{:}),[],1);
     catch
+        maxSize{f}= nan;
     end
-    vars.(allFieldNames{i}) = temp;
 end
 
+% now for each trial and each field replace empties with nans of
+% appropriate size
+
+for t = 1:numel(trial)
+    for  f = 1:numel(allFieldNames)
+        if isempty(trial(t).(allFieldNames{f}))
+            try
+            trial(t).(allFieldNames{f}) = nan(maxSize{f});
+            catch
+                trial(t).(allFieldNames{f}) = nan;
+            end
+        end
+    end
+end
 
 
 end

@@ -109,7 +109,6 @@ if computerLocation < 10   % NIH-specific settings and prompts
     stimpath = fullfile(stimpath, stimfolder);
     ks_path = input('ks_path: ', 's');
 
-    monkey_name = input('monkey_name: ', 's');
     rig = input('Rig: ', 's');
 
     bino_ddpi = input('Binocular ddpi? \n [0] No \n [1] Yes \n');
@@ -134,6 +133,8 @@ else % Dan's lab specific settings and prompts
     stimET = 1;   % need for old experiments (if included)
     saving = 1;
     rig = 'C'; % I don't know what this does
+    ET_Eyelink = 2;
+    bino_ddpi = 0;
 
     % Enter date of experiment and figure out the filenameP
     exptdate = input( 'Enter date of experiment (YYMMDD): ' ); % this makes integer date
