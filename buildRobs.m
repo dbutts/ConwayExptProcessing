@@ -1,12 +1,15 @@
-function Robs = buildRobs(ks_path, stimIntervals, fs, isTrialOfInterest)
+function Robs_strct = buildRobs(spkData, stimTiming, isTrialOfInterest)
 
-if nargin < 4
+% create by spkData = organizeSpikeDataByTrial(stimIntervals,plexon_fname, ks_path)
+
+if nargin < 3
     isTrialOfInterest = true(numel(stimIntervals)/2,1);
 end
 
-spkData = organizeSpikeDataByTrial(ks_path, stimIntervals, fs);
+stimStartTimes = stimTiming.stimStartTimes;
+stimStopTimes = stimTiming.stimStopTimes;
+numFrames = stimTiming.numFrames;
 num_arrays = numel(spkData);
-
 
 stimFrameBinEdges = cellfun(@(startTime, stopTime, nFrames) linspace(startTime, stopTime, nFrames+1), ...
     num2cell(stimStartTimes), ...
@@ -16,9 +19,8 @@ stimFrameBinEdges = cellfun(@(startTime, stopTime, nFrames) linspace(startTime, 
 % for each unit, bin spike times by frame bins to get spikes it produced on
 % each frame
 
-Robs = cell(numel(spkData),1);
 
-idx = 2*find(isTrialOfInterest);
+idx = find(isTrialOfInterest);
 for a = 1:num_arrays
 
     nSU = numel(spkData(a).SU_clusters);
@@ -28,7 +30,7 @@ for a = 1:num_arrays
 
     for unit= 1:numel(all_clusters)
         unitID = all_clusters(unit);
-        foo = cellfun(@(spk,clust,frameBins) histcounts(spk(clust==unitID), frameBins), spk_times_cellArray(idx), spk_clusters_cellArray(idx), stimFrameBinEdges, 'UniformOutput',false);
+        foo = cellfun(@(spk,clust,frameBins) histcounts(spk(clust==unitID), frameBins), spkData(a).spk_times_cellArray(2*idx), spkData(a).spk_clusters_cellArray(2*idx), stimFrameBinEdges(idx), 'UniformOutput',false);
         Robs(unit,:) = [foo{:}];
     end
 
@@ -37,10 +39,11 @@ for a = 1:num_arrays
 
 end
 
-Robs_strct.Robs = [vertcat(RobsSU{:}), vertcat(RobsMU{:})];
+Robs_strct.Robs = [vertcat(RobsSU{:}); vertcat(RobsMU{:})];
 Robs_strct.SU_clusters = [spkData.SU_clusters];
 Robs_strct.MU_clusters = [spkData.MU_clusters];
 Robs_strct.SU_chans = [spkData.SU_chans];
 Robs_strct.MU_chans = [spkData.MU_chans];
+
 
 end

@@ -1,7 +1,12 @@
-function [stim1_cellArray, stim2_cellArray, stim3_cellArray] = makeStimMatrix(stimpath, trial)
+function [stim1_cellArray, stim2_cellArray, stim3_cellArray] = makeStimMatrix(stimpath, trial, LumScale)
+
+if nargin < 3
+    LumScale = 1;
+end
+
 cache = containers.Map('KeyType','char','ValueType','any');
 
-nTrials = size(trial,1);
+nTrials = numel(trial);
 
 primaryStimPresent =  [trial.m_aiStimulusArea] > 2;
 secondaryStimPresent = [trial.m_aiSecondaryStimulusArea] > 2;
@@ -25,7 +30,6 @@ stimseq_ET_bars = cellfun(@(x,y) x(1:y:end), {trial.stimseq_ET_bars}, num2cell(c
 % Load primary stimuli
 
 for t = 1:nTrials
-
     if primaryStimPresent(t)
         imScalar =  fix(trial(t).m_aiStimulusArea/ 60);
 
@@ -38,13 +42,12 @@ for t = 1:nTrials
             case 5 % S hartleys
             case 6 % Full hartleys
 
-            [stim1_cellArray(t), cache] = loadHartleys_helper( ...
-                    trial(t), stimpath, stimseq(t), imScalar, cache);
+            [stim1_cellArray(t), cache] = loadHartleys_helper(stimpath, stimseq(t), imScalar, cache);
 
             case 7 % Achromatic clouds
             case 8 % Chromatic clouds
                 [stim1_cellArray(t), cache] = loadCclouds_helper( ...
-                    trial(t), stimpath, stimseq(t), imScalar, cache);
+                    trial(t), stimpath, stimseq(t), imScalar, cache, LumScale);
         end
 
         if secondaryStimPresent(t)
@@ -66,21 +69,21 @@ for t = 1:nTrials
                         % TERTIARY STIMULUS
 
                         [stim3_cellArray(t), cache] = loadCclouds_helper( ...
-                            trial(t), stimpath, stimseq(t), imScalar,cache);
+                            trial(t), stimpath, stimseq_ET_Cclouds(t), imScalar,cache, LumScale);
 
                     case 6  % secondary stim ccloud, tertiary stim vertical/horizontal bars
 
                         % SECONDARY STIMULUS
 
                         [stim2_cellArray(t), cache] = loadCclouds_helper( ...
-                            trial(t), stimpath, stimseq(t), imScalar,cache);
+                            trial(t), stimpath, stimseq_ET_Cclouds(t), imScalar,cache, LumScale);
                         % TERTIARY STIMULUS
 
                     case 7  % both stim cclouds
 
                         % SECONDARY STIMULUS
                         [stim2_cellArray(t), cache] = loadCclouds_helper( ...
-                            trial(t), stimpath, stimseq(t),imScalar, cache);
+                            trial(t), stimpath, stimseq_ET_Cclouds(t),imScalar, cache, LumScale);
 
                         % TERTIARY STIMULUS
 
@@ -92,7 +95,7 @@ for t = 1:nTrials
 
                         % TERTIARY STIMULUS
                         [stim3_cellArray(t), cache] = loadCclouds_helper( ...
-                            trial(t), stimpath, stimseq(t), imScalar, cache);
+                            trial(t), stimpath, stimseq_ET_Cclouds(t), imScalar, cache, LumScale);
                 end
             catch ME
                 disp(ME)

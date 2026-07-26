@@ -1,68 +1,7 @@
 %%
 
 % 3/2026 mjg -- wrote it
-% cell arrays:
-
-% For cell arrays of size (2*# trials) x 1, even numbered cells
-% correspond to stimulus ON periods, odd numbered cells (starting at 3)
-% correspond to interstimulus periods.
-
-% Kofiko_ET_TS_PlexonTime_cellArray [(2*# trials) x 1]: Kofiko eye tracking timestamps. Even numbered
-% cells correspond to stimulus on periods, odd numbered cells starting at 3
-% correspond to interstimulus periods.
-
-% Kofiko_Xpix_cellArray [(2*# trials) x 1]: Calibrated Kofiko horizontal eye trace (screen coordinates)
-
-% Kofiko_Ypix_cellArray [(2*# trials) x 1]: Calibrated Kofiko vertical eye trace (screen coordinates)
-
-% t_plexon_cellArray [(2*# trials) x 1]: Plexon sample times
-
-% leftEyePupil_plexon_cellArray [(2*# trials) x 1]: Plexon left eye pupil
-% trace
-
-% rightEyePupil_plexon_cellArray: same as above for right eye.
-
-% rightEyeX_plexon_calib_cellArray [(2*# trials) x 1]: Plexon right eye
-% horizontal trace with Kofiko gains and offsets applied
-
-% rightEyeY_plexon_calib_cellArray [(2*# trials) x 1]: same as above for
-% vertical trace.
-
-% leftEyeX_plexon_calib_cellArray [(2*# trials) x 1]: Plexon left eye
-% horizontal trace with Kofiko gains and offsets applied
-
-% leftEyeY_plexon_calib_cellArray [(2*# trials) x 1]: same as above for
-% vertical trace.
-
-% stimulus_cellArray [# trials x 1]: Each cell is a (stimulus width*stimulus
-% height*# chromatic channels) x # frames matrix that contains the cloud
-% pixel values (-127 to 127).
-
-% Kofiko_Xpix_frameRate_cellArray [# trials of interest x 1]: Calibrated Kofiko
-% horizontal eye trace downsampled to frame rate.
-
-% Kofiko_Xpix_frameRate_cellArray [# trials of interest x 1]: Calibrated Kofiko
-% vertical eye trace downsampled to frame rate.
-
-% spk_times_cellArray [# spike sorting batches x 1]: Each cell contains a
-% (2*# trials) x 1 cell array. Even cells give spikes that occurred during stimulus ON.
-% Odd trials starting at 3 give spikes during interstimulus periods.
-
-% clusterIDForEachSpk_cellArray [# spike sorting batches x 1]: Each cell contains a
-% (2*# trials) x 1 cell array. Even cells give IDs corresponding to spikes that occurred during stimulus ON.
-% Odd trials starting at 3 give IDs during interstimulus periods.
-
-% ks_batchForEachSpk_cellArray [# spike sorting batches x 1]: Each cell
-% contains a (2*# trials) x 1 cell array. Even cells give spike sorting batch corresponding to spikes that occurred during stimulus ON.
-% Odd trials starting at 3 give batch during interstimulus periods.
-
-%  stimFrameNumForEachSpk_cellArray  [# spike sorting batches x 1]: Each cell
-% contains a (2*# trials) x 1 cell array. Even cells give frames shown during spikes that occurred during stimulus ON.
-% Odd trials starting at 3 give frames during interstimulus periods.
-
-% spksPerFrame_cellArray [# trials x 1]: Each cell contains # frames x 1
-% vector giving spike counts per frame.
-
+% 7/2026 mjg -- major refactoring
 
 %% Set paths
 setPathsAndFlags;
@@ -73,7 +12,6 @@ addpath(genpath(fullfile(codedir, 'ConwayExptProcessing')))
 %addpath(genpath(fullfile(codedir, 'ConwayExptProcessing', 'npy-matlab')))
 
 pl2 = PL2ReadFileIndex(plexon_fname);
-fs = pl2.SpikeChannels{1}.SamplesPerSecond;
 % Hardcoded values
 plexonAnalogScale = 1e-3;
 LumScale = 0.1085;
@@ -102,7 +40,10 @@ chanName =  ['AI' num2str(1, ['%0' num2str(numDigitsInLastAIchan) '.f'])];
 [adfreq, n, ~, ~, ~] = plx_ad_v(plexon_fname, chanName);
 t_plexon = (0:n-1)/adfreq;
 
-[Kofiko_ET_TS, Kofiko_Xpix, Kofiko_Ypix, KofikoGains, KofikoOffsets, KofikoGains_Plexon, KofikoOffsets_Plexon]...
+[Kofiko_ET_TS, Kofiko_Xpix,...
+    Kofiko_Ypix, KofikoGains,...
+    KofikoOffsets, KofikoGains_Plexon,...
+    KofikoOffsets_Plexon]...
     = loadKofikoEyeData(g_strcts,t_plexon, B);
 
 Kofiko_ET_TS_PlexonTime = [ones(size(Kofiko_ET_TS)) Kofiko_ET_TS]*B;
@@ -124,7 +65,11 @@ stimIntervals = [stimStartTimes stimStopTimes]';
 stimIntervals = stimIntervals(:);
 
 % Number of frames per trial
-numFrames =  min([trial.numFrames], [trial.numFrames] ./ [trial.repframes]);
+numFrames =  transpose(min([trial.numFrames], [trial.numFrames] ./ [trial.repframes]));
+
+stimTiming.stimStartTimes = stimStartTimes;
+stimTiming.stimStopTimes = stimStopTimes;
+stimTiming.numFrames = numFrames;
 
 % Expand relevant variables across frame
 
@@ -228,31 +173,24 @@ goodFixationIdx = vertcat(trial.m_bMonkeyFixated) | (goodFixationX & goodFixatio
 tic;
 fprintf('Loading stimuli\n')
 
-[stim1_cellArray, stim2_cellArray, stim3_cellArray] = makeStimMatrix(stimpath, trial);
+[stim1_cellArray, stim2_cellArray, stim3_cellArray] = makeStimMatrix(stimpath, trial, LumScale);
 
 % find dualstim elemetns
 trialTypeOfInterest = 'Dual Stim';
-trialTypeOfInterestIdx = strcmpi( {trial.m_strTrialType}, trialTypeOfInterest);
+trialTypeOfInterestIdx = strcmpi( {trial.m_strTrialType}, trialTypeOfInterest)';
 
 trlonset_diffs = [4; diff(stimStartTimes)];
-CCidx = cellfun(@(x) any(x==8), {trial.DualstimPrimaryuseRGBCloud});
-areaOverZeroIdx = cellfun(@(x) x>0, {trial.m_aiStimulusArea});
+areaOverZeroIdx = cellfun(@(x) x>0, {trial.m_aiStimulusArea})';
 
 isTrialOfInterest = trialTypeOfInterestIdx & ...
     goodFixationIdx &...
     trlonset_diffs > 4 &...
-    CCidx & ...
     areaOverZeroIdx & ...
     vertcat(trial.DualstimPrimaryuseRGBCloud) == 8 ; % clouds
 
-stimulus_matrix = horzcat(stimulus_cellArray{isTrialOfInterest});
-stimulusET_matrix = horzcat(stimulusET_cellArray{isTrialOfInterest});
+stimulus_matrix = horzcat(stim1_cellArray{isTrialOfInterest});
+stimulusET_matrix = horzcat(stim2_cellArray{isTrialOfInterest});
 
-stimFrameBins = cellfun(@(t_start, t_stop, nFrames) linspace(t_start,t_stop,nFrames+1),...
-    num2cell(stimStartTimes), num2cell(stimStopTimes),...
-    num2cell(numFrames), 'UniformOutput', false);
-
-valid_stimFrameBinIdx = cellfun(@(x) numel(x)>=2, stimFrameBins);
 toc;
 
 %% resample eye signal at frame rate
@@ -278,210 +216,11 @@ Kofiko_Ypix_frameRate_cellArray = ...
     num2cell(numFrames(isTrialOfInterest)), ...
     'UniformOutput', false);
 
-%% load in spike data
-tic;
-fprintf('Loading spike data and computing Robs\n');
-% drop test check
-spk_offset = droptestcheck(plexon_fname);
-
-% end drop test check %%%%
-%% cluster label strings
-
-goodStr = 'good ';
-muaStr = 'mua  ';
-noiseStr = 'noise';
-blankStr = '     ';
 
 %% %%%%%%%%%%%%% Load and organize spike data %%%%%%%%%%%%%
 % if using kilosort
-% Find folders with kilosort output
-spike_times_dir = dir(fullfile(ks_path, '**/spike_times.npy'));
-spike_clusters_dir = dir(fullfile(ks_path, '**/spike_clusters.npy'));
-cluster_info_dir = dir(fullfile(ks_path, '**/cluster_info.tsv'));
-
-spike_times_folders = {spike_times_dir(:).folder};
-spike_clusters_folders = {spike_clusters_dir(:).folder};
-cluster_info_folders = {cluster_info_dir(:).folder};
-
-% For each folder with kilosort outputs
-num_ks_batch = length(spike_times_dir);
-assert(~isempty(spike_times_dir));
-
-[~, ks_folders, ~] =  cellfun(@fileparts, spike_times_folders, 'UniformOutput', false);
-tokens = regexp(ks_folders, '^[^_]+_([^_]+)', 'tokens');
-array_labels = cellfun(@(t) t{1}{1}, tokens, 'UniformOutput', false);
-%unique_array_labels = unique(array_labels);
-chan_offset = 0;
-cluster_offset = 0;
-%chan_offsets(1) = chan_offset;
-
-nSU = [];
-nMU = [];
-RobsSU =[];
-RobsMU =[];
-
-Robs =  cell(1,num_ks_batch);
-for ks_batch = 1:num_ks_batch
-    this_array_label = array_labels{ks_batch};
-    disp(ks_batch)
-
-    % Get label of kilosort batch (often corresponding to array name and range of channels processed)
-
-    % Read in kilosort outputs
-    spk_times = readNPY(fullfile(spike_times_folders{ks_batch}, 'spike_times.npy'));
-    spk_times = double(spk_times)./fs + spk_offset; % convert to seconds
-    spk_clusters = readNPY(fullfile(spike_times_folders{ks_batch}, 'spike_clusters.npy'))...
-        + cluster_offset;
-    cluster_KSLabel = tdfread(fullfile(spike_times_folders{ks_batch}, 'cluster_KSLabel.tsv'));
-
-    chan_map = readNPY(fullfile(spike_times_folders{ks_batch}, 'channel_map.npy'));
-    chan_map = chan_map + chan_offset; % make channel numbers unique within array
-
-    if isfile(fullfile(spike_times_folders{ks_batch}, 'cluster_info.tsv'))
-        cluster_info = tdfread(fullfile(spike_times_folders{ks_batch}, 'cluster_info.tsv'));
-        cluster_id = cluster_info.cluster_id + cluster_offset;
-        group = cluster_info.group;
-        n_spikes = cluster_info.n_spikes;
-        chan_best = cluster_info.ch + double(chan_offset);
-    else
-        cluster_group = tdfread(fullfile(spike_times_folders{ks_batch}, 'cluster_group.tsv'));
-        cluster_group.cluster_id = cluster_group.cluster_id + cluster_offset;
-
-        % account for blank units which may not be in cluster_group
-        blank_cluster_id = setdiff(unique(spk_clusters), cluster_group.cluster_id);
-        temp_cluster_id = [cluster_group.cluster_id; blank_cluster_id];
-        temp_group = cluster_group.group;
-        temp_group(end+1:end+length(blank_cluster_id),:) = ' ';
-        [temp_cluster_id_sorted, I] = sort(temp_cluster_id);
-        temp_group_sorted = temp_group(I,:);
-        cluster_id = temp_cluster_id_sorted;
-        group = temp_group_sorted;
-
-        % find best channel of each cluster
-        templates = readNPY(fullfile(spike_times_folders{ks_batch}, 'templates.npy'));
-        % n_spikes = accumarray(spk_clusters+1, spk_clusters, [], @numel);
-        % n_spikes = n_spikes(n_spikes>0);
-
-        n_spikes = accumarray(spk_clusters+1, 1, [], @sum);
-        n_spikes = n_spikes(cluster_id + 1);
-
-        [~,I]= max(sum(templates.^2,2),[],3);
-        chan_best = chan_map(I); % best channel for each unique cluster
-    end
-
-    % Find indices of units labeled "good", "mua", or ""
-    isGood = cellfun(@(x) strcmpi(deblank(x), 'good'), cellstr(group));
-    isMua = cellfun(@(x) strcmpi(deblank(x), 'mua'), cellstr(group));
-    isBlank = cellfun(@(x) isempty(deblank(x)), cellstr(group));
-    hasMinSpikes = n_spikes > minSpikes;
-
-    % get cluster IDs
-    SU_clusterIDs{ks_batch} = cluster_id(isGood & hasMinSpikes);
-    MU_clusterIDs{ks_batch} = cluster_id((isMua | isBlank) & hasMinSpikes);
-    allUnit_clusterIDs{ks_batch} =[SU_clusterIDs{ks_batch}; MU_clusterIDs{ks_batch}];
-
-    % get channels
-    SU_chanNums{ks_batch} = chan_best(isGood & hasMinSpikes);
-    MU_chanNums{ks_batch} = chan_best((isMua | isBlank) & hasMinSpikes);
-    allUnit_chanNums{ks_batch} =  [SU_chanNums{ks_batch}; MU_chanNums{ks_batch}];
-
-    % get ks_batch
-    SU_ks_batch{ks_batch} = ks_batch.*ones(size(SU_clusterIDs{ks_batch}));
-    MU_ks_batch{ks_batch} = ks_batch.*ones(size(MU_clusterIDs{ks_batch}));
-    allUnit_ks_batch{ks_batch} = [SU_ks_batch{ks_batch}; MU_ks_batch{ks_batch}];
-
-    % Get rid of spike times and clusterIDs that correspond to bad units
-    spk_times = spk_times(ismember(spk_clusters, allUnit_clusterIDs{ks_batch}));
-    spk_clusters = spk_clusters(ismember(spk_clusters, allUnit_clusterIDs{ks_batch}));
-    ks_batchForEachSpk= repelem(ks_batch, numel(spk_times))';
-
-    % bin spikes by trial
-    [~,~,spk_times_bin{ks_batch}] = histcounts(spk_times, stimIntervals);
-
-    % each cell gives spike times for stim ON and stim OFF periods
-
-    spk_times_cellArray{ks_batch} =accumarray(...
-        spk_times_bin{ks_batch}(:)+1, ...
-        spk_times(:), ...
-        [nBins + 1, 1], ...
-        @(x){x}, ...
-        {[]});
-
-    clusterIDForEachSpk_cellArray{ks_batch} = accumarray(...
-        spk_times_bin{ks_batch}(:)+1, ...
-        spk_clusters(:), ...
-        [nBins + 1, 1], ...
-        @(x){x}, ...
-        {[]});
-
-    ks_batchForEachSpk_cellArray{ks_batch} = accumarray(...
-        spk_times_bin{ks_batch}(:)+1, ...
-        ks_batchForEachSpk(:), ...
-        [nBins + 1, 1], ...)
-        @(x){x}, ...
-        {[]});
-
-    clusterIDForEachSpk_stimON_cellArray = clusterIDForEachSpk_cellArray{ks_batch}(2:2:end);
-    spk_times_stimON_cellArray =  spk_times_cellArray{ks_batch}(2:2:end);
-    %    ks_batchForEachSpk_stimON_cellArray = ks_batchForEachSpk_stimON_cellArray{ks_batch}(2:2:end);
-
-    stimFrameNumForEachSpk_cellArray{ks_batch} = cell(size(trial,1),1);
-
-    [~,~,stimFrameNumForEachSpk_cellArray{ks_batch}(valid_stimFrameBinIdx)] =...
-        cellfun(@(x,y) histcounts(x, 'BinEdges', y), ...
-        spk_times_stimON_cellArray(valid_stimFrameBinIdx),...
-        stimFrameBins(valid_stimFrameBinIdx), 'UniformOutput',false);
-    %spkFrameIdx_cellArray = transpose(spkFrameIdx_cellArray);
-
-    Robs{ks_batch} = single(zeros(numel(allUnit_clusterIDs{ks_batch}),  sum(numFrames(isTrialOfInterest))));
-
-    for unit = 1:numel(allUnit_clusterIDs{ks_batch})
-        unitID = allUnit_clusterIDs{ks_batch}(unit);
-
-        % each cell is a trial, and contains frame indicies where spikes
-        % occurred (repeated frames == multiple spikes on that frame)
-
-        stimFrameNumForEachSpk_thisUnit_cellArray = cell(size(trial,1),1);
-        stimFrameNumForEachSpk_thisUnit_cellArray(valid_stimFrameBinIdx) = ...
-            cellfun(@(x,y) x(y==unitID), ...
-            stimFrameNumForEachSpk_cellArray{ks_batch}(valid_stimFrameBinIdx), ...
-            clusterIDForEachSpk_stimON_cellArray(valid_stimFrameBinIdx),...
-            'UniformOutput', false);
-
-        spksPerFrame_cellArray =  cell(size(trial,1),1);
-
-        spksPerFrame_cellArray(isTrialOfInterest) = cellfun(@(x,y) histcounts(x, 'BinEdges',0.5:(y+0.5)),...
-            stimFrameNumForEachSpk_thisUnit_cellArray(isTrialOfInterest), num2cell(numFrames(isTrialOfInterest)) ,'UniformOutput',false);
-
-        Robs{ks_batch}(unit,:) = [spksPerFrame_cellArray{:}];
-    end
-
-    nSU{ks_batch} = length(SU_clusterIDs{ks_batch});
-    nMU{ks_batch} = length(MU_clusterIDs{ks_batch});
-    RobsSU{ks_batch} = Robs{ks_batch}(1:nSU{ks_batch},:);
-    RobsMU{ks_batch} = Robs{ks_batch}(nSU{ks_batch}+1:nSU{ks_batch}+nMU{ks_batch},:);
-
-    % update chan_offset
-    if ks_batch < num_ks_batch % if we still got a batch ahead
-        next_array_label = array_labels{ks_batch+1};
-        if strcmpi(next_array_label,  this_array_label)
-            chan_offset = max(chan_map)+1; % maximum channel number;
-        else
-            chan_offset = 0; % new array, reset offset to 0
-        end
-        %   chan_offsets(ks_batch+1) = chan_offset;
-    end
-    % update cluster offset, and keep track of them
-    cluster_offset = max(cluster_id)+1;
-    cluster_offsets(ks_batch+1) = cluster_offset;
-    chan_offsets(ks_batch+1) = chan_offset;
-
-end
-
-nSU = sum(cellfun(@length, SU_clusterIDs));
-nMU = sum(cellfun(@length, MU_clusterIDs));
-
-toc;
+spkData = organizeSpikeDataByTrial(stimIntervals,plexon_fname, minSpikes, ks_path);
+Robs_strct = buildRobs(spkData, stimTiming, isTrialOfInterest);
 
 
 %% Process LFPs
@@ -535,20 +274,23 @@ ETtrace_raw = transpose([vertcat(eyeX2_plexon_calib_cellArray{2*find(isTrialOfIn
     vertcat(pupil1_plexon_cellArray{2*find(isTrialOfInterest)})]);
 
 %Robs
-RobsSU = allRobs(1:nSU,:);
+
+nSU = numel(Robs_strct.SU_clusters);
+
+RobsSU = Robs_strct.Robs(1:nSU,:);
 
 %RobsMU
-RobsMU = allRobs(nSU+1:end,:);
+RobsMU = Robs_strct.Robs(nSU+1:end,:);
 
 %RobsMU_probe_ID
-RobsMU_probe_ID = vertcat(MU_chanNums{:});
+RobsMU_probe_ID = Robs_strct.MU_chans;
 
 %RobsMU_rating
 RobsMU_rating = [];
 %blockID
 
 % Robs_probe_ID
-Robs_probe_ID = vertcat(SU_chanNums{:});
+Robs_probe_ID = Robs_strct.SU_chans;
 
 %Robs rating
 Robs_rating =[];
@@ -574,7 +316,7 @@ datafilts = ones(size(RobsSU));
 datafiltsMU = ones(size(RobsMU));
 
 %dt
-dt = 1/60.0; %0.0160; % why not 0.0167?
+dt = 1/60.0; 
 
 %electrode_info
 electrode_info =[];
@@ -806,12 +548,9 @@ data.useLeye = useLeye;
 data.useReye = useReye;
 data.reward_on_ts = reward_on_ts;
 data.reward_off_ts = reward_off_ts;
-
 data.valid_data = valid_data;
-
 data.spikeSortingBatch = spikeSortingBatch;
 data.spikeSortingBatchMU = spikeSortingBatchMU;
-
 data.ks_folders = ks_folders;
 data.chan_offsets = chan_offsets;
 data.cluster_offsets = cluster_offsets;

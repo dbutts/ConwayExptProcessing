@@ -1,4 +1,4 @@
-function [stim_cellArray, cache] = loadCclouds_helper(trial, stimpath, stimseq, imScalar, cache)
+function [stim_cellArray, cache] = loadCclouds_helper(trial, stimpath, stimseq, imScalar, cache, LumScale)
 
 persistent ccloudStimFileStrs
 
@@ -28,7 +28,6 @@ switch trial.usebinary
         stim =int8(127*stim);
 
     case 2 % matched contrast
-        LumScale = 0.1085;
         stim_int8 = zeros(size(stim), 'int8');
         stim_int8(:,:,:,2:3) = int8(127 * stim(:,:,:,2:3));
         stim_int8(:,:,:,1)   = int8((127 / LumScale) * stim(:,:,:,1));

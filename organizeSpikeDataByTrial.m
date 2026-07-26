@@ -1,4 +1,11 @@
-function spkData = organizeSpikeDataByTrial(ks_path,stimIntervals,fs)
+function spkData = organizeSpikeDataByTrial(stimIntervals,plexon_fname, minSpikes, ks_path)
+
+%TODO: add online sorting optin 
+spkData = struct;
+spk_offset = droptestcheck(plexon_fname);
+pl2 = PL2ReadFileIndex(plexon_fname);
+fs = pl2.SpikeChannels{1}.SamplesPerSecond;
+nBins = numel(stimIntervals) - 1;
 
 spike_times_dir = dir(fullfile(ks_path, '**/spike_times.npy'));
 spike_times_folders = {spike_times_dir(:).folder};
@@ -7,13 +14,10 @@ assert(~isempty(spike_times_dir));
 tokens = regexp(ks_folders, '^[^_]+_([^_]+)', 'tokens');
 array_labels = cellfun(@(t) t{1}{1}, tokens, 'UniformOutput', false);
 
-
 % for each ks_folder, get spike data and organize it
 % Get label of kilosort batch (often corresponding to array name and range of channels processed)
 
 % Read in kilosort outputs
-
-spkData = struct;
 
 chan_offset = 0;
 cluster_offset = 0;
@@ -67,10 +71,9 @@ for f = 1:numel(ks_folders)
     isBlank = cellfun(@(x) isempty(deblank(x)), cellstr(group));
     hasMinSpikes = n_spikes > minSpikes;
 
-
     % Get rid of spike times and clusterIDs that correspond to bad units
-    spk_times = spk_times(ismember(spk_clusters, allUnit_clusterIDs));
-    spk_clusters = spk_clusters(ismember(spk_clusters, allUnit_clusterIDs));
+    spk_times = spk_times(ismember(spk_clusters, cluster_id((isGood | isMua | isBlank) & hasMinSpikes)));
+    spk_clusters = spk_clusters(ismember(spk_clusters, cluster_id((isGood | isMua | isBlank) & hasMinSpikes)));
 
     % bin spikes by trial
     [~,~,spk_times_bin] = histcounts(spk_times, stimIntervals);
@@ -112,10 +115,9 @@ for f = 1:numel(ks_folders)
     end
     % update cluster offset, and keep track of them
     cluster_offset = max(cluster_id)+1;
-    cluster_offsets(f+1) = cluster_offset;
-    chan_offsets(f+1) = chan_offset;
-
 
 end
+
+
 
 end
