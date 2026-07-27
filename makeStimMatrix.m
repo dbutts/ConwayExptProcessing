@@ -32,6 +32,7 @@ stimseq_ET_bars = cellfun(@(x,y) x(1:y:end), {trial.stimseq_ET_bars}, num2cell(c
 for t = 1:nTrials
     if primaryStimPresent(t)
         imScalar =  fix(trial(t).m_aiStimulusArea/ 60);
+        imScalar = max([imScalar,1]);
 
         switch trial(t).DualstimPrimaryuseRGBCloud
             case 0 % ground truth
@@ -52,6 +53,7 @@ for t = 1:nTrials
 
         if secondaryStimPresent(t)
             imScalar =  fix(trial(t).m_aiSecondaryStimulusArea / 60);
+            imScalar = max([imScalar,1]);
 
             try
                 % note: spatialscale is that of color clouds, not achrom clouds it

@@ -613,7 +613,6 @@ online_STA = reshape(online_tempSTA, size(online_tempSTA,1), 60, 60, 3, nLags);
 toc;
 
 
-
 lags = 3:6;
 chrom_chan_labels = {'Lum.', 'L-M', 'S'};
 %if compute_stas && plotting

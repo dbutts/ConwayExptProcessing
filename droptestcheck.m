@@ -17,12 +17,12 @@ numDigitsInLastAIchan = ceil(log10(numAIchans));
 spikeChannel1SignalDurSec = n/fs; % samples / (samples/sec)
 dpiSyncSignalDurSec = n_aux/fs_aux;
 
-droptestcheck = dpiSyncSignalDurSec - spikeChannel1SignalDurSec;
-disp(['Plexon-Kofiko offset in seconds: ' num2str(droptestcheck)]) % this will tell us if the plexon time alignment issue is present
+delta = dpiSyncSignalDurSec - spikeChannel1SignalDurSec;
+disp(['Plexon-Kofiko offset in seconds: ' num2str(delta)]) % this will tell us if the plexon time alignment issue is present
 
-if abs(droptestcheck)>0.1
+if abs(delta)>0.1
     warning("Danger - Plexon might have dropped frames! Check pl2 file.")
-    spk_offset = droptestcheck;
+    spk_offset = delta;
 else
     spk_offset = 0;
 end

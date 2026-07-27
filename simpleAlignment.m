@@ -74,9 +74,9 @@ stimTiming.numFrames = numFrames;
 % Expand relevant variables across frame
 
 % Get trial IDs (insane that there are trial numbers and IDs....)
-TrialIDPerFrame = cellfun(@(x, y) repelem(x, y), {trial.TrialID}', num2cell(numFrames)', 'UniformOutput', false);
+TrialIDPerFrame = cellfun(@(x, y) repelem(x, y), {trial.TrialID}', num2cell(numFrames), 'UniformOutput', false);
 
-useBinaryPerFrame = cellfun(@(x, y) repelem(x, y), {trial.usebinary}', num2cell(numFrames)', 'UniformOutput', false);
+useBinaryPerFrame = cellfun(@(x, y) repelem(x, y), {trial.usebinary}', num2cell(numFrames), 'UniformOutput', false);
 
 try
     spatialscale = {trial.spatialscale}';
@@ -91,13 +91,13 @@ catch
 
 end
 
-BlockIDPerFrame =  cellfun(@(x, y) repelem(x, y), {trial.BlockID}', num2cell(numFrames)', 'UniformOutput', false);
+BlockIDPerFrame =  cellfun(@(x, y) repelem(x, y), {trial.BlockID}', num2cell(numFrames), 'UniformOutput', false);
 
 X_fixationSpot = cellfun(@(x) x(1), {trial.m_pt2iFixationSpot}', 'UniformOutput',false);
 Y_fixationSpot = cellfun(@(x) x(2), {trial.m_pt2iFixationSpot}', 'UniformOutput',false);
 
-UseLeyePerFrame = cellfun(@(x, y) repelem(x, y), {trial.UseLeye}', num2cell(numFrames)', 'UniformOutput', false);
-UseReyePerFrame = cellfun(@(x, y) repelem(x, y), {trial.UseReye}', num2cell(numFrames)', 'UniformOutput', false);
+UseLeyePerFrame = cellfun(@(x, y) repelem(x, y), {trial.UseLeye}', num2cell(numFrames), 'UniformOutput', false);
+UseReyePerFrame = cellfun(@(x, y) repelem(x, y), {trial.UseReye}', num2cell(numFrames), 'UniformOutput', false);
 
 toc;
 
@@ -180,13 +180,14 @@ trialTypeOfInterest = 'Dual Stim';
 trialTypeOfInterestIdx = strcmpi( {trial.m_strTrialType}, trialTypeOfInterest)';
 
 trlonset_diffs = [4; diff(stimStartTimes)];
-areaOverZeroIdx = cellfun(@(x) x>0, {trial.m_aiStimulusArea})';
+areaOverZeroIdx = cellfun(@(x) x==60, {trial.m_aiStimulusArea})';
 
 isTrialOfInterest = trialTypeOfInterestIdx & ...
     goodFixationIdx &...
     trlonset_diffs > 4 &...
     areaOverZeroIdx & ...
-    vertcat(trial.DualstimPrimaryuseRGBCloud) == 8 ; % clouds
+    vertcat(trial.DualstimPrimaryuseRGBCloud) == 8 ... % clouds
+    & cellfun(@(x) x>0, {trial.m_aiStimulusArea})';
 
 stimulus_matrix = horzcat(stim1_cellArray{isTrialOfInterest});
 stimulusET_matrix = horzcat(stim2_cellArray{isTrialOfInterest});
@@ -220,8 +221,7 @@ Kofiko_Ypix_frameRate_cellArray = ...
 %% %%%%%%%%%%%%% Load and organize spike data %%%%%%%%%%%%%
 % if using kilosort
 spkData = organizeSpikeDataByTrial(stimIntervals,plexon_fname, minSpikes, ks_path);
-Robs_strct = buildRobs(spkData, stimTiming, isTrialOfInterest);
-
+Robs_strct = buildRobs(spkData.spkDataOnline, stimTiming, isTrialOfInterest);
 
 %% Process LFPs
 if ~skipLFP
@@ -372,11 +372,15 @@ trialIdx     = trialIdx(valid);
 spike_ts     = spike_ts_raw - trialStart(trialIdx) + (trialIdx - 1) * trlsecs;
 
 %stim
-stim = reshape(stimulus_matrix, 60,60,3,[]);
+stimW = 60;
+stimH =60;
+stim = reshape(stimulus_matrix, stimH,stimW,3,[]);
 
 %stimET
+stimETW = 60;
+stimETH = 60;
 if stimET
-    stimET = reshape(stimulusET_matrix, 60,60,3,[]);
+    stimET = reshape(stimulusET_matrix, stimETH,stimETW,3,[]);
 end
 
 %stim_area
