@@ -1,4 +1,4 @@
-function STA = getOnlineSTAsFromHartleys(plexon_fname, mainKofiko_fname, hartleySize)
+function [STA, Robs_strct] = getOnlineSTAsFromHartleys(plexon_fname, mainKofiko_fname, hartleySize)
 
 stimpath = '/Volumes/lsr-conway/PROJECTS/V1_Fovea/stimuli/Cloudstims_calib_04_2024';
 codedir = '/Users/greenemj/Git';
@@ -120,13 +120,18 @@ trialTypeOfInterestIdx = strcmpi( {trial.m_strTrialType}, trialTypeOfInterest)';
 
 trlonset_diffs = [4; diff(stimStartTimes)];
 areaIdx = cellfun(@(x) x==hartleySize, {trial.m_aiStimulusArea})';
+modalStimRect = mode(cat(1,trial.m_aiStimulusRect));
+
+modalStimRectIdx = all(cat(1,trial.m_aiStimulusRect) - modalStimRect == 0, 2);
 
 isTrialOfInterest = trialTypeOfInterestIdx & ...
     goodFixationIdx &...
     trlonset_diffs > 4 &...
     areaIdx & ...
-    vertcat(trial.DualstimPrimaryuseRGBCloud) == 6 ... % Hartleys
-    & cellfun(@(x) x>0, {trial.m_aiStimulusArea})';
+    vertcat(trial.DualstimPrimaryuseRGBCloud) == 6 &... % Hartleys
+    cellfun(@(x) x>0, {trial.m_aiStimulusArea})';
+
+assert(sum(isTrialOfInterest > 0));
 
 stimulus_matrix = horzcat(stim1_cellArray{isTrialOfInterest});
 stimulusET_matrix = horzcat(stim2_cellArray{isTrialOfInterest});
