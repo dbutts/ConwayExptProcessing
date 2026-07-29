@@ -1,5 +1,6 @@
 function STA = generate_stas(Robs, stim, nlags, v_bkg, varargin)
 
+addpath(genpath('~/Git/ConwayExptProcessing/'))
 % Robs is expected to be a # units x # frames matrix, while stim is
 % expected to be Y pixels x X pixels x 3 x # frames
 
@@ -52,7 +53,7 @@ STA.DKL = reshape(tempSTA, size(tempSTA,1), size(stim,1), size(stim,2), 3, nlags
 
 % convert STA from DKL to LMS
 
-if nargin > 5
+if nargin == 5
     T_RGB2LMS = compute_T_RGB2LMS(varargin{:});
     T_DKL2RGB = compute_T_DKL2RGB(varargin{:});
     bkg_LMS = T_RGB2LMS*(v_bkg.*(T_DKL2RGB*[0;0;0])+v_bkg); % v_bkg = [0.5;0.5;0.5]

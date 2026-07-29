@@ -2,7 +2,8 @@ function [stim_cellArray, cache] = loadHartleys_helper(stimpath, stimseq, imScal
 
 persistent hartleysFolder 
 if isempty(hartleysFolder )
-    hartleysFolder = fullfile(fileparts(stimpath), 'Cloudstims_calib_01_2022');
+    %hartleysFolder = fullfile(fileparts(stimpath), 'Cloudstims_calib_01_2022');
+    hartleysFolder = stimpath;
 end
 
 filename = fullfile(hartleysFolder, 'hartleys_60.mat');

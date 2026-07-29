@@ -92,6 +92,7 @@ catch
 end
 
 BlockIDPerFrame =  cellfun(@(x, y) repelem(x, y), {trial.BlockID}', num2cell(numFrames), 'UniformOutput', false);
+StimulusAreaPerFrame =  cellfun(@(x, y) repelem(x, y), {trial.m_aiStimulusArea}', num2cell(numFrames), 'UniformOutput', false);
 
 X_fixationSpot = cellfun(@(x) x(1), {trial.m_pt2iFixationSpot}', 'UniformOutput',false);
 Y_fixationSpot = cellfun(@(x) x(2), {trial.m_pt2iFixationSpot}', 'UniformOutput',false);
@@ -224,6 +225,7 @@ spkData = organizeSpikeDataByTrial(stimIntervals,plexon_fname, minSpikes, ks_pat
 Robs_strct = buildRobs(spkData.spkDataOnline, stimTiming, isTrialOfInterest);
 
 %% Process LFPs
+numDigitsInLastSpkChan = ceil(log10(length(pl2.SpikeChannels)));
 if ~skipLFP
     disp('Processing LFPs')
     tic;
@@ -251,16 +253,16 @@ end
 
 %% %%%%%%%%%%%% Format output like PackageCloud %%%%%%%%%%%%
 %allRobs = vertcat(Robs{:});
-allRobsSU = vertcat(RobsSU{:});
-allRobsMU = vertcat(RobsMU{:});
-allRobs = vertcat(allRobsSU, allRobsMU);
+% allRobsSU = vertcat(RobsSU{:});
+% allRobsMU = vertcat(RobsMU{:});
+% allRobs = vertcat(allRobsSU, allRobsMU);
 
 %ETgains
-ETgains = [Kofiko_GainX(end), Kofiko_GainY(end)];
+ETgains = [g_strcts.g_strctEyeCalib.GainX.Buffer(end), g_strcts.g_strctEyeCalib.GainY.Buffer(end)];
 
 %ETstim_location
-ETstim_location =  [trial{find(isTrialOfInterest,1, 'last')}.secondarystim_bar_rect;...
-    trial{find(isTrialOfInterest,1, 'last')}.tertiarystim_bar_rect];
+ETstim_location =  [trial(find(isTrialOfInterest,1, 'last')).secondarystim_bar_rect;...
+    trial(find(isTrialOfInterest,1, 'last')).tertiarystim_bar_rect];
 
 % ETtrace
 ETtrace = [[Kofiko_Xpix_frameRate_cellArray{:}]; [Kofiko_Ypix_frameRate_cellArray{:}]];
@@ -329,7 +331,7 @@ exptname = filenameP;
 fix_location = unique(vertcat(trial(isTrialOfInterest).m_pt2iFixationSpot), 'rows');
 
 %fix_size
-fix_size = trial{find(isTrialOfInterest, 1, 'last')}.m_fFixationSizePix -1;
+fix_size = [trial(find(isTrialOfInterest, 1, 'last')).m_fFixationSizePix] -1;
 
 %pixel_size
 pixel_size = 1;
