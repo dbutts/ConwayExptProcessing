@@ -93,6 +93,8 @@ end
 
 BlockIDPerFrame =  cellfun(@(x, y) repelem(x, y), {trial.BlockID}', num2cell(numFrames), 'UniformOutput', false);
 StimulusAreaPerFrame =  cellfun(@(x, y) repelem(x, y), {trial.m_aiStimulusArea}', num2cell(numFrames), 'UniformOutput', false);
+DualstimPrimaryuseRGBCloudPerFrame = cellfun(@(x, y) repelem(x, y),{trial.DualstimPrimaryuseRGBCloud}', num2cell(numFrames), 'UniformOutput', false);
+
 
 X_fixationSpot = cellfun(@(x) x(1), {trial.m_pt2iFixationSpot}', 'UniformOutput',false);
 Y_fixationSpot = cellfun(@(x) x(2), {trial.m_pt2iFixationSpot}', 'UniformOutput',false);
@@ -221,8 +223,9 @@ Kofiko_Ypix_frameRate_cellArray = ...
 
 %% %%%%%%%%%%%%% Load and organize spike data %%%%%%%%%%%%%
 % if using kilosort
-spkData = organizeSpikeDataByTrial(stimIntervals,plexon_fname, minSpikes, ks_path);
-Robs_strct = buildRobs(spkData.spkDataOnline, stimTiming, isTrialOfInterest);
+onlineSortingOnly = false;
+spkData = organizeSpikeDataByTrial(stimIntervals,plexon_fname, minSpikes, ks_path, onlineSortingOnly);
+Robs_strct = buildRobs(spkData.spkDataOffline, stimTiming, isTrialOfInterest);
 
 %% Process LFPs
 numDigitsInLastSpkChan = ceil(log10(length(pl2.SpikeChannels)));
@@ -278,6 +281,7 @@ ETtrace_raw = transpose([vertcat(eyeX2_plexon_calib_cellArray{2*find(isTrialOfIn
 %Robs
 
 nSU = numel(Robs_strct.SU_clusters);
+nMU = numel(Robs_strct.MU_clusters);
 
 RobsSU = Robs_strct.Robs(1:nSU,:);
 
@@ -340,14 +344,14 @@ pixel_size = 1;
 sacc_inds=[];
 
 %ss
-clusterIDs= cellfun(@(x) vertcat(x{2*find(isTrialOfInterest)}), clusterIDForEachSpk_cellArray, 'UniformOutput', false);
+clusterIDs= cellfun(@(x) vertcat(x{2*find(isTrialOfInterest)}), {spkData.spkDataOffline.spk_clusters_cellArray}, 'UniformOutput', false);
 clusterIDs = transpose(vertcat(clusterIDs{:}));
 clusterIDs = vertcat(clusterIDs);
 
 assert(numel(unique(clusterIDs)) == nSU + nMU);
 
 %spike_ts
-spike_ts_raw = cellfun(@(x) vertcat(x{2*find(isTrialOfInterest)}), spk_times_cellArray, 'UniformOutput', false);
+spike_ts_raw = cellfun(@(x) vertcat(x{2*find(isTrialOfInterest)}), {spkData.spkDataOffline.spk_times_cellArray}, 'UniformOutput', false);
 spike_ts_raw = transpose(vertcat(spike_ts_raw{:}));
 spike_ts_raw = vertcat(spike_ts_raw);
 
@@ -454,12 +458,12 @@ use_inds_fix(use_inds_fix==0)=[];
 
 valid_data = use_inds_fix;
 
-% added by me: ks batch
-spikeSortingBatch = vertcat(SU_ks_batch{:});
-spikeSortingBatchMU = vertcat(MU_ks_batch{:});
-
-cluster = vertcat(SU_clusterIDs{:});
-clusterMU = vertcat(MU_clusterIDs{:});
+% % added by me: ks batch
+% spikeSortingBatch = vertcat(SU_ks_batch{:});
+% spikeSortingBatchMU = vertcat(MU_ks_batch{:});
+% 
+% cluster = vertcat(SU_clusterIDs{:});
+% clusterMU = vertcat(MU_clusterIDs{:});
 
 %% remap cluster ids from 1 to number of clusters
 

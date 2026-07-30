@@ -15,7 +15,7 @@ if nargin < 4
     ks_path = '';
 end
 
-if nargin == 5 & ~onlineSortingOnly & ~isempty(ks_path)
+if nargin == 5 && ~onlineSortingOnly && isfile((fullfile(ks_path, 'spike_times.npy')));
 
     spike_times_dir = dir(fullfile(ks_path, '**/spike_times.npy'));
     spike_times_folders = {spike_times_dir(:).folder};
@@ -56,7 +56,15 @@ if nargin == 5 & ~onlineSortingOnly & ~isempty(ks_path)
             % account for blank units which may not be in cluster_group
             blank_cluster_id = setdiff(unique(spk_clusters), cluster_group.cluster_id);
             temp_cluster_id = [cluster_group.cluster_id; blank_cluster_id];
+
+            if isfield(cluster_group, 'group')
             temp_group = cluster_group.group;
+            else % we havent yet touched the KS outputs in phy
+                temp_group = cluster_group.KSLabel;
+            end
+
+
+
             temp_group(end+1:end+length(blank_cluster_id),:) = ' ';
             [temp_cluster_id_sorted, I] = sort(temp_cluster_id);
             temp_group_sorted = temp_group(I,:);
