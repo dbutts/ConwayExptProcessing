@@ -15,7 +15,7 @@ if nargin < 4
     ks_path = '';
 end
 
-if nargin == 5 && ~onlineSortingOnly && isfile((fullfile(ks_path, 'spike_times.npy')));
+if nargin == 5 && ~onlineSortingOnly && isfile((fullfile(ks_path, 'spike_times.npy')))
 
     spike_times_dir = dir(fullfile(ks_path, '**/spike_times.npy'));
     spike_times_folders = {spike_times_dir(:).folder};
@@ -62,8 +62,6 @@ if nargin == 5 && ~onlineSortingOnly && isfile((fullfile(ks_path, 'spike_times.n
             else % we havent yet touched the KS outputs in phy
                 temp_group = cluster_group.KSLabel;
             end
-
-
 
             temp_group(end+1:end+length(blank_cluster_id),:) = ' ';
             [temp_cluster_id_sorted, I] = sort(temp_cluster_id);
@@ -153,6 +151,7 @@ end
 clusterID = 1;
 spk_times = [];
 spk_clusters = [];
+clusterIDs = [];
 
 uniqueChans = unique(chans);
 
@@ -164,9 +163,9 @@ for ch = 1:numel(uniqueChans)
         spk_times = [spk_times; ts];
         spk_clusters = [spk_clusters; clusterID*ones(size(ts))];
         mean_wave{ch,clst} = mean(wave,1);
-        clusterID = clusterID + 1;
-
+  
         clusterIDs(counter) = clusterID;
+        clusterID = clusterID + 1;
         counter = counter+1;
 
     end

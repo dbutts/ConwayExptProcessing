@@ -69,10 +69,6 @@ if computerLocation < 10   % NIH-specific settings and prompts
         '[1] Yes \n' ...
         '[0] No \n ']); %1;
 
-    stimET = input(['stimET? \n' ...
-        '[1] Yes \n' ...
-        '[0] No \n ']); %1;
-
     fprintf('Set paths \n')
     fprintf('--------------\n')
 

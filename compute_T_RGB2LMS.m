@@ -93,8 +93,6 @@ else
         P_xyz = [rx gx bx;
             ry gy by;
             1-rx-ry, 1-gx-gy, 1-bx-by];
-
-
     catch
         error('Missing/incorrect input arguments')
     end

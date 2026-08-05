@@ -1,4 +1,4 @@
-function [stim_cellArray, cache] = loadCclouds_helper(trial, stimpath, stimseq, imScalar, cache, LumScale)
+function [stim_cellArray, cache] = loadCclouds_helper(trial, stimpath, stimseq, cache, LumScale)
 
 persistent ccloudStimFileStrs
 
@@ -21,7 +21,7 @@ else
     cache(filename) = stim;
 end
 
-stim = imresize(stim, imScalar, 'bilinear');
+%stim = imresize(stim, imScalar, 'bilinear');
 
 switch trial.usebinary
     case {0,1} % full contrast and binary (?) clouds
@@ -35,4 +35,8 @@ switch trial.usebinary
 end
 
 stim_cellArray = cellfun(@(idx) stim(:,:,idx,:), stimseq, 'UniformOutput', false);
+stim_cellArray = cellfun(@(x) permute(x, [3 1 2 4]), stim_cellArray, 'UniformOutput', false);
+stim_cellArray = cellfun(@(x) reshape(x, size(x,1), prod(size(x, 2:4))), stim_cellArray, 'UniformOutput', false);
+stim_cellArray = cellfun(@transpose, stim_cellArray, 'UniformOutput', false);
+
 end
