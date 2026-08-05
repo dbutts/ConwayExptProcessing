@@ -15,7 +15,7 @@ if nargin < 4
     ks_path = '';
 end
 
-if nargin == 5 && ~onlineSortingOnly && isfile((fullfile(ks_path, 'spike_times.npy')))
+if nargin == 5 && ~onlineSortingOnly && (isfile((fullfile(ks_path, 'spike_times.npy'))) || ~ isempty(dir(fullfile(ks_path, '**/spike_times.npy'))))
 
     spike_times_dir = dir(fullfile(ks_path, '**/spike_times.npy'));
     spike_times_folders = {spike_times_dir(:).folder};
@@ -32,6 +32,7 @@ if nargin == 5 && ~onlineSortingOnly && isfile((fullfile(ks_path, 'spike_times.n
     chan_offset = 0;
     cluster_offset = 0;
     for f = 1:numel(ks_folders)
+         this_array_label = array_labels{f};
 
         spike_times_folder = spike_times_folders{f};
         spk_times = readNPY(fullfile(spike_times_folder, 'spike_times.npy'));
@@ -190,7 +191,6 @@ spk_clusters_cellArray = accumarray(...
     [nBins + 1, 1], ...
     @(x){x}, ...
     {[]});
-
 
 spkData.spkDataOnline.spk_times_cellArray = spk_times_cellArray;
 spkData.spkDataOnline.spk_clusters_cellArray = spk_clusters_cellArray;

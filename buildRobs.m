@@ -13,6 +13,7 @@ stimStartTimes = stimTiming.stimStartTimes;
 stimStopTimes = stimTiming.stimStopTimes;
 numFrames = stimTiming.numFrames;
 num_arrays = numel(spkDataXline);
+arrayLabels = {spkDataXline.arrayLabel};
 
 stimFrameBinEdges = cellfun(@(startTime, stopTime, nFrames) linspace(startTime, stopTime, nFrames+1), ...
     num2cell(stimStartTimes), ...
@@ -25,10 +26,9 @@ stimFrameBinEdges = cellfun(@(startTime, stopTime, nFrames) linspace(startTime, 
 
 idx = find(isTrialOfInterest);
 
-
+array_num = 1;
 for a = 1:num_arrays
 
-   
     spk_clusters_ontrialsOfInterest = vertcat(spkDataXline(a).spk_clusters_cellArray{2*idx});
     SU_clusters_ontrialsOfInterest = spk_clusters_ontrialsOfInterest(ismember(spk_clusters_ontrialsOfInterest, spkDataXline(a).SU_clusters));
     MU_clusters_ontrialsOfInterest = spk_clusters_ontrialsOfInterest(ismember(spk_clusters_ontrialsOfInterest, spkDataXline(a).MU_clusters));
@@ -39,12 +39,11 @@ for a = 1:num_arrays
     SU_chans{a} = spkDataXline(a).SU_chans(ismember(SU_clusters{a}, spkDataXline(a).SU_clusters));
     MU_chans{a} = spkDataXline(a).MU_chans(ismember(MU_clusters{a}, spkDataXline(a).MU_clusters));
 
-    
-
-    nSU = numel(SU_clusters{a});
+   
+     nSU = numel(SU_clusters{a});
     nMU = numel(MU_clusters{a});
-    SU_arrays{a} = repmat(spkDataXline(a).arrayLabel, nSU,1);
-    MU_arrays{a} = repmat(spkDataXline(a).arrayLabel, nMU,1);
+    SU_arrays{a} = repmat(array_num, nSU,1);
+    MU_arrays{a} = repmat(array_num, nMU,1);
 
     all_clusters = [SU_clusters{a}; MU_clusters{a}];
 
@@ -56,6 +55,13 @@ for a = 1:num_arrays
 
     RobsSU{a} = Robs(1:nSU,:);
     RobsMU{a} = Robs(nSU+1 : nSU + nMU,:);
+
+    if a > num_arrays
+        if strcmpi(arrayLabels{a}, arrayLabels{a+1})
+        else
+            array_num = array_num+ 1;
+        end
+    end
 
 end
 

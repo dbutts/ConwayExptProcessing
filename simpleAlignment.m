@@ -216,7 +216,7 @@ for i = 1:numel(isTrialOfInterestIndices)
         num2cell(stimTiming.numFrames(isTrialOfInterest)), ...
         'UniformOutput', false);
 
-    %% Robs
+    % Robs
     if isfield(spkData, 'spkDataOffline')
         Robs_strct(i) = buildRobs(spkData.spkDataOffline, stimTiming, isTrialOfInterest);
         Robs_strct_online(i) = buildRobs(spkData.spkDataOnline, stimTiming, isTrialOfInterest);
