@@ -56,7 +56,7 @@ for a = 1:num_arrays
     RobsSU{a} = Robs(1:nSU,:);
     RobsMU{a} = Robs(nSU+1 : nSU + nMU,:);
 
-    if a > num_arrays
+    if a < num_arrays
         if strcmpi(arrayLabels{a}, arrayLabels{a+1})
         else
             array_num = array_num+ 1;

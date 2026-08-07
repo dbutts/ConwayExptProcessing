@@ -129,8 +129,8 @@ trialLabels = {'ccloud', 'discProbe', 'hartley'};
 %% Build Robs
 %Robs_strct = struct;
 for i = 1:numel(isTrialOfInterestIndices)
-
     isTrialOfInterest = isTrialOfInterestIndices{i};
+    if sum(isTrialOfInterest) > 0
     stim_mats.stim1_matrix = horzcat(stim1_cellArray{isTrialOfInterest});
     stim_mats.stim2_matrix = horzcat(stim2_cellArray{isTrialOfInterest});
     stim_mats.stim3_matrix = horzcat(stim3_cellArray{isTrialOfInterest});
@@ -149,11 +149,14 @@ for i = 1:numel(isTrialOfInterestIndices)
      Robs_strct_online(i) = buildRobs(spkData.spkDataOnline, stimTiming, isTrialOfInterest);
      data_online(i) = makeDataStruct(filenameP, isTrialOfInterest,g_strcts, trial, PlexET_cellArrays, KofikoET_cellArrays, stimTiming, stim_mats, spkData.spkDataOnline,Robs_strct_online(i), events, ETdist_thresh, trialLabels{i}, computerLocation);
     %% %%%%%%%%%%%% Format output like PackageCloud %%%%%%%%%%%%
+    else
+    end
 
 end
 
 %% Process LFPs
 numDigitsInLastSpkChan = ceil(log10(length(pl2.SpikeChannels)));
+
 if ~skipLFP
     disp('Processing LFPs')
     tic;
@@ -198,7 +201,6 @@ if saving
         case 6; curstimstype='HC';
         case 8; curstimstype='CC';
     end
-
 
     array_label_filepart = [cellfun(@(x) [x '_'], unique_array_labels(1:end-1), 'UniformOutput', false) unique_array_labels(end)];
     array_label_filepart = horzcat(array_label_filepart{:});

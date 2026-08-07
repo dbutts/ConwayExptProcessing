@@ -354,7 +354,11 @@ data.reward_on_ts = reward_on_ts;
 data.reward_off_ts = reward_off_ts;
 data.valid_data = valid_data;
 data.primaryStimType = trialLabel;
-
-
+data.SU_clusters = Robs_strct.SU_clusters;
+data.MU_clusters = Robs_strct.MU_clusters;
+data.SU_chans = Robs_strct.SU_chans;
+data.MU_chans = Robs_strct.MU_chans;
+data.SU_arrays= Robs_strct.SU_arrays;
+data.MU_arrays = Robs_strct.MU_arrays;
 
 end
