@@ -317,14 +317,14 @@ for i = 1:numel(isTrialOfInterestIndices)
     sacc_inds=[];
 
     %ss
-    clusterIDs= cellfun(@(x) vertcat(x{2*find(isTrialOfInterest)}), {spkData.spkDataOnline.spk_clusters_cellArray}, 'UniformOutput', false);
+    clusterIDs= cellfun(@(x) vertcat(x{2*find(isTrialOfInterest)}), {spkData.spkDataOffline.spk_clusters_cellArray}, 'UniformOutput', false);
     clusterIDs = transpose(vertcat(clusterIDs{:}));
     clusterIDs = vertcat(clusterIDs);
 
     assert(numel(unique(clusterIDs)) == nSU + nMU);
 
     %spike_ts
-    spike_ts_raw = cellfun(@(x) vertcat(x{2*find(isTrialOfInterest)}), {spkData.spkDataOnline.spk_times_cellArray}, 'UniformOutput', false);
+    spike_ts_raw = cellfun(@(x) vertcat(x{2*find(isTrialOfInterest)}), {spkData.spkDataOffline.spk_times_cellArray}, 'UniformOutput', false);
     spike_ts_raw = transpose(vertcat(spike_ts_raw{:}));
     spike_ts_raw = vertcat(spike_ts_raw);
 
