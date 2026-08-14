@@ -157,30 +157,35 @@ end
 %% Process LFPs
 numDigitsInLastSpkChan = ceil(log10(length(pl2.SpikeChannels)));
 
-if ~skipLFP
-    disp('Processing LFPs')
-    tic;
-    if (exptdate/10000) < 24  % year less than 2024
-        LFPchans{1} = 1:24; % laminar
-        LFPchans{2} = [33,40,46,47,52,53,54,59,65,67,71,81,83,89,90,95,98,102,103,109,112,131,138,139,145,146,152,158]; % Nform channels that worked
-        LFPchans{3} = 161:256; % utah
-    else
-        LFPchans{1} = length(pl2.SpikeChannels); % one array so far
-    end
-
-    [LFP_adfreq, LFP_n, LFP_ts, ~, ~] = plx_ad_v(plexon_fname, ['FP' num2str(1, ['%0' num2str(numDigitsInLastSpkChan) '.f'])]);
-    for ii=1:length(LFPchans)
-        nchans = length(LFPchans{ii});
-        %LFP_ad = zeros(nchans, LFP_n);
-        LFPs{ii} = zeros(nchans, LFP_n);
-        for ch = 1:nchans
-            %[~,~,~,~, LFP_ad(i,:)] = plx_ad_v(plexon_fname, ['FP' num2str(1, ['%0' num2str(numDigitsInLastSpkChan) '.f'])]);
-            [~,~,~,~, LFPs{ii}(ch,:)] = plx_ad_v(plexon_fname, ['FP' num2str(LFPchans{ii}(ch), ['%0' num2str(numDigitsInLastSpkChan) '.f'])]);
-        end
-    end
-    LFP_times=(0:LFP_n-1)/LFP_adfreq;
-    toc;
+% if ~skipLFP
+%     disp('Processing LFPs')
+%     tic;
+%     if (exptdate/10000) < 24  % year less than 2024
+%         LFPchans{1} = 1:24; % laminar
+%         LFPchans{2} = [33,40,46,47,52,53,54,59,65,67,71,81,83,89,90,95,98,102,103,109,112,131,138,139,145,146,152,158]; % Nform channels that worked
+%         LFPchans{3} = 161:256; % utah
+%     else
+%         LFPchans{1} = length(pl2.SpikeChannels); % one array so far
+%     end
+% 
+%     [LFP_adfreq, LFP_n, LFP_ts, ~, ~] = plx_ad_v(plexon_fname, ['FP' num2str(1, ['%0' num2str(numDigitsInLastSpkChan) '.f'])]);
+%     for ii=1:length(LFPchans)
+%         nchans = length(LFPchans{ii});
+%         %LFP_ad = zeros(nchans, LFP_n);
+%         LFPs{ii} = zeros(nchans, LFP_n);
+%         for ch = 1:nchans
+%             %[~,~,~,~, LFP_ad(i,:)] = plx_ad_v(plexon_fname, ['FP' num2str(1, ['%0' num2str(numDigitsInLastSpkChan) '.f'])]);
+%             [~,~,~,~, LFPs{ii}(ch,:)] = plx_ad_v(plexon_fname, ['FP' num2str(LFPchans{ii}(ch), ['%0' num2str(numDigitsInLastSpkChan) '.f'])]);
+%         end
+%     end
+%     LFP_times=(0:LFP_n-1)/LFP_adfreq;
+%     toc;
+% end
+LFP_ad = [];
+for ch = 1:numel(pl2.SpikeChannels)
+    [~,~,~,~, LFP_ad(ch,:)] = plx_ad_v(plexon_fname, ['FP' num2str(1, ['%0' num2str(numDigitsInLastSpkChan) '.f'])]);
 end
+
 %% Saving
 if saving
     disp('Saving')
