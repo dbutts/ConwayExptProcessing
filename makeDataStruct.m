@@ -4,6 +4,11 @@ function data = makeDataStruct(filenameP, isTrialOfInterest,g_strcts, trial, ...
 
 %% %%%%%%%%%%%% Format output like PackageCloud %%%%%%%%%%%%
 % Get trial IDs (insane that there are trial numbers and IDs....)
+
+% Dual stim specific
+
+if any(strcmpi(trialLabel, {'ccloud', 'hartley'}))
+
 TrialIDPerFrame = cellfun(@(x, y) repelem(x, y), {trial.TrialID}', num2cell(stimTiming.numFrames), 'UniformOutput', false);
 
 useBinaryPerFrame = cellfun(@(x, y) repelem(x, y), {trial.usebinary}', num2cell(stimTiming.numFrames), 'UniformOutput', false);
@@ -25,7 +30,24 @@ BlockIDPerFrame =  cellfun(@(x, y) repelem(x, y), {trial.BlockID}', num2cell(sti
 StimulusAreaPerFrame =  cellfun(@(x, y) repelem(x, y), {trial.m_aiStimulusArea}', num2cell(stimTiming.numFrames), 'UniformOutput', false);
 DualstimPrimaryuseRGBCloudPerFrame = cellfun(@(x, y) repelem(x, y),{trial.DualstimPrimaryuseRGBCloud}', num2cell(stimTiming.numFrames), 'UniformOutput', false);
 
+else
+    TrialIDPerFrame = num2cell(nan(1, sum(stimTiming.numFrames(isTrialOfInterest))));
+    useBinaryPerFrame = num2cell(nan(1, sum(stimTiming.numFrames(isTrialOfInterest))));
+    spatialscale = num2cell(nan(1, sum(stimTiming.numFrames(isTrialOfInterest))));
+    BlockIDPerFrame = num2cell(nan(1, sum(stimTiming.numFrames(isTrialOfInterest))));
+    StimulusAreaPerFrame = num2cell(nan(1, sum(stimTiming.numFrames(isTrialOfInterest))));
+    DualstimPrimaryuseRGBCloudPerFrame = num2cell(nan(1, sum(stimTiming.numFrames(isTrialOfInterest))));
+
+end
+
+% Disc probe specific
+if strcmpi(trialLabel, 'discProbe')
 DiscDiameterPerFrame =  cellfun(@(x, y) repelem(x, y), {trial.m_iDiscDiameter}', num2cell(stimTiming.numFrames), 'UniformOutput', false);
+else
+    DiscDiameterPerFrame =num2cell(nan(1, sum(stimTiming.numFrames(isTrialOfInterest))));
+end
+
+
 
 X_fixationSpot = cellfun(@(x) x(1), {trial.m_pt2iFixationSpot}', 'UniformOutput',false);
 Y_fixationSpot = cellfun(@(x) x(2), {trial.m_pt2iFixationSpot}', 'UniformOutput',false);
@@ -179,7 +201,7 @@ stimW = 60;
 stimH =60;
 
 stim = stim_mats.stim1_matrix;
-if strcmpi(trialLabel, 'ccloud')
+if any(strcmpi(trialLabel, {'ccloud', 'hartley'}))
     stim = reshape(stim, stimH,stimW,3,[]);
 end
 

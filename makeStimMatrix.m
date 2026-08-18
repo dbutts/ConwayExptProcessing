@@ -33,8 +33,8 @@ for t = 1:nTrials
     %% DUAL STIM
     if strcmpi(trial(t).m_strTrialType, 'Dual Stim')
         if primaryStimPresent(t)
-            % imScalar =  fix(trial(t).m_aiStimulusArea/ 60);
-            % imScalar = max([imScalar,1]);
+             % imScalar =  fix(trial(t).m_aiStimulusArea/ 60);
+             % imScalar = max([imScalar,1]);
 
             switch trial(t).DualstimPrimaryuseRGBCloud
                 case 0 % ground truth
@@ -54,8 +54,8 @@ for t = 1:nTrials
             end
 
             if secondaryStimPresent(t)
-                % imScalar =  fix(trial(t).m_aiSecondaryStimulusArea / 60);
-                % imScalar = max([imScalar,1]);
+                 % imScalar =  fix(trial(t).m_aiSecondaryStimulusArea / 60);
+                 % imScalar = max([imScalar,1]);
 
                 try
                     % note: spatialscale is that of color clouds, not achrom clouds it
