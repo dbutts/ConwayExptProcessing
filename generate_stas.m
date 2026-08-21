@@ -48,6 +48,10 @@ for lag = 0:nlags-1
     tempSTA(:,:,:,:,lag+1) = (Robs(:,lag+1:end) * S(1:end-lag,:))./sum(Robs(:,lag+1:end),2);
 end
 
+if size(Robs,1) == 1
+    tempSTA = permute(tempSTA, [2 1 3 4 5]);
+end
+
 STA.DKL = reshape(tempSTA, size(tempSTA,1), size(stim,1), size(stim,2), 3, nlags);
 
 
