@@ -7,7 +7,7 @@ L_RGB = T_RGB2LMS \ L_LMS;
 L_DKL = T_DKL2RGB \ ((L_RGB - v_bkg)./v_bkg);
 
 % M isloating
-M_CC = [0; -0.15;0];
+M_CC = [0; 0.15;0];
 M_LMS = bkg_LMS.*M_CC + bkg_LMS;
 M_RGB = T_RGB2LMS \ M_LMS;
 
@@ -21,7 +21,7 @@ M_DKL = T_DKL2RGB \ ((M_RGB - v_bkg)./v_bkg);
 
 s = 1.5;
 L_CC_RF = 0.15 .* exp(-((X-29)/s).^2) .* exp(-((Y-29)/s).^2);
-M_CC_RF = -0.15 .* exp(-((X-31)/s).^2) .* exp(-((Y-31)/s).^2);
+M_CC_RF = 0.15 .* exp(-((X-31)/s).^2) .* exp(-((Y-31)/s).^2);
 S_CC_RF = 0.* ones(size(X));
 
 RF_CC = cat(3, L_CC_RF, M_CC_RF, S_CC_RF);
