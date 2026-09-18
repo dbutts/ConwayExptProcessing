@@ -45,7 +45,8 @@ tic;
 fprintf('Computing STAs\n');
 
 for lag = 0:nlags-1
-    tempSTA(:,:,:,:,lag+1) = (Robs(:,lag+1:end) * S(1:end-lag,:))./sum(Robs(:,lag+1:end),2);
+    tempSTA(:,:,:,:,lag+1) = (Robs(:,lag+1:end) * S(1:end-lag,:)) ./ sum(Robs(:,lag+1:end),2);
+    %tempSTA(:,:,:,:,lag+1) = ((1 ./ (eps +Robs(:,lag+1:end))) * S(1:end-lag,:)) .* sum(Robs(:,lag+1:end),2);
 end
 
 if size(Robs,1) == 1

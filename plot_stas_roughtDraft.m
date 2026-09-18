@@ -1,5 +1,6 @@
-function plot_stas_roughtDraft(STA, Robs_strct, mainKofiko_fname)
+function plot_stas_roughtDraft(STA, Robs,chans, clusters, mainKofiko_fname)
 
+if nargin ==5
 [a,filenameP,~] = fileparts(mainKofiko_fname);
 kofiko_subfolder = fullfile(a,filenameP);
 trial = loadKofikoTrialData(kofiko_subfolder,mainKofiko_fname,filenameP);
@@ -13,9 +14,14 @@ h = modalStimRect(4) - modalStimRect(2);
 x_right  = x_left + w;
 y_bottom = y_top + h;
 
+else
+    x_left = 1; x_right = 60;
+    y_top =1; y_bottom = 60;
+    
+end
+
 xt = linspace(x_left, x_right, 5);
 yt = linspace(y_top,  y_bottom, 5);
-
 xticklabs = cellstr(num2str(round(xt(:))));
 yticklabs = cellstr(num2str(round(yt(:))));
 
@@ -59,13 +65,12 @@ for i = 1:size(STA.DKL,1)
 
         end
     end
+    
+    chanNum =chans(i) -1;
+    clusterNum =clusters(i);
 
 
-    chanNum = Robs_strct.SU_chans(i) -1;
-    clusterNum = Robs_strct.SU_clusters(i);
-
-
-    N = sum(Robs_strct.Robs(i,:));
+    N = sum(Robs(i,:));
     sgtitle(tl, sprintf('Chan %d, unit %d, spikes: %d', ...
         chanNum, clusterNum, N));
 

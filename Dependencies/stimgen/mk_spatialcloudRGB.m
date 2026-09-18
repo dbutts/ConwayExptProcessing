@@ -19,8 +19,7 @@ mask1 = exp(-r2s/(2*rad1^2));
 mask1 = mask1/max(mask1(:));
 
 for k=	1:num_frames
-	im1 = squeeze(squeeze(noise_stim(:,:,k,cc)));
-	manip1 = fftshift(fft2(im1)); 
+	f
 	manip2 = mask1.*manip1;
 	im2 = (ifft2(ifftshift(manip2),'symmetric'));
 	stim(:,:,k,cc) = im2(1:stimw,1:stimh)./max(abs(im2(:)));

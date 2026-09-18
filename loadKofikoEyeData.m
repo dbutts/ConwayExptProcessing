@@ -1,6 +1,5 @@
 function [Kofiko_ET_TS, Kofiko_Xpix, Kofiko_Ypix, KofikoGains, KofikoOffsets, KofikoGains_Plexon, KofikoOffsets_Plexon] = loadKofikoEyeData(g_strcts,t_plexon, B)
 
-
 %% Kofiko eye data
 % Get the screen dimensions
 ScreenSizeX_pix = g_strcts.g_strctStimulusServer.m_aiScreenSize(3);
@@ -28,14 +27,12 @@ Kofiko_CenterX_TS = g_strcts.g_strctEyeCalib.CenterX.TimeStamp;
 
 Kofiko_CenterY_TS = g_strcts.g_strctEyeCalib.CenterY.TimeStamp;
 
-
 % Determine the Kofiko gains and offsets for each eye signal time stamp
 
 Kofiko_GainX_forEachTimeStamp = loadKofikoEyeData_helper(Kofiko_ET_TS, Kofiko_GainX_TS, Kofiko_GainX);
 Kofiko_GainY_forEachTimeStamp = loadKofikoEyeData_helper(Kofiko_ET_TS, Kofiko_GainY_TS, Kofiko_GainY);
 Kofiko_CenterX_forEachTimeStamp = loadKofikoEyeData_helper(Kofiko_ET_TS, Kofiko_CenterX_TS, Kofiko_CenterX);
 Kofiko_CenterY_forEachTimeStamp = loadKofikoEyeData_helper(Kofiko_ET_TS, Kofiko_CenterY_TS, Kofiko_CenterY);
-
 
 Kofiko_Xpix = Kofiko_GainX_forEachTimeStamp.*(Kofiko_EyeRawX - Kofiko_CenterX_forEachTimeStamp) + ScreenSizeX_pix/2;
 Kofiko_Ypix = Kofiko_GainY_forEachTimeStamp.*(Kofiko_EyeRawY - Kofiko_CenterY_forEachTimeStamp) + ScreenSizeY_pix/2;
