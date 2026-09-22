@@ -21,6 +21,7 @@ minSpikes = 2000;
 targ_ETstimtype = 0;
 ETdist_thresh=40;
 nLags = 10;
+upSampleFactor = 2;
 %% Load kofiko data
 g_strcts = loadKofikoStructs(mainKofiko_fname);
 trial = loadKofikoTrialData(kofiko_subfolder,mainKofiko_fname,filenameP);
@@ -140,13 +141,13 @@ for i = 1:numel(isTrialOfInterestIndices)
 
     % Robs
     if isfield(spkData, 'spkDataOffline')
-        Robs_strct(i) = buildRobs(spkData.spkDataOffline, stimTiming, isTrialOfInterest);
+        Robs_strct(i) = buildRobs(spkData.spkDataOffline, stimTiming, isTrialOfInterest, upSampleFactor);
         data(i) = makeDataStruct(filenameP,isTrialOfInterest,g_strcts, trial, PlexET_cellArrays, KofikoET_cellArrays, stimTiming, stim_mats, spkData.spkDataOffline,Robs_strct(i), events, ETdist_thresh, trialLabels{i}, computerLocation);
     else
 
     end
 
-     Robs_strct_online(i) = buildRobs(spkData.spkDataOnline, stimTiming, isTrialOfInterest);
+     Robs_strct_online(i) = buildRobs(spkData.spkDataOnline, stimTiming, isTrialOfInterest, upSampleFactor);
      data_online(i) = makeDataStruct(filenameP, isTrialOfInterest,g_strcts, trial, PlexET_cellArrays, KofikoET_cellArrays, stimTiming, stim_mats, spkData.spkDataOnline,Robs_strct_online(i), events, ETdist_thresh, trialLabels{i}, computerLocation);
     %% %%%%%%%%%%%% Format output like PackageCloud %%%%%%%%%%%%
     else

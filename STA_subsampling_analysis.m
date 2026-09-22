@@ -86,7 +86,6 @@ stimMat = reshape(stimMat, size(data(1).stim, 4), []);
 [C, ia, ic] = unique(stimMat, 'rows');
 
 
-
 for lag = 0:9
     for i = 1:size(C,1)
         idx = find(ic == i) + lag;
@@ -97,8 +96,8 @@ for lag = 0:9
     end
 end
 
-lag = 4;
-unit = 19;
+lag = 3;
+unit = 35;
 n = size(C,1);
 [B,I] = sort(numSpks(unit,:, lag+1), 'descend');
 nIms = single(C(I(1:n),:));
@@ -117,21 +116,21 @@ figure, imagesc(recon_inv(:,:,1)); colormap gray
 
 % dumb eye position correction?
 
-h = squeeze(STA.DKL(unit,:,:,1,lag+1));
-for i = 1:size(C,1)
-    im = reshape(C(I(i),1:3600), 60,60);
-    fim = imfilter(im,h);
-    [atemp, btemp] = find(fim == max(fim(:)));
-    rr(i) = atemp(1); cc(i) = btemp(1);
-end
-for i = 1:size(C,1)
-    temp = reshape(C(I(i),:), 60,60,3);
-    temp = circshift(temp, [-rr(i), -cc(i)]);
-    temp = reshape(temp, 10800, []);
-    C_shifted(i,:) = temp;
-end
-nIms = single(C_shifted(I(1:n),:));
-W = B(1:n);
-recon = reshape((mean(W'.*nIms,1)), 60,60,3);
-%recon = circshift(recon,[30,30]);
-figure, imagesc(recon(:,:,1)); colormap gray
+% h = squeeze(STA.DKL(unit,:,:,1,lag+1));
+% for i = 1:size(C,1)
+%     im = reshape(C(I(i),1:3600), 60,60);
+%     fim = imfilter(im,h);
+%     [atemp, btemp] = find(fim == max(fim(:)));
+%     rr(i) = atemp(1); cc(i) = btemp(1);
+% end
+% for i = 1:size(C,1)
+%     temp = reshape(C(I(i),:), 60,60,3);
+%     temp = circshift(temp, [-rr(i), -cc(i)]);
+%     temp = reshape(temp, 10800, []);
+%     C_shifted(i,:) = temp;
+% end
+% nIms = single(C_shifted(I(1:n),:));
+% W = B(1:n);
+% recon = reshape((mean(W'.*nIms,1)), 60,60,3);
+% %recon = circshift(recon,[30,30]);
+% figure, imagesc(recon(:,:,1)); colormap gray

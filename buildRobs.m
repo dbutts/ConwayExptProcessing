@@ -1,9 +1,11 @@
-function Robs_strct = buildRobs(spkDataXline, stimTiming, isTrialOfInterest)
-
+function Robs_strct = buildRobs(spkDataXline, stimTiming, isTrialOfInterest, upSampleFactor)
 
 % create by spkData = organizeSpikeDataByTrial(stimIntervals,plexon_fname, ks_path)
 
 % input must be either spkData.spkDataOnline or spkData.spkDataffline
+if nargin < 4
+    upSampleFactor = 1;
+end
 
 if nargin < 3
     isTrialOfInterest = true(numel(stimIntervals)/2,1);
@@ -11,7 +13,7 @@ end
 
 stimStartTimes = stimTiming.stimStartTimes;
 stimStopTimes = stimTiming.stimStopTimes;
-numFrames = stimTiming.numFrames;
+numFrames = upSampleFactor * stimTiming.numFrames;
 num_arrays = numel(spkDataXline);
 arrayLabels = {spkDataXline.arrayLabel};
 
@@ -22,7 +24,6 @@ stimFrameBinEdges = cellfun(@(startTime, stopTime, nFrames) linspace(startTime, 
 
 % for each unit, bin spike times by frame bins to get spikes it produced on
 % each frame
-
 
 idx = find(isTrialOfInterest);
 
@@ -39,8 +40,7 @@ for a = 1:num_arrays
     SU_chans{a} = spkDataXline(a).SU_chans(ismember(SU_clusters{a}, spkDataXline(a).SU_clusters));
     MU_chans{a} = spkDataXline(a).MU_chans(ismember(MU_clusters{a}, spkDataXline(a).MU_clusters));
 
-   
-     nSU = numel(SU_clusters{a});
+    nSU = numel(SU_clusters{a});
     nMU = numel(MU_clusters{a});
     SU_arrays{a} = repmat(array_num, nSU,1);
     MU_arrays{a} = repmat(array_num, nMU,1);
@@ -49,7 +49,10 @@ for a = 1:num_arrays
 
     for unit= 1:numel(all_clusters)
         unitID = all_clusters(unit);
-        foo = cellfun(@(spk,clust,frameBins) histcounts(spk(clust==unitID), frameBins), spkDataXline(a).spk_times_cellArray(2*idx), spkDataXline(a).spk_clusters_cellArray(2*idx), stimFrameBinEdges(idx), 'UniformOutput',false);
+        foo = cellfun(@(spk,clust,frameBins) histcounts(spk(clust==unitID), frameBins),...
+            spkDataXline(a).spk_times_cellArray(2*idx),...
+            spkDataXline(a).spk_clusters_cellArray(2*idx),...
+            stimFrameBinEdges(idx), 'UniformOutput',false);
         Robs(unit,:) = [foo{:}];
     end
 

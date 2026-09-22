@@ -1,5 +1,6 @@
-function STA = generate_stas(Robs, stim, nlags, v_bkg, varargin)
+function STA = generate_stas(Robs, stim, lags, v_bkg, varargin)
 
+nlags = numel(lags);
 addpath(genpath('~/Git/ConwayExptProcessing/'))
 % Robs is expected to be a # units x # frames matrix, while stim is
 % expected to be Y pixels x X pixels x 3 x # frames
@@ -44,8 +45,8 @@ S = transpose(single(reshape(stim,prod(size(stim,1:3)), [])))./127;
 tic;
 fprintf('Computing STAs\n');
 
-for lag = 0:nlags-1
-    tempSTA(:,:,:,:,lag+1) = (Robs(:,lag+1:end) * S(1:end-lag,:)) ./ sum(Robs(:,lag+1:end),2);
+for i = 1:numel(lags)
+    tempSTA(:,:,:,:,i) = (Robs(:,lags(i)+1:end) * S(1:end-lags(i),:)) ./ sum(Robs(:,lags(i)+1:end),2);
     %tempSTA(:,:,:,:,lag+1) = ((1 ./ (eps +Robs(:,lag+1:end))) * S(1:end-lag,:)) .* sum(Robs(:,lag+1:end),2);
 end
 
@@ -53,6 +54,7 @@ if size(Robs,1) == 1
     tempSTA = permute(tempSTA, [2 1 3 4 5]);
 end
 
+STA.DKL = tempSTA;
 STA.DKL = reshape(tempSTA, size(tempSTA,1), size(stim,1), size(stim,2), 3, nlags);
 
 
@@ -91,6 +93,4 @@ if nargin == 5
 
         end
     end
-
-
 end
