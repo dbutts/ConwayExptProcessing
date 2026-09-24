@@ -25,16 +25,18 @@ xticklabs = cellstr(num2str(round(xt(:))));
 yticklabs = cellstr(num2str(round(yt(:))));
 
 chrom_chans = {'Lum.', 'L-M', 'S'};
+
+lags = 0:9;
 for i = 1:size(STA.DKL,1)
 
     figure
     tl = tiledlayout(3,6,'TileSpacing','tight','Padding','tight');
 
     for c = 1:3
-        for j = 3:8
+        for j = lags
             ax = nexttile;
 
-            A = circshift(squeeze(STA.DKL(i,:,:,c,j)), [30 30]);
+            A = circshift(squeeze(STA.DKL(i,:,:,c,j+1)), [30 30]);
             imagesc(ax, [x_left x_right], [y_top y_bottom], A);
             axis(ax,'square')
             colormap(ax,gray)
@@ -46,10 +48,10 @@ for i = 1:size(STA.DKL,1)
                 'LineWidth', 2)
 
             if c == 1
-                title(ax,['Lag ' num2str(1*(j-1))])
+                title(ax,['Lag ' num2str(1*(j))])
             end
 
-            if j == 3
+            if j == lags(1)
                 ylabel(ax,chrom_chans{c})
             end
 

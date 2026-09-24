@@ -32,10 +32,10 @@ temp(:,:,chrom) = hartley60;
 H = temp;
 
 
-% What would be sensible:
-% 
-% [X,Y] = meshgrid(1:60);
-% Xp = X.*cos(deg2rad(ori)) + Y.*sin(deg2rad(ori));
-% hartley60_sensible = sin(2*pi*sf/60 .* Xp - deg2rad(ori));
-% 
+%What would be sensible:
+
+[X,Y] = meshgrid(1:60);
+Xp = X.*cos(deg2rad(ori)) + Y.*sin(deg2rad(ori));
+hartley60_sensible = sin(2*pi*sf/60 .* Xp - deg2rad(ori));
+
 end

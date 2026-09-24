@@ -1,44 +1,55 @@
-% Shift according to Kofiko eye traces
-
-calibrationTasks = {'Fivedot','FiveDot', 'Dotgrid'};
-isCalibrationTrial = cellfun(@(x) any(strcmpi(x, calibrationTasks)), {trial.m_strTrialType});
-
-upSampleFactor = 2;
-Kofiko_Xpix_frameRate_cellArray = ...
-    cellfun(@(t,x, start, stop, fixspot, n) interp1(t, x - fixspot, linspace(start, stop, n), 'linear'),...
-    KofikoET_cellArrays.Kofiko_ET_TS_PlexonTime_cellArray(2*find(ccloudTrialIdx)),...
-    KofikoET_cellArrays.Kofiko_Xpix_cellArray(2*find(ccloudTrialIdx)),...
-    num2cell(stimTiming.stimStartTimes(ccloudTrialIdx)),...
-    num2cell(stimTiming.stimStopTimes(ccloudTrialIdx)),...
-    X_fixationSpot(ccloudTrialIdx),...
-    num2cell(upSampleFactor * stimTiming.numFrames(ccloudTrialIdx)), ...
-    'UniformOutput', false);
-
-Kofiko_Ypix_frameRate_cellArray = ...
-    cellfun(@(t,y, start, stop, fixspot, n) interp1(t, y - fixspot, linspace(start, stop, n), 'linear'),...
-    KofikoET_cellArrays.Kofiko_ET_TS_PlexonTime_cellArray(2*find(ccloudTrialIdx)),...
-    KofikoET_cellArrays.Kofiko_Ypix_cellArray(2*find(ccloudTrialIdx)),...
-    num2cell(stimTiming.stimStartTimes(ccloudTrialIdx)),...
-    num2cell(stimTiming.stimStopTimes(ccloudTrialIdx)),...
-    Y_fixationSpot(ccloudTrialIdx),...
-    num2cell(upSampleFactor * stimTiming.numFrames(ccloudTrialIdx)), ...
-    'UniformOutput', false);
+% % Shift according to Kofiko eye traces
+% 
+% calibrationTasks = {'Fivedot','FiveDot', 'Dotgrid'};
+% isCalibrationTrial = cellfun(@(x) any(strcmpi(x, calibrationTasks)), {trial.m_strTrialType});
+% 
+% upSampleFactor = 2;
+% Kofiko_Xpix_frameRate_cellArray = ...
+%     cellfun(@(t,x, start, stop, fixspot, n) interp1(t, x - fixspot, linspace(start, stop, n), 'linear'),...
+%     KofikoET_cellArrays.Kofiko_ET_TS_PlexonTime_cellArray(2*find(ccloudTrialIdx)),...
+%     KofikoET_cellArrays.Kofiko_Xpix_cellArray(2*find(ccloudTrialIdx)),...
+%     num2cell(stimTiming.stimStartTimes(ccloudTrialIdx)),...
+%     num2cell(stimTiming.stimStopTimes(ccloudTrialIdx)),...
+%     X_fixationSpot(ccloudTrialIdx),...
+%     num2cell(upSampleFactor * stimTiming.numFrames(ccloudTrialIdx)), ...
+%     'UniformOutput', false);
+% 
+% Kofiko_Ypix_frameRate_cellArray = ...
+%     cellfun(@(t,y, start, stop, fixspot, n) interp1(t, y - fixspot, linspace(start, stop, n), 'linear'),...
+%     KofikoET_cellArrays.Kofiko_ET_TS_PlexonTime_cellArray(2*find(ccloudTrialIdx)),...
+%     KofikoET_cellArrays.Kofiko_Ypix_cellArray(2*find(ccloudTrialIdx)),...
+%     num2cell(stimTiming.stimStartTimes(ccloudTrialIdx)),...
+%     num2cell(stimTiming.stimStopTimes(ccloudTrialIdx)),...
+%     Y_fixationSpot(ccloudTrialIdx),...
+%     num2cell(upSampleFactor * stimTiming.numFrames(ccloudTrialIdx)), ...
+    % 'UniformOutput', false);
 
 % ddpi
 
 dpi_fname = '/Volumes/lsr-conway/DATA/monkey_ephys/Sprout/260622/RawDDPI-2026Jun22-155430/RawDDPI-2026Jun22-155430.txt';
+plexon_fname = '/Volumes/lsr-conway/DATA/monkey_ephys/Sprout/260622/260622_155528_Sprout.pl2';
+
+pl2 = PL2ReadFileIndex(plexon_fname);
+temp = vertcat(pl2.AnalogChannels{:});
+analogChanNames = {temp.Name};
+numDigitsInLastAIchan = ceil(log10(sum(contains(analogChanNames, 'AI'))));
+
+chanName =  ['AI' num2str(1, ['%0' num2str(numDigitsInLastAIchan) '.f'])];
+[adfreq,n,~,~,sync_ad] = plx_ad_v(plexon_fname, chanName);
+t_plexon = (0:n-1)/adfreq;
+
 ET = readtable(dpi_fname);
 % ddpi timestamps
 t_dpi = ET.RightSeconds;
 t_dpi = t_dpi - t_dpi(1); % time stamps in s
-% ddpi sync signal
+%ddpi sync signal
 sync_dpi = ET.Int0;
 sync_dpi = sync_dpi - min(sync_dpi);
 sync_dpi = sync_dpi & 1;
 sync_dpi_diff = diff(sync_dpi);
 t_rising_dpi = t_dpi(sync_dpi_diff > 0);
 t_falling_dpi = t_dpi(sync_dpi_diff < 0);
-% get rid of unpaired falling edge at beginning or rising edge at end
+%get rid of unpaired falling edge at beginning or rising edge at end
 if size(t_rising_dpi,1) > size(t_falling_dpi,1) % unpaired rising edge at the end
     t_rising_dpi = t_rising_dpi(1:size(t_falling_dpi,1));
 elseif size(t_rising_dpi,1) < size(t_falling_dpi,1)
@@ -47,7 +58,6 @@ end
 dt_dpi = median(t_falling_dpi - t_rising_dpi);
 delays_dpi = (t_rising_dpi(2:end) - t_falling_dpi(1:end-1))./dt_dpi;
 delays_dpi_int = int8(delays_dpi);
-sync_ad = PlexET_ad_calib(:,1);
 thresh = mean([min(sync_ad), max(sync_ad)]);
 sync_ad_bin = sync_ad > thresh;
 sync_ad_diff = diff(sync_ad_bin);
@@ -59,17 +69,17 @@ elseif size(t_rising_plexon,1) < size(t_falling_plexon,1)
     t_falling_plexon = t_falling_plexon(2:size(t_rising_plexon,1));
 end
 dt_plexon = median(t_falling_plexon - t_rising_plexon);
-% delays
+%delays
 delays_plexon = (t_rising_plexon(2:end) - t_falling_plexon(1:end-1))./dt_plexon;
 delays_plexon_int = int8(delays_plexon);
-% alignment
-% cross-correlate delays
+%alignment
+%cross-correlate delays
 [c,lags] = xcorr(delays_plexon_int, delays_dpi_int);
 best_lag = lags(c == max(c));
 x = t_rising_plexon(best_lag+1:end);
 t_rising_plexon_matched = x(1:numel(t_rising_dpi));
 b_dpi_plexon = [ones(size(t_rising_dpi)) t_rising_dpi]\t_rising_plexon_matched';
-% put dpi signal in plexon time
+%put dpi signal in plexon time
 t_dpi_plexon = [ones(size(t_dpi)) t_dpi]*b_dpi_plexon;
 dpi_cellArrays.dpi_ts_PlexonTime_cellArray = binByStimIntervals(t_dpi_plexon, t_dpi_plexon, stimTiming.stimIntervals);
 cr_x_Right = ET.RightCR1X;
@@ -86,13 +96,6 @@ dpi_raw_Left = [cr_x_Left - p4_x_Left, cr_y_Left - p4_y_Left];
 dpi_pupilArea_Right = ET.RightPupilWidth .* ET.RightPupilHeight;
 dpi_pupilArea_Left =  ET.LeftPupilWidth .* ET.LeftPupilHeight;
 
-dpi_cellArrays.RightX = binByStimIntervals(t_dpi_plexon, dpi_raw_Right(:,1), stimTiming.stimIntervals);
-dpi_cellArrays.RightY = binByStimIntervals(t_dpi_plexon, dpi_raw_Right(:,2), stimTiming.stimIntervals);
-dpi_cellArrays.LeftX = binByStimIntervals(t_dpi_plexon, dpi_raw_Left(:,1), stimTiming.stimIntervals);
-dpi_cellArrays.LeftY = binByStimIntervals(t_dpi_plexon, dpi_raw_Left(:,2), stimTiming.stimIntervals);
-
-dpi_cellArrays.RightPupilArea =  binByStimIntervals(t_dpi_plexon,dpi_pupilArea_Right, stimTiming.stimIntervals);
-dpi_cellArrays.LeftPupilArea =  binByStimIntervals(t_dpi_plexon, dpi_pupilArea_Left, stimTiming.stimIntervals);
 
 RPA = vertcat(dpi_cellArrays.RightPupilArea{2*find(isCalibrationTrial)});
 LPA = vertcat(dpi_cellArrays.LeftPupilArea{2*find(isCalibrationTrial)});
