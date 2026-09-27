@@ -139,9 +139,9 @@ stimulusET_matrix = horzcat(stim2_cellArray{isTrialOfInterest});
 spkData = organizeSpikeDataByTrial(stimIntervals,plexon_fname, minSpikes);
 Robs_strct = buildRobs(spkData.spkDataOnline, stimTiming, isTrialOfInterest);
 
-stim = reshape(stimulus_matrix, hartleySize,hartleySize,3,[]);
+stim = reshape(stimulus_matrix, 60,60,3,[]);
 
-STA = generate_stas(Robs_strct.Robs, stim,nLags);
+STA = generate_stas(Robs_strct.Robs, stim,0:9);
 
 
 end

@@ -21,7 +21,7 @@ minSpikes = 2000;
 targ_ETstimtype = 0;
 ETdist_thresh=40;
 nLags = 10;
-upSampleFactor = 2;
+upSampleFactor = 1;
 %% Load kofiko data
 g_strcts = loadKofikoStructs(mainKofiko_fname);
 trial = loadKofikoTrialData(kofiko_subfolder,mainKofiko_fname,filenameP);
@@ -51,7 +51,6 @@ Kofiko_ET_TS_PlexonTime = [ones(size(Kofiko_ET_TS)) Kofiko_ET_TS]*B;
 
 chanNums = 1:8;
 PlexET_ad_calib = loadPlexonEyeData(plexon_fname, chanNums, rig, plexonAnalogScale, KofikoGains_Plexon);
-
 
 %% %%%%%%%%%%%%%% Trial analysis %%%%%%%%%%%%%%
 tic;

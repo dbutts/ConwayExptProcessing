@@ -47,8 +47,6 @@ else
     DiscDiameterPerFrame =num2cell(nan(1, sum(stimTiming.numFrames(isTrialOfInterest))));
 end
 
-
-
 X_fixationSpot = cellfun(@(x) x(1), {trial.m_pt2iFixationSpot}', 'UniformOutput',false);
 Y_fixationSpot = cellfun(@(x) x(2), {trial.m_pt2iFixationSpot}', 'UniformOutput',false);
 
@@ -201,12 +199,13 @@ stimW = 60;
 stimH =60;
 
 stim = stim_mats.stim1_matrix;
-if any(strcmpi(trialLabel, {'ccloud', 'hartley'}))
-    stim = reshape(stim, stimH,stimW,3,[]);
-end
-
 stim2 = stim_mats.stim2_matrix;
 stim3 = stim_mats.stim3_matrix;
+if any(strcmpi(trialLabel, {'ccloud'}))
+    stim = reshape(stim, stimH,stimW,3,[]);
+    stim2 = reshape(stim2, stimH,stimW,3,[]);
+    stim3 = reshape(stim3, stimH,stimW,3,[]);
+end
 
 %stim_area
 stim_area = [trial(isTrialOfInterest).m_aiStimulusArea]';

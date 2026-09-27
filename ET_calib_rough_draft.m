@@ -26,8 +26,8 @@
 
 % ddpi
 
-dpi_fname = '/Volumes/lsr-conway/DATA/monkey_ephys/Sprout/260622/RawDDPI-2026Jun22-155430/RawDDPI-2026Jun22-155430.txt';
-plexon_fname = '/Volumes/lsr-conway/DATA/monkey_ephys/Sprout/260622/260622_155528_Sprout.pl2';
+dpi_fname = '/mnt/isilon/DATA/monkey_ephys/Jocamo/2025_Singleprobe/250529/RawDDPI-2025May29-152322/RawDDPI-2025May29-152322.txt';
+%plexon_fname = '/Volumes/lsr-conway/DATA/monkey_ephys/Sprout/260622/260622_155528_Sprout.pl2';
 
 pl2 = PL2ReadFileIndex(plexon_fname);
 temp = vertcat(pl2.AnalogChannels{:});
@@ -82,6 +82,8 @@ b_dpi_plexon = [ones(size(t_rising_dpi)) t_rising_dpi]\t_rising_plexon_matched';
 %put dpi signal in plexon time
 t_dpi_plexon = [ones(size(t_dpi)) t_dpi]*b_dpi_plexon;
 dpi_cellArrays.dpi_ts_PlexonTime_cellArray = binByStimIntervals(t_dpi_plexon, t_dpi_plexon, stimTiming.stimIntervals);
+
+
 cr_x_Right = ET.RightCR1X;
 cr_y_Right = ET.RightCR1Y;
 cr_x_Left = ET.LeftCR1X;
@@ -95,6 +97,17 @@ dpi_raw_Left = [cr_x_Left - p4_x_Left, cr_y_Left - p4_y_Left];
 
 dpi_pupilArea_Right = ET.RightPupilWidth .* ET.RightPupilHeight;
 dpi_pupilArea_Left =  ET.LeftPupilWidth .* ET.LeftPupilHeight;
+
+
+dpi_cellArrays.RightX = binByStimIntervals(t_dpi_plexon, dpi_raw_Right(:,1), stimTiming.stimIntervals);
+dpi_cellArrays.RightY = binByStimIntervals(t_dpi_plexon, dpi_raw_Right(:,2), stimTiming.stimIntervals);
+dpi_cellArrays.LeftX = binByStimIntervals(t_dpi_plexon, dpi_raw_Left(:,1), stimTiming.stimIntervals);
+dpi_cellArrays.LeftY = binByStimIntervals(t_dpi_plexon, dpi_raw_Left(:,2), stimTiming.stimIntervals);
+
+
+
+dpi_cellArrays.RightPupilArea = binByStimIntervals(t_dpi_plexon, dpi_pupilArea_Right, stimTiming.stimIntervals);
+dpi_cellArrays.LeftPupilArea = binByStimIntervals(t_dpi_plexon, dpi_pupilArea_Left, stimTiming.stimIntervals);
 
 
 RPA = vertcat(dpi_cellArrays.RightPupilArea{2*find(isCalibrationTrial)});
@@ -184,12 +197,7 @@ xl_calib = B_xl(1) + B_xl(2)*xl + B_xl(3).*xl.*yr + B_xl(4)*xl.^2;
 yl_calib = B_yl(1) + B_yl(2)*yl + B_yl(3).*xl.*yl + B_yl(4)*yl.^2;
 
 %% PLOT
-figure, scatter(xr_calib, yr_calib, 'filled', 'o', 'MarkerFaceColor', 'b','MarkerFaceAlpha',0.05);
-hold on
-scatter(X_fix, Y_fix, 'ro', 'lineWidth', 2);
-axis equal
-xlim([-200 200])
-ylim([-200 200])
+
 
 figure, scatter(xl_calib, yl_calib, 'filled', 'o', 'MarkerFaceColor', 'b','MarkerFaceAlpha',0.05);
 hold on
@@ -197,7 +205,20 @@ scatter(X_fix, Y_fix, 'ro', 'lineWidth', 2);
 axis equal
 xlim([-200 200])
 ylim([-200 200])
+title('Left Eye')
+xlabel('Horizontal distance (arcmin)');
+ylabel('Vertical distance (arcmin)');
 
+
+figure, scatter(xr_calib, yr_calib, 'filled', 'o', 'MarkerFaceColor', 'b','MarkerFaceAlpha',0.05);
+hold on
+scatter(X_fix, Y_fix, 'ro', 'lineWidth', 2);
+axis equal
+xlim([-200 200])
+ylim([-200 200])
+title('Right Eye')
+xlabel('Horizontal distance (arcmin)');
+ylabel('Vertical distance (arcmin)');
 %% correct cloud trials
 
 xr_cc = vertcat(dpi_cellArrays.RightX{2*find(ccloudTrialIdx)});

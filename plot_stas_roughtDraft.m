@@ -26,7 +26,7 @@ yticklabs = cellstr(num2str(round(yt(:))));
 
 chrom_chans = {'Lum.', 'L-M', 'S'};
 
-lags = 0:9;
+lags = 2:7;
 for i = 1:size(STA.DKL,1)
 
     figure
@@ -36,7 +36,7 @@ for i = 1:size(STA.DKL,1)
         for j = lags
             ax = nexttile;
 
-            A = circshift(squeeze(STA.DKL(i,:,:,c,j+1)), [30 30]);
+            A = circshift(squeeze(STA.DKL(i,:,:,c,j+1)), [0 0]);
             imagesc(ax, [x_left x_right], [y_top y_bottom], A);
             axis(ax,'square')
             colormap(ax,gray)
