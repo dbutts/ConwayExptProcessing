@@ -183,7 +183,7 @@ numDigitsInLastSpkChan = ceil(log10(length(pl2.SpikeChannels)));
 % end
 LFP_ad = [];
 for ch = 1:numel(pl2.SpikeChannels)
-    [~,~,~,~, LFP_ad(ch,:)] = plx_ad_v(plexon_fname, ['FP' num2str(1, ['%0' num2str(numDigitsInLastSpkChan) '.f'])]);
+    [~,~,~,~, LFP_ad(ch,:)] = plx_ad_v(plexon_fname, ['FP' num2str(ch, ['%0' num2str(numDigitsInLastSpkChan) '.f'])]);
 end
 
 %% Saving

@@ -102,6 +102,11 @@ P_MB_num = T_XYZ2LMS * P_xyz;
 P_MB_denom = sum(P_MB_num(1:2,:), 1);
 P_MB = P_MB_num ./ P_MB_denom;
 T_RGB2LMS = P_MB .* [R_maxLumCdm2 G_maxLumCdm2 B_maxLumCdm2];
+
+totalLum = R_maxLumCdm2 + G_maxLumCdm2 + B_maxLumCdm2;
+T_RGB2LMS = P_MB .* [R_maxLumCdm2 G_maxLumCdm2 B_maxLumCdm2]./totalLum;
+
+
 % Normalize
 %T_RGB2LMS = T_RGB2LMS ./ max(T_RGB2LMS(:));
 
