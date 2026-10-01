@@ -1,4 +1,4 @@
-function [stim_cellArray, cache] = loadCclouds_helper(trial, stimpath, stimseq, cache, LumScale)
+function [stim_array, cache] = loadCclouds_helper(trial, stimpath, stimseq, cache, LumScale)
 
 persistent ccloudStimFileStrs
 
@@ -34,9 +34,14 @@ switch trial.usebinary
         stim = stim_int8;
 end
 
-stim_cellArray = cellfun(@(idx) stim(:,:,idx,:), stimseq, 'UniformOutput', false);
-stim_cellArray = cellfun(@(x) permute(x, [3 1 2 4]), stim_cellArray, 'UniformOutput', false);
-stim_cellArray = cellfun(@(x) reshape(x, size(x,1), prod(size(x, 2:4))), stim_cellArray, 'UniformOutput', false);
-stim_cellArray = cellfun(@transpose, stim_cellArray, 'UniformOutput', false);
+stim_array = stim(:,:,stimseq,:);
+stim_array = permute(stim_array, [3 1 2 4]);
+stim_array = reshape(stim_array, size(stim_array,1), prod(size(stim_array,2:4)));
+stim_array = stim_array';
+
+% stim_cellArray = cellfun(@(idx) stim(:,:,idx,:), stimseq, 'UniformOutput', false);
+% stim_cellArray = cellfun(@(x) permute(x, [3 1 2 4]), stim_cellArray, 'UniformOutput', false);
+% stim_cellArray = cellfun(@(x) reshape(x, size(x,1), prod(size(x, 2:4))), stim_cellArray, 'UniformOutput', false);
+% stim_cellArray = cellfun(@transpose, stim_cellArray, 'UniformOutput', false);
 
 end

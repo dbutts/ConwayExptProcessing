@@ -27,6 +27,15 @@ stimFrameBinEdges = cellfun(@(startTime, stopTime, nFrames) linspace(startTime, 
 
 idx = find(isTrialOfInterest);
 
+SU_clusters = cell(1, num_arrays);
+MU_clusters = cell(1, num_arrays);
+SU_chans = cell(1, num_arrays);
+MU_chans = cell(1, num_arrays);
+SU_arrays = cell(1, num_arrays);
+MU_arrays = cell(1, num_arrays);
+
+RobsSU = cell(1,num_arrays);
+RobsMU = cell(1, num_arrays);
 array_num = 1;
 for a = 1:num_arrays
 
@@ -47,13 +56,14 @@ for a = 1:num_arrays
 
     all_clusters = [SU_clusters{a}; MU_clusters{a}];
 
+    Robs = zeros(numel(all_clusters),numFrames, 'int8');
     for unit= 1:numel(all_clusters)
         unitID = all_clusters(unit);
         foo = cellfun(@(spk,clust,frameBins) histcounts(spk(clust==unitID), frameBins),...
             spkDataXline(a).spk_times_cellArray(2*idx),...
             spkDataXline(a).spk_clusters_cellArray(2*idx),...
             stimFrameBinEdges(idx), 'UniformOutput',false);
-        Robs(unit,:) = [foo{:}];
+        Robs(unit,:) = int8([foo{:}]);
     end
 
     RobsSU{a} = Robs(1:nSU,:);

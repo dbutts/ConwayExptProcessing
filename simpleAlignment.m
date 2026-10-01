@@ -53,14 +53,9 @@ chanNums = 1:8;
 PlexET_ad_calib = loadPlexonEyeData(plexon_fname, chanNums, rig, plexonAnalogScale, KofikoGains_Plexon);
 
 %% %%%%%%%%%%%%%% Trial analysis %%%%%%%%%%%%%%
-tic;
-
 % Determine stimulus intervals
 stimTiming = getStimTiming(trial, B);
 
-% Expand relevant variables across frame
-
-toc;
 %% %%%%%%%%%%%%% Load and organize spike data %%%%%%%%%%%%%
 % if using kilosort
 onlineSortingOnly = false;
@@ -186,7 +181,17 @@ for ch = 1:numel(pl2.SpikeChannels)
     [~,~,~,~, LFP_ad(ch,:)] = plx_ad_v(plexon_fname, ['FP' num2str(ch, ['%0' num2str(numDigitsInLastSpkChan) '.f'])]);
 end
 
+for i = 1:numel(isTrialOfInterestIndices)
+    isTrialOfInterest = isTrialOfInterestIndices{i};
+    trial_start_ts(i).trial_start_ts = [stimTiming.stimStartTimes(isTrialOfInterest)]';
+    trial_start_inds(i).trial_start_inds = floor(trial_start_ts(i).trial_start_ts*1000);
+end
+
 %% Saving
+
+% LFPs
+
+
 if saving
     disp('Saving')
     if ~isdir(savepath)
@@ -231,6 +236,7 @@ if saving
     save(fullfile(savepath, FullExpt_ET_filename), 'PlexET_ad_calib', 'PlexET_times', '-v7.3'); % save FullExpt_ET
 
     if ~skipLFP
+        
         trial_start_inds = floor(trial_start_ts*1000);
         LFP_ad = LFPs{1};
         if length(LFPs) == 1  % then this is the only array

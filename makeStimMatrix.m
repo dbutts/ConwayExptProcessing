@@ -45,12 +45,12 @@ for t = 1:nTrials
                 case 5 % S hartleys
                 case 6 % Full hartleys
 
-                    [stim1_cellArray(t), cache] = loadHartleys_helper(stimpath, stimseq(t), cache);
+                    [stim1_cellArray{t}, cache] = loadHartleys_helper(stimpath, stimseq{t}, cache);
 
                 case 7 % Achromatic clouds
                 case 8 % Chromatic clouds
-                    [stim1_cellArray(t), cache] = loadCclouds_helper( ...
-                        trial(t), stimpath, stimseq(t), cache, LumScale);
+                    [stim1_cellArray{t}, cache] = loadCclouds_helper( ...
+                        trial(t), stimpath, stimseq{t}, cache, LumScale);
             end
 
             if secondaryStimPresent(t)
@@ -72,34 +72,34 @@ for t = 1:nTrials
 
                             % TERTIARY STIMULUS
 
-                            [stim3_cellArray(t), cache] = loadCclouds_helper( ...
-                                trial(t), stimpath, stimseq_ET_Cclouds(t), cache, LumScale);
+                            [stim3_cellArray{t}, cache] = loadCclouds_helper( ...
+                                trial(t), stimpath, stimseq_ET_Cclouds{t}, cache, LumScale);
 
                         case 6  % secondary stim ccloud, tertiary stim vertical/horizontal bars
 
                             % SECONDARY STIMULUS
 
-                            [stim2_cellArray(t), cache] = loadCclouds_helper( ...
-                                trial(t), stimpath, stimseq_ET_Cclouds(t), cache, LumScale);
+                            [stim2_cellArray{t}, cache] = loadCclouds_helper( ...
+                                trial(t), stimpath, stimseq_ET_Cclouds{t}, cache, LumScale);
                             % TERTIARY STIMULUS
 
                         case 7  % both stim cclouds
 
                             % SECONDARY STIMULUS
-                            [stim2_cellArray(t), cache] = loadCclouds_helper( ...
-                                trial(t), stimpath, stimseq_ET_Cclouds(t), cache, LumScale);
+                            [stim2_cellArray{t}, cache] = loadCclouds_helper( ...
+                                trial(t), stimpath, stimseq_ET_Cclouds{t}, cache, LumScale);
 
                             % TERTIARY STIMULUS
 
-                            stim3_cellArray(t) = stim2_cellArray(t);
+                            stim3_cellArray{t} = stim2_cellArray{t};
 
                         case 8  % secondary stim achrom cloud, tertiary stim ccloud
 
                             % SECONDARY STIMULUS
 
                             % TERTIARY STIMULUS
-                            [stim3_cellArray(t), cache] = loadCclouds_helper( ...
-                                trial(t), stimpath, stimseq_ET_Cclouds(t), cache, LumScale);
+                            [stim3_cellArray{t}, cache] = loadCclouds_helper( ...
+                                trial(t), stimpath, stimseq_ET_Cclouds{t}, cache, LumScale);
                     end
                 catch ME
                     disp(ME)
@@ -110,20 +110,6 @@ for t = 1:nTrials
       stim1_cellArray{t} = transpose(trial(t).DiscprobeColor);
     end
     % reshape
-    % stim1_cellArray = cellfun(@(x) permute(x, [3 1 2 4]), stim1_cellArray, 'UniformOutput', false);
-    % stim1_cellArray = cellfun(@(x) reshape(x, size(x,1), prod(size(x, 2:4))), stim1_cellArray, 'UniformOutput', false);
-    % stim1_cellArray = cellfun(@transpose, stim1_cellArray, 'UniformOutput', false);
-    % %stim1_matrix = horzcat(stim1_cellArray{isTrialOfInterest});
-    %
-    % stim2_cellArray = cellfun(@(x) permute(x, [3 1 2 4]), stim2_cellArray, 'UniformOutput', false);
-    % stim2_cellArray = cellfun(@(x) reshape(x, size(x,1), prod(size(x, 2:4))), stim2_cellArray, 'UniformOutput', false);
-    % stim2_cellArray = cellfun(@transpose, stim2_cellArray, 'UniformOutput', false);
-    % %stim2_matrix = horzcat(stim2_cellArray{isTrialOfInterest});
-    %
-    % stim3_cellArray = cellfun(@(x) permute(x, [3 1 2 4]), stim3_cellArray, 'UniformOutput', false);
-    % stim3_cellArray = cellfun(@(x) reshape(x, size(x,1), prod(size(x, 2:4))), stim3_cellArray, 'UniformOutput', false);
-    % stim3_cellArray = cellfun(@transpose, stim3_cellArray, 'UniformOutput', false);
-
-    %stim3_matrix = horzcat(stim3_cellArray{isTrialOfInterest});
+ 
 end
 end
