@@ -49,10 +49,7 @@ end
 fprintf('Flags \n')
 fprintf('--------------\n')
 
-% the one flag Dan needs (for now)
-skipLFP = input(['skip LFP? \n' ...
-    '[1] Yes \n' ...
-    '[0] No \n ']); %1;
+
 
 % This only needs to run if there is one -- so should be detected
 % you don't have any except old experiments, so I'll just set this based on
@@ -63,11 +60,11 @@ skipLFP = input(['skip LFP? \n' ...
 % all the rest can be for how you want to enter information
 
 if computerLocation < 10   % NIH-specific settings and prompts
-    
+    skipLFP = 0;
     % is there a situation where we do not want to save the data? I'll
     saving = input(['save data? \n' ...
-        '[1] Yes \n' ...
-        '[0] No \n ']); %1;
+        '[0] No \n' ...
+        '[1] Yes \n ']); %1;
 
     fprintf('Set paths \n')
     fprintf('--------------\n')
@@ -126,6 +123,10 @@ if computerLocation < 10   % NIH-specific settings and prompts
 
 else % Dan's lab specific settings and prompts
 
+    % the one flag Dan needs (for now)
+    skipLFP = input(['skip LFP? \n' ...
+        '[0] No \n' ...
+        '[1] Yes \n ']); %1;
     stimET = 1;   % need for old experiments (if included)
     saving = 1;
     rig = 'C'; % I don't know what this does

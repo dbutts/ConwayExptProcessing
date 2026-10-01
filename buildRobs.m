@@ -56,7 +56,7 @@ for a = 1:num_arrays
 
     all_clusters = [SU_clusters{a}; MU_clusters{a}];
 
-    Robs = zeros(numel(all_clusters),numFrames, 'int8');
+    Robs = zeros(numel(all_clusters),sum(numFrames(idx)), 'int8');
     for unit= 1:numel(all_clusters)
         unitID = all_clusters(unit);
         foo = cellfun(@(spk,clust,frameBins) histcounts(spk(clust==unitID), frameBins),...

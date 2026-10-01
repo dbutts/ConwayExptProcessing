@@ -50,6 +50,7 @@ t_plexon = (0:n-1)/adfreq;
 Kofiko_ET_TS_PlexonTime = [ones(size(Kofiko_ET_TS)) Kofiko_ET_TS]*B;
 
 chanNums = 1:8;
+PlexET_times = t_plexon;
 PlexET_ad_calib = loadPlexonEyeData(plexon_fname, chanNums, rig, plexonAnalogScale, KofikoGains_Plexon);
 
 %% %%%%%%%%%%%%%% Trial analysis %%%%%%%%%%%%%%
@@ -74,7 +75,6 @@ KofikoET_cellArrays.Kofiko_ET_TS_PlexonTime_cellArray = binByStimIntervals(Kofik
 KofikoET_cellArrays.Kofiko_Xpix_cellArray = binByStimIntervals(Kofiko_ET_TS_PlexonTime,  Kofiko_Xpix, stimTiming.stimIntervals);
 KofikoET_cellArrays.Kofiko_Ypix_cellArray = binByStimIntervals(Kofiko_ET_TS_PlexonTime, Kofiko_Ypix, stimTiming.stimIntervals);
 
-
 %% Bin Plexon eye signal by stimulus intervals
 
 PlexET_cellArrays.t_plexon_cellArray = binByStimIntervals(t_plexon, t_plexon, stimTiming.stimIntervals);
@@ -88,7 +88,6 @@ PlexET_cellArrays.eyeY2_plexon_calib_cellArray = binByStimIntervals(t_plexon, Pl
 % formerly "left eye"
 PlexET_cellArrays.eyeX1_plexon_calib_cellArray = binByStimIntervals(t_plexon, PlexET_ad_calib(:,7), stimTiming.stimIntervals);
 PlexET_cellArrays.eyeY1_plexon_calib_cellArray = binByStimIntervals(t_plexon, PlexET_ad_calib(:,8), stimTiming.stimIntervals);
-
 
 %% Determine trials with good fixation
 X_fixationSpot = cellfun(@(x) x(1), {trial.m_pt2iFixationSpot}', 'UniformOutput',false);
@@ -117,9 +116,6 @@ hartleyTrialIdx = hartleyTrialIdx & goodFixationIdx;
 
 isTrialOfInterestIndices = {ccloudTrialIdx, discProbeTrialIdx, hartleyTrialIdx};
 trialLabels = {'ccloud', 'discProbe', 'hartley'};
-
-% stim1_matrix = horzcat(stim1_cellArray{isTrialOfInterest});
-% stim2_matrix = horzcat(stim2_cellArray{isTrialOfInterest});
 
 %% Build Robs
 %Robs_strct = struct;
@@ -150,47 +146,17 @@ for i = 1:numel(isTrialOfInterestIndices)
 end
 
 %% Process LFPs
-numDigitsInLastSpkChan = ceil(log10(length(pl2.SpikeChannels)));
-
-% if ~skipLFP
-%     disp('Processing LFPs')
-%     tic;
-%     if (exptdate/10000) < 24  % year less than 2024
-%         LFPchans{1} = 1:24; % laminar
-%         LFPchans{2} = [33,40,46,47,52,53,54,59,65,67,71,81,83,89,90,95,98,102,103,109,112,131,138,139,145,146,152,158]; % Nform channels that worked
-%         LFPchans{3} = 161:256; % utah
-%     else
-%         LFPchans{1} = length(pl2.SpikeChannels); % one array so far
-%     end
-% 
-%     [LFP_adfreq, LFP_n, LFP_ts, ~, ~] = plx_ad_v(plexon_fname, ['FP' num2str(1, ['%0' num2str(numDigitsInLastSpkChan) '.f'])]);
-%     for ii=1:length(LFPchans)
-%         nchans = length(LFPchans{ii});
-%         %LFP_ad = zeros(nchans, LFP_n);
-%         LFPs{ii} = zeros(nchans, LFP_n);
-%         for ch = 1:nchans
-%             %[~,~,~,~, LFP_ad(i,:)] = plx_ad_v(plexon_fname, ['FP' num2str(1, ['%0' num2str(numDigitsInLastSpkChan) '.f'])]);
-%             [~,~,~,~, LFPs{ii}(ch,:)] = plx_ad_v(plexon_fname, ['FP' num2str(LFPchans{ii}(ch), ['%0' num2str(numDigitsInLastSpkChan) '.f'])]);
-%         end
-%     end
-%     LFP_times=(0:LFP_n-1)/LFP_adfreq;
-%     toc;
-% end
-LFP_ad = [];
-for ch = 1:numel(pl2.SpikeChannels)
-    [~,~,~,~, LFP_ad(ch,:)] = plx_ad_v(plexon_fname, ['FP' num2str(ch, ['%0' num2str(numDigitsInLastSpkChan) '.f'])]);
-end
-
-for i = 1:numel(isTrialOfInterestIndices)
-    isTrialOfInterest = isTrialOfInterestIndices{i};
-    trial_start_ts(i).trial_start_ts = [stimTiming.stimStartTimes(isTrialOfInterest)]';
-    trial_start_inds(i).trial_start_inds = floor(trial_start_ts(i).trial_start_ts*1000);
+if ~ skipLFP
+    numDigitsInLastSpkChan = ceil(log10(length(pl2.SpikeChannels)));
+    LFP_ad = [];
+    for ch = 1:numel(pl2.SpikeChannels)
+        [~,~,~,~, LFP_ad(ch,:)] = plx_ad_v(plexon_fname, ['FP' num2str(ch, ['%0' num2str(numDigitsInLastSpkChan) '.f'])]);
+    end
 end
 
 %% Saving
 
 % LFPs
-
 
 if saving
     disp('Saving')
@@ -198,62 +164,21 @@ if saving
         mkdir(savepath);
     end
 
-    switch targ_ETstimtype
-        case 0; curETstimtype = 'NA';
-        case 1; curETstimtype='1D';
-        case 7; curETstimtype='CC';
-    end
+    FullExpt_ET_filename = sprintf( '%s_FullExpt_ET.mat', filenameP);
+    fixinfo_filename= sprintf('%s_fixinfo.mat', filenameP);
 
-    switch_stimtype = unique(vertcat(trial(isTrialOfInterest).DualstimPrimaryuseRGBCloud));
-    switch switch_stimtype
-        case 0; curstimstype='GT';
-        case 3; curstimstype='HL';
-        case 6; curstimstype='HC';
-        case 8; curstimstype='CC';
-    end
-
-    array_label_filepart = [cellfun(@(x) [x '_'], unique_array_labels(1:end-1), 'UniformOutput', false) unique_array_labels(end)];
-    array_label_filepart = horzcat(array_label_filepart{:});
-
-    useofflinesorting = 1;  % why is this flag all the way down here?
-    %FullExpt_ET_filename = sprintf( '%s_FullExpt_ET.mat', filenameP );
-    FullExpt_ET_filename = sprintf( 'K%s_FullExpt_ET.mat', exptdate );
-
-    if computerLocation < 10
-        data_filename=[monkey_name '_' exptname(1:6) '_' array_label_filepart '_' curstimstype '_ET' curETstimtype '_v10.mat'];
-        fixinfo_filename=[filenameP '_fixinfo.mat'];
-    else
-        data_filename = ['K' exptdate '_' curstimstype '_ET' curETstimtype '_v10.mat'];
-        fixinfo_filename = sprintf( 'K%s_fixinfo.mat', exptdate );
-    end
-    LFPfilename = sprintf( 'K%s_LFPs.mat', exptdate );
-
-
-    %data_filename=[ 'K' exptdate '_' curstimstype '_ET' curETstimtype '_v10.mat'];
-    %fixinfo_filename=['K' exptdate '_fixinfo.mat'];
-    save(fullfile(savepath, data_filename),  '-struct', 'data', '-v7.3'); % save packaged cloud data
+    % SAVE
     save(fullfile(savepath, fixinfo_filename), '-struct', 'ETdata', '-v7.3') % save fixinfo
     save(fullfile(savepath, FullExpt_ET_filename), 'PlexET_ad_calib', 'PlexET_times', '-v7.3'); % save FullExpt_ET
 
-    if ~skipLFP
-        
-        trial_start_inds = floor(trial_start_ts*1000);
-        LFP_ad = LFPs{1};
-        if length(LFPs) == 1  % then this is the only array
-            save(fullfile(savepath, LFPfilename), 'LFP_ad', 'trial_start_ts', 'trial_start_inds', '-v7.3' )
-        elseif length(LFPs) == 3  % then old-school (2022 expt date)
-            LFPa2 = LFPs{2};
-            LFPa3 = LFPs{3};
-            %save(fullfile(savepath, [filenameP '_LFP.mat']), 'LFP_ad', 'LFPa2', 'LFPa3', 'trial_start_ts', 'trial_start_inds', '-v7.3' )
-            save(fullfile(savepath, LFPfilename), 'LFP_ad', 'LFPa2', 'LFPa3', 'trial_start_ts', 'trial_start_inds', '-v7.3' )
-        else
-            disp('Have not programmed in this LFP-array config yet')
-        end
-    end
+    %all_data = data; clear data
+    for i = 1:numel(all_data)
+        data = all_data(i);
+        data_filename = sprintf('%s_%s_v11.mat', filenameP, data.primaryStimType);
+        save(fullfile(savepath, data_filename),  '-struct', 'data', '-v7.3'); % save packaged cloud data
 
+    end
+    
+   
 end
 
-
-% trial_start_inds = round(trialstart_plx'.*1000);
-
-%end

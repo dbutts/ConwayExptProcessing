@@ -41,7 +41,7 @@ addpath(genpath('~/Git/ConwayExptProcessing/'))
 %nLags = 10;
 tempSTA = [];
 S = transpose(single(reshape(stim,prod(size(stim,1:3)), [])))./127;
-
+Robs = single(Robs);
 tic;
 fprintf('Computing STAs\n');
 
