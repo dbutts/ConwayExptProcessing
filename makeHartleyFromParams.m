@@ -49,9 +49,9 @@ for i = 1:num_hartleys
         hartley = Hs2dcis2(corevec, corevec);
 
     else % the sensible way
-        [X,Y] = meshgrid(1:sideLength);
+        [X,Y] = meshgrid((0:sideLength-1) - 30);
         Xp = X.*cos(deg2rad(ori)) + Y.*sin(deg2rad(ori));
-        hartley = sin(2*pi*sf/sideLength .* Xp - deg2rad(ori));
+        hartley = sin(2*pi*sf/sideLength .* Xp + shift);
     end
 
     temp = zeros([size(hartley) 3]);

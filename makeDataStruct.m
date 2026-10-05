@@ -7,7 +7,7 @@ function data = makeDataStruct(filenameP, isTrialOfInterest,g_strcts, trial, ...
 
 % Dual stim specific
 
-if any(strcmpi(trialLabel, {'ccloud', 'hartley'}))
+if any(strcmpi(trialLabel, {'ccloud'}))
 
 TrialIDPerFrame = cellfun(@(x, y) repelem(x, y), {trial.TrialID}', num2cell(stimTiming.numFrames), 'UniformOutput', false);
 
