@@ -1,10 +1,23 @@
-function plot_stas_roughtDraft(STA, Robs,chans, clusters, mainKofiko_fname)
+function plot_stas_roughtDraft(STA, Robs, chans, clusters, mainKofiko_fname, trialTypeOfInterest)
 
-if nargin ==5
+if nargin ==6
     [a,filenameP,~] = fileparts(mainKofiko_fname);
     kofiko_subfolder = fullfile(a,filenameP);
     trial = loadKofikoTrialData(kofiko_subfolder,mainKofiko_fname,filenameP);
-    modalStimRect = mode(cat(1,trial.m_aiStimulusRect));
+
+    StimRect = cat(1,trial.m_aiStimulusRect);
+
+    if strcmpi(trialTypeOfInterest, 'ccloud')
+
+        isTrialOfInterest = strcmpi({trial.m_strTrialType}', 'Dual Stim') &  [trial.DualstimPrimaryuseRGBCloud]' == 8;
+    elseif strcmpi(trialTypeOfInterest, 'hartley')
+        isTrialOfInterest = strcmpi({trial.m_strTrialType}', 'Dual Stim') &  [trial.DualstimPrimaryuseRGBCloud]' == 6;
+    end
+
+    modalStimRect = mode(StimRect(isTrialOfInterest,:));
+  
+    %modalStimRect = mode(StimRect);
+
 
     x_left = modalStimRect(1) - 960;
     y_top = modalStimRect(2) - 540;
@@ -36,7 +49,7 @@ for i = 1:size(STA.DKL,1)
         for j = lags
             ax = nexttile;
 
-            A = circshift(squeeze(STA.DKL(i,:,:,c,j+1)), [0 0]);
+            A = circshift(squeeze(STA.DKL(i,:,:,c,j+1)), [30 30]);
             imagesc(ax, [x_left x_right], [y_top y_bottom], A);
             axis(ax,'square')
             colormap(ax,gray)
@@ -55,7 +68,7 @@ for i = 1:size(STA.DKL,1)
                 ylabel(ax,chrom_chans{c})
             end
 
-            if c == 1 && j == 3
+            if c == 1 && j == lags(1)
                 set(ax,'XTickLabel',xticklabs, ...
                     'YTickLabel',yticklabs)
             else
