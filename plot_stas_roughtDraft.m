@@ -49,7 +49,7 @@ for i = 1:size(STA.DKL,1)
         for j = lags
             ax = nexttile;
 
-            A = circshift(squeeze(STA.DKL(i,:,:,c,j+1)), [30 30]);
+            A = circshift(squeeze(STA.DKL(i,:,:,c,j+1)), [0 0]);
             imagesc(ax, [x_left x_right], [y_top y_bottom], A);
             axis(ax,'square')
             colormap(ax,gray)
@@ -78,7 +78,7 @@ for i = 1:size(STA.DKL,1)
         end
     end
 
-    chanNum =chans(i) -1;
+    chanNum =chans(i);
     clusterNum =clusters(i);
 
     N = sum(Robs(i,:));

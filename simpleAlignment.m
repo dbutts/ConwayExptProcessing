@@ -171,7 +171,7 @@ if saving
     save(fullfile(savepath, fixinfo_filename), '-struct', 'ETdata', '-v7.3') % save fixinfo
     save(fullfile(savepath, FullExpt_ET_filename), 'PlexET_ad_calib', 'PlexET_times', '-v7.3'); % save FullExpt_ET
 
-    %all_data = data; clear data
+    all_data = data; clear data
     for i = 1:numel(all_data)
         data = all_data(i);
         data_filename = sprintf('%s_%s_v11.mat', filenameP, data.primaryStimType);
