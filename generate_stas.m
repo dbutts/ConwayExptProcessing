@@ -1,4 +1,4 @@
-function STA = generate_stas(Robs, stim, lags, v_bkg, varargin)
+    function STA = generate_stas(Robs, stim, lags, v_bkg, varargin)
 
 nlags = numel(lags);
 addpath(genpath('~/Git/ConwayExptProcessing/'))

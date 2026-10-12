@@ -200,8 +200,6 @@ spkData.spkDataOnline.SU_chans = chans;
 spkData.spkDataOnline.MU_chans = [];
 spkData.spkDataOnline.arrayLabel = '';
 
-
-
 %spkData.spkDataOnline.chans = 
 
 end

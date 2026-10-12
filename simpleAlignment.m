@@ -18,7 +18,6 @@ LumScale = 0.1085;
 minFixationDuration = 0.6;
 maxFixationErrorPix = 45;
 minSpikes = 2000;
-targ_ETstimtype = 0;
 ETdist_thresh=40;
 nLags = 10;
 upSampleFactor = 1;

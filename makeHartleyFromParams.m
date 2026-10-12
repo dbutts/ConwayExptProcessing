@@ -17,7 +17,7 @@ end
 % Initialize array of hartleys
 num_chrom_channels = 3;
 num_hartleys = size(hartleys_meta,2);
-H = zeros(sideLength,sideLength,num_chrom_channels, num_hartleys);
+H = zeros(sideLength,sideLength,num_chrom_channels, num_hartleys, 'uint8');
 
 % recreate Hartleys
 
@@ -46,12 +46,12 @@ for i = 1:num_hartleys
         Hs = sin(xs2);
         Hs2dcis2 = imrotate(repmat(Hs, L,1), -ori, 'nearest', 'crop');
         corevec = floor((1:use_nPix)+(L-use_nPix)/2);
-        hartley = Hs2dcis2(corevec, corevec);
+        hartley = uint8(127 * Hs2dcis2(corevec, corevec));
 
     else % the sensible way
-        [X,Y] = meshgrid((0:sideLength-1) - 30);
+        [X,Y] = meshgrid((0:sideLength-1) - sideLength/2);
         Xp = X.*cos(deg2rad(ori)) + Y.*sin(deg2rad(ori));
-        hartley = sin(2*pi*sf/sideLength .* Xp + shift);
+        hartley = uint8(127*sin(2*pi*sf/60 .* Xp + shift));
     end
 
     temp = zeros([size(hartley) 3]);

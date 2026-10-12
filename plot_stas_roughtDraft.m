@@ -10,8 +10,10 @@ if nargin ==6
     if strcmpi(trialTypeOfInterest, 'ccloud')
 
         isTrialOfInterest = strcmpi({trial.m_strTrialType}', 'Dual Stim') &  [trial.DualstimPrimaryuseRGBCloud]' == 8;
+        shift = [30,30];
     elseif strcmpi(trialTypeOfInterest, 'hartley')
         isTrialOfInterest = strcmpi({trial.m_strTrialType}', 'Dual Stim') &  [trial.DualstimPrimaryuseRGBCloud]' == 6;
+        shift = [0,0];
     end
 
     modalStimRect = mode(StimRect(isTrialOfInterest,:));
@@ -28,6 +30,7 @@ if nargin ==6
     y_bottom = y_top + h;
 
 else
+    shift = [30,30];
     x_left = 1; x_right = 60;
     y_top =1; y_bottom = 60;
 end
@@ -40,7 +43,7 @@ yticklabs = cellstr(num2str(round(yt(:))));
 chrom_chans = {'Lum.', 'L-M', 'S'};
 
 lags = 2:7;
-for i = 1:size(STA.DKL,1)
+for i = 1:size(STA,1)
 
     figure
     tl = tiledlayout(3,6,'TileSpacing','tight','Padding','tight');
@@ -49,7 +52,7 @@ for i = 1:size(STA.DKL,1)
         for j = lags
             ax = nexttile;
 
-            A = circshift(squeeze(STA.DKL(i,:,:,c,j+1)), [0 0]);
+            A = circshift(squeeze(STA(i,:,:,c,j+1)), shift);
             imagesc(ax, [x_left x_right], [y_top y_bottom], A);
             axis(ax,'square')
             colormap(ax,gray)
@@ -78,7 +81,7 @@ for i = 1:size(STA.DKL,1)
         end
     end
 
-    chanNum =chans(i);
+    chanNum =chans(i)-1;
     clusterNum =clusters(i);
 
     N = sum(Robs(i,:));
