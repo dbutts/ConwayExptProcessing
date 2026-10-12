@@ -5,7 +5,7 @@ function spike_ts_by_cluster_by_trial_cellArray = splitSpikeDataByCluster(spkDat
 
 clusters = [spkDataXline.SU_clusters; spkDataXline.MU_clusters];
 stim_start_times_rep = repelem(stimTiming.stimStartTimes, 2);
-stim_start_times_cell = num2cell([0; stim_start_times_rep(1:end-1)]);
+stim_start_times_cell = num2cell([0; stim_start_times_rep(2:end)]);
 spike_ts_by_cluster_by_trial_cellArray = cell(size(spkDataXline.spk_clusters_cellArray,1), numel(clusters));
 
 for i = 1:numel(clusters)
@@ -30,3 +30,6 @@ for i = 1:numel(clusters)
     end
 
 end
+
+spike_ts_by_cluster_by_trial_cellArray = cellfun(@(a,b) [a; b], spike_ts_by_cluster_by_trial_cellArray(1:2:end,:),spike_ts_by_cluster_by_trial_cellArray(2:2:end,:), ...
+            'UniformOutput', false);
