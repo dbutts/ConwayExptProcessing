@@ -43,6 +43,7 @@ switch username
         stimpath = '/Volumes/lsr-conway/PROJECTS/V1_Fovea/stimuli/';
         computerLocation = 1;
         disp('Location: Max Greene''s laptop');
+    case 'Admin' % plexon computer
 end
 
 %% flags
