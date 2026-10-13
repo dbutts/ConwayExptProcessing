@@ -81,7 +81,7 @@ for i = 1:size(STA,1)
         end
     end
 
-    chanNum =chans(i)-1;
+    chanNum =chans(i);
     clusterNum =clusters(i);
 
     N = sum(Robs(i,:));

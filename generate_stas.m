@@ -46,7 +46,7 @@ tic;
 fprintf('Computing STAs\n');
 
 for i = 1:numel(lags)
-    tempSTA(:,:,:,:,i) = (Robs(:,lags(i)+1:end) * S(1:end-lags(i),:)) ./ sum(Robs(:,lags(i)+1:end),2);
+    tempSTA(:,:,:,:,i) = bsxfun(@rdivide, (Robs(:,lags(i)+1:end) * S(1:end-lags(i),:)), sum(Robs(:,lags(i)+1:end),2));
     %tempSTA(:,:,:,:,lag+1) = ((1 ./ (eps +Robs(:,lag+1:end))) * S(1:end-lag,:)) .* sum(Robs(:,lag+1:end),2);
 end
 

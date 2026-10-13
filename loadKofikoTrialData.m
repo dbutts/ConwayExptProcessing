@@ -11,7 +11,7 @@ kofiko_dir = dir(fullfile(kofiko_subfolder, [filenameP '*.mat']));
 kofiko_fname_re = [filenameP '(_\d*)?.mat'];
 valid_kofiko_fname_idx = cellfun(@(x) ~isempty(x), ...
     cellfun(@(x) regexp(x, kofiko_fname_re), {kofiko_dir(:).name}, 'UniformOutput',false));
-kofiko_folder = {kofiko_dir(valid_kofiko_fname_idx).folder};
+
 kofiko_fname = {kofiko_dir(valid_kofiko_fname_idx).name};
 
 % Get the Kofiko mat file numbers from their names
@@ -25,7 +25,7 @@ kofiko_file_num = cellfun(@(x) str2num(x{:}), kofiko_file_numStr);
 g_strctLocalExperimentRecording = [];
 for i = 1:length(kofiko_file_num)
     idx = kofiko_file_num(i);
-    temp_full_fname = fullfile(kofiko_folder{i}, kofiko_fname{i});
+    temp_full_fname = fullfile(kofiko_subfolder, kofiko_fname{i});
     temp_strct = load(temp_full_fname, 'g_strctLocalExperimentRecording');
     temp_cell = temp_strct.g_strctLocalExperimentRecording;
     g_strctLocalExperimentRecording{idx} = temp_cell;

@@ -92,10 +92,10 @@ PlexET_cellArrays.eyeY1_plexon_calib_cellArray = binByStimIntervals(t_plexon, Pl
 X_fixationSpot = cellfun(@(x) x(1), {trial.m_pt2iFixationSpot}', 'UniformOutput',false);
 Y_fixationSpot = cellfun(@(x) x(2), {trial.m_pt2iFixationSpot}', 'UniformOutput',false);
 
-goodFixationX = cellfun(@(x, x_fix) sum(abs(x - x_fix) < maxFixationErrorPix)./numel(x)...
+goodFixationX = cellfun(@(x, x_fix) sum(abs(x - x_fix) < maxFixationErrorPix) / numel(x)...
     > minFixationDuration, KofikoET_cellArrays.Kofiko_Xpix_cellArray(2:2:end), X_fixationSpot) ;
 
-goodFixationY = cellfun(@(y, y_fix) sum(abs(y - y_fix) < maxFixationErrorPix)./numel(y) ...
+goodFixationY = cellfun(@(y, y_fix) sum(abs(y - y_fix) < maxFixationErrorPix) / numel(y) ...
     > minFixationDuration, KofikoET_cellArrays.Kofiko_Ypix_cellArray(2:2:end), Y_fixationSpot) ;
 
 goodFixationIdx = vertcat(trial.m_bMonkeyFixated) | (goodFixationX & goodFixationY);
@@ -179,7 +179,7 @@ if saving
     end
     % save LFPS
     LFP_filename = sprintf('%s_LFP.mat', filenameP);
- 
+    save(fullfile(savepath, LFP_filename), 'LFP_ad', '-v7.3')
    
 end
 

@@ -2,28 +2,16 @@
 # Written by Max Greene, 4/2026
 
 
-
 # Required arguments:
 # stream_id (e.g. 'SPKC')
-# channel_nums (one-indexed channel numbers as they appear in plexon file)
+# requested_chan_nums (one-indexed channel numbers as they appear in plexon file)
 # plexon file (full path)
 # output file
 
-# parse channel number input
-
-
-import ssl
-ssl._create_default_https_context = ssl._create_unverified_context
-import spikeinterface as si
-import spikeinterface.extractors as se
-import spikeinterface.exporters as sexp
+import openreadout
 import numpy as np
-import matplotlib.pyplot as plt
 from pathlib import Path
-import neo.rawio
 import os
-import spikeinterface as si
-import psutil
 
 
 def parseChannelRanges(s):
@@ -40,78 +28,80 @@ def parseChannelRanges(s):
 plexon_fname = os.path.abspath(input("Enter full plexon file name: "))
 assert os.path.isfile(plexon_fname)
 stream_id = input("Enter channel stream id (e.g. SPKC): ")
-channel_nums = parseChannelRanges(input("Enter channels/channel ranges (e.g. 1:32): "))
+requested_chan_nums = parseChannelRanges(input("Enter channels/channel ranges (e.g. 1:32): "))
 array_name = input("Enter array label (e.g. UT1, laminar): ")
 
 plexon_dir = os.path.dirname(plexon_fname)
 plexon_basename = os.path.basename(plexon_fname)
-plexon_basename_no_ext,_ =  os.path.splitext(plexon_basename) 
-
-# based on available RAM and disk space, figure out how much of the file can be safely read:
-# make sure arrays are at most ~50-70% of free RAM, and memmap is ~80-90% of free disk space
-
-mem = psutil.virtual_memory()
-usage = psutil.disk_usage('Z:\\')
-
-max_array_size_bytes = int(0.6*mem.available)
-max_array_int16_samples = max_array_size_bytes // 2
-
-max_memmap_bytes = int(0.85*usage.free)
-max_memmap_int16_samples = max_memmap_bytes // 2
-
-# monkey_name = "Sprout"
-# exptDate = "260205"
-#pl2path = Path("Z:/") / monkey_name/ exptDate
-#configPath = Path("K:/") / monkey_name 
-# find plexon filename
-#plexon_fname = pl2path / (exptDate + "_153540_" + monkey_name + ".pl2")
-
-print("Getting recording info")
-recording = se.read_plexon2(plexon_fname, stream_id = stream_id)
-
-fs = recording.get_sampling_frequency()
-n_frames = recording.get_num_frames()
-lastSPKC = len(recording.channel_ids)
-numDigitsInLastSPKC = int(np.ceil(np.log10(lastSPKC)))
-channel_ids = ["SPKC" + f"{(n):0{numDigitsInLastSPKC}d}" for n in channel_nums]
-
-chunk_size = np.min([max_array_int16_samples, n_frames])
+plexon_basename_no_ext,_ = os.path.splitext(plexon_basename)
 
 dtype = np.int16
 
-max_memmap_shape = (n_frames, max_memmap_int16_samples // n_frames)
+with openreadout.open(plexon_fname) as f:
+    trace_names = [trace['name'] for trace in f.traces]
+    trace_idx = trace_names.index(stream_id)
 
-n_channels = np.min([len(channel_nums), max_memmap_shape[1]])
+    channels = f.traces[trace_idx]['channels']
+    all_chan_names = [x['name'] for x in channels]
 
-if n_channels != len(channel_nums):
-    print(f"WARNING: Processing {len(channel_nums)} channels may cause memory error. {n_channels} will be processed.")
+    requested_chan_names = [
+        chname for chname in all_chan_names
+        if int(chname.removeprefix(stream_id)) in requested_chan_nums
+    ]
 
-dat_basename =  plexon_basename_no_ext + '_' + array_name + '_' + f"{min(channel_nums)}to{min(channel_nums) + n_channels-1}"
-dat_fname = os.path.join(plexon_dir, plexon_basename_no_ext, 'kilosort' + '_' + array_name + '_' + f"{min(channel_nums)}to{min(channel_nums) + n_channels-1}", dat_basename + '.dat')
-os.makedirs(os.path.dirname(dat_fname), exist_ok=True)
-out = np.memmap(dat_fname, dtype=dtype, mode="w+", shape=(n_frames, n_channels))
+    requested_chan_indices = np.array([
+        all_chan_names.index(chname)
+        for chname in requested_chan_names
+    ])
 
-print("Output file created")
+    n_samples = f.traces[trace_idx]['sample_count']
+    chunk_size = 10_000_000
 
-start_chan = 0
-for ch in channel_nums:
-    chan_id = channel_ids[ch-1]
+    dat_basename = plexon_basename_no_ext + '_' + array_name + '_' + f"{min(requested_chan_nums)}to{max(requested_chan_nums)}"
 
-    for start_frame in range(0, n_frames, chunk_size):
-        end_frame = min(start_frame + chunk_size, n_frames)
+    dat_fname = os.path.join(
+        plexon_dir,
+        plexon_basename_no_ext,
+        'kilosort' + '_' + array_name + '_' + f"{min(requested_chan_nums)}to{max(requested_chan_nums)}",
+        dat_basename + '.dat'
+    )
 
-        traces = recording.get_traces(
-            channel_ids=[chan_id],
-            start_frame=start_frame,
-            end_frame=end_frame,
+    os.makedirs(os.path.dirname(dat_fname), exist_ok=True)
+
+    out = np.memmap(
+        dat_fname,
+        dtype=dtype,
+        mode="w+",
+        shape=(n_samples, len(requested_chan_nums))
+    )
+
+    print("Output file created")
+
+    scale_by_name = {ch['name']: ch['scale'] for ch in channels}
+    scales = np.array([
+        scale_by_name[ch]
+        for ch in requested_chan_names
+    ])
+
+    for first_sample in range(0, n_samples, chunk_size):
+        last_sample = min(first_sample + chunk_size, n_samples)
+
+        traces = f.read_trace(
+            trace=trace_idx,
+            first_sample=first_sample,
+            max_samples=last_sample - first_sample
         )
 
-        out[start_frame:end_frame, ch-1] = traces[:, 0].astype(dtype)
-        del traces
+        traces = np.asarray(traces)
+        traces = traces[requested_chan_indices, :]
 
-    print(f"{chan_id} read complete")
+        out[first_sample:last_sample, :] = np.rint(
+            traces / scales[:, None]
+        ).T.astype(np.int16)
 
-out.flush()
-del out
-        
+        print(f"{last_sample} / {n_samples} samples complete")
+
+    out.flush()
+    del out
+
 print("Done! Binary file is ready for Kilosort 4")

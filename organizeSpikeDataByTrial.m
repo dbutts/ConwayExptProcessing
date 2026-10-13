@@ -36,7 +36,7 @@ if nargin == 5 && ~onlineSortingOnly && (isfile((fullfile(ks_path, 'spike_times.
 
         spike_times_folder = spike_times_folders{f};
         spk_times = readNPY(fullfile(spike_times_folder, 'spike_times.npy'));
-        spk_times = double(spk_times)./fs + spk_offset; % convert to seconds
+        spk_times = double(spk_times) / fs + spk_offset; % convert to seconds
         spk_clusters = readNPY(fullfile(spike_times_folder, 'spike_clusters.npy'))...
             + cluster_offset;
         cluster_KSLabel = tdfread(fullfile(spike_times_folder, 'cluster_KSLabel.tsv'));
