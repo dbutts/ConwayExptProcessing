@@ -173,11 +173,13 @@ if saving
     all_data = data; clear data
     for i = 1:numel(all_data)
         data = all_data(i);
-        data_filename = sprintf('%s_%s_v11.mat', filenameP, data.primaryStimType);
+        data_filename = sprintf('%s_%s_v10.mat', filenameP, data.primaryStimType);
         save(fullfile(savepath, data_filename),  '-struct', 'data', '-v7.3'); % save packaged cloud data
 
     end
-    
+    % save LFPS
+    LFP_filename = sprintf('%s_LFP.mat', filenameP);
+ 
    
 end
 
