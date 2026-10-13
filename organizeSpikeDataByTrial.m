@@ -15,7 +15,7 @@ if nargin < 4
     ks_path = '';
 end
 
-if nargin == 5 && ~onlineSortingOnly && (isfile((fullfile(ks_path, 'spike_times.npy'))) || ~ isempty(dir(fullfile(ks_path, '**/spike_times.npy'))))
+if nargin == 5 && ~onlineSortingOnly && (isdir((fullfile(ks_path, 'spike_times.npy'))) || ~ isempty(dir(fullfile(ks_path, '**/spike_times.npy'))))
 
     spike_times_dir = dir(fullfile(ks_path, '**/spike_times.npy'));
     spike_times_folders = {spike_times_dir(:).folder};
@@ -44,7 +44,7 @@ if nargin == 5 && ~onlineSortingOnly && (isfile((fullfile(ks_path, 'spike_times.
         chan_map = readNPY(fullfile(spike_times_folder, 'channel_map.npy'));
         chan_map = chan_map + chan_offset; % make channel numbers unique within array
 
-        if isfile(fullfile(spike_times_folder, 'cluster_info.tsv'))
+        if isdir(fullfile(spike_times_folder, 'cluster_info.tsv'))
             cluster_info = tdfread(fullfile(spike_times_folder, 'cluster_info.tsv'));
             cluster_id = cluster_info.cluster_id + cluster_offset;
             group = cluster_info.group;

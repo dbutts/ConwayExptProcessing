@@ -215,7 +215,7 @@ modal_stim_area = mode([trial(isTrialOfInterest).m_aiStimulusArea]');
 
 if computerLocation < 10
     % this line does not work in Dan lab
-    medianTiledStimulusRect = median(cat(3, trial.m_aiTiledStimulusRect),3, 'omitmissing');
+    medianTiledStimulusRect = median(cat(3, trial.m_aiTiledStimulusRect),3, 'omitnan');
 else
     % previous code that worked
     if isfield(trial{1}, 'm_aiTiledStimulusRect')

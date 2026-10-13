@@ -19,7 +19,8 @@ end
 pl2 = PL2ReadFileIndex(plexon_fname);
 temp = vertcat(pl2.AnalogChannels{:});
 analogChanNames = {temp.Name};
-numDigitsInLastAIchan = ceil(log10(sum(contains(analogChanNames, 'AI'))));
+numDigitsInLastAIchan = ceil(log10(sum(cellfun(@(x) ~isempty(x),...
+    regexp(analogChanNames, 'AI')))));
 
 for i = 1:numel(chanNums)
     chanName =  ['AI' num2str(chanNums(i), ['%0' num2str(numDigitsInLastAIchan) '.f'])];

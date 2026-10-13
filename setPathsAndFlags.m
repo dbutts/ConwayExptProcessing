@@ -44,6 +44,10 @@ switch username
         computerLocation = 1;
         disp('Location: Max Greene''s laptop');
     case 'Admin' % plexon computer
+        codedir = 'U:\code\';
+        stimpath = 'Z:\StimulusSet\NTlab_cis';
+        computerLocation = 1;
+        disp('Location: Rig C Plexon computer');
 end
 
 %% flags

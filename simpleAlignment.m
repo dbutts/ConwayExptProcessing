@@ -35,7 +35,8 @@ B = KofikoPlexonStrobesLinReg(g_strcts, plexon_fname);
 % make vector of plexon sample times, starting at 0
 temp = vertcat(pl2.AnalogChannels{:});
 analogChanNames = {temp.Name};
-numDigitsInLastAIchan = ceil(log10(sum(contains(analogChanNames, 'AI'))));
+numDigitsInLastAIchan = ceil(log10(sum(cellfun(@(x) ~isempty(x),...
+    regexp(analogChanNames, 'AI')))));
 chanName =  ['AI' num2str(1, ['%0' num2str(numDigitsInLastAIchan) '.f'])];
 [adfreq, n, ~, ~, ~] = plx_ad_v(plexon_fname, chanName);
 t_plexon = (0:n-1)/adfreq;

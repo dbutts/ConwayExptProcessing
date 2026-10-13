@@ -36,7 +36,8 @@ end
 
 stim_array = stim(:,:,stimseq,:);
 stim_array = permute(stim_array, [3 1 2 4]);
-stim_array = reshape(stim_array, size(stim_array,1), prod(size(stim_array,2:4)));
+stim_array_size = size(stim_array);
+stim_array = reshape(stim_array, size(stim_array,1), prod(stim_array_size(2:4)));
 stim_array = stim_array';
 
 % stim_cellArray = cellfun(@(idx) stim(:,:,idx,:), stimseq, 'UniformOutput', false);

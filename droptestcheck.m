@@ -4,9 +4,10 @@ disp('Drop test check starting')
 pl2 = PL2ReadFileIndex(plexon_fname);
 
 numDigitsInLastSpkChan = ceil(log10(length(pl2.SpikeChannels)));
-
-numAIchans = sum(cellfun(@(x) contains(x.Name, 'AI'), pl2.AnalogChannels));
-numDigitsInLastAIchan = ceil(log10(numAIchans));
+temp = vertcat(pl2.AnalogChannels{:});
+analogChanNames = {temp.Name};
+numDigitsInLastAIchan = ceil(log10(sum(cellfun(@(x) ~isempty(x),...
+    regexp(analogChanNames, 'AI')))));
 
 
 [fs, n, ts, fn, ~] = plx_ad_v(plexon_fname,...
@@ -21,7 +22,7 @@ delta = dpiSyncSignalDurSec - spikeChannel1SignalDurSec;
 disp(['Plexon-Kofiko offset in seconds: ' num2str(delta)]) % this will tell us if the plexon time alignment issue is present
 
 if abs(delta)>0.1
-    warning("Danger - Plexon might have dropped frames! Check pl2 file.")
+    warning('Danger - Plexon might have dropped frames! Check pl2 file.')
     spk_offset = delta;
 else
     spk_offset = 0;

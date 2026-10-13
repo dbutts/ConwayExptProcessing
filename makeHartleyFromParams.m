@@ -60,6 +60,24 @@ for i = 1:num_hartleys
 end
 
 % resize if necessary, I think Psychtoolbox uses bilinear interpolation
-H = imresize(H, scalar, 'bilinear');
-
+if scalar ~= 1
+    H = imresize(H, scalar, 'bilinear');
+else
+    sz = size(H);
+    newRows = ceil(scalar * sz(1));
+    newCols = ceil(scalar * sz(2));
+    [x,y] = meshgrid(((1:newCols) - 0.5) / scalar + 0.5, ...
+        ((1:newRows) - 0.5) / scalar + 0.5);
+    x = min(max(x, 1), sz(2));
+    y = min(max(y, 1), sz(1));
+    
+    slices = reshape(H, sz(1), sz(2), []);
+    out = zeros(newRows, newCols, size(slices,3), 'like', H);
+    
+    for k = 1:size(slices,3)
+        out(:,:,k) = interp2(double(slices(:,:,k)), x, y, 'linear');
+    end
+    
+    H = reshape(out, [newRows, newCols, sz(3:end)]);
+end
 end
