@@ -14,7 +14,7 @@ TrialIDPerFrame = cellfun(@(x, y) repelem(x, y), {trial.TrialID}', num2cell(stim
 useBinaryPerFrame = cellfun(@(x, y) repelem(x, y), {trial.usebinary}', num2cell(stimTiming.numFrames), 'UniformOutput', false);
 
 try
-    spatialscale = {trial.spatialscale}';
+    spatialscale = [trial.spatialscale]';
 
 catch
     spatialscale_buffer = g_strcts.g_astrctAllParadigms{1}.DualstimScale.Buffer;

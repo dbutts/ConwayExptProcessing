@@ -44,14 +44,16 @@ chrom_chans = {'Lum.', 'L-M', 'S'};
 
 lags = 2:7;
 for i = 1:size(STA,1)
+    N = sum(Robs(i,:));
 
+    if N >= 1000
     figure;
     subplot_counter = 1;
     %tl = tiledlayout(3,6,'TileSpacing','tight','Padding','tight');
     chanNum =chans(i) - 1;
     clusterNum =clusters(i);
 
-    N = sum(Robs(i,:));
+    
     
     figTitle = sprintf('Chan %d, unit %d, spikes: %d', ...
         chanNum, clusterNum, N);
@@ -98,5 +100,6 @@ for i = 1:size(STA,1)
     %figname = ['Channel' num2str(chanNum) 'Unit' num2str(clusterNum)];
     %exportgraphics(gcf, fullfile('/Users/greenemj/Sprout/260728',[figname '.png']), 'Resolution',300)
 
+    end
 end
 end
