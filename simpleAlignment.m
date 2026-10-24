@@ -21,6 +21,7 @@ minSpikes = 2000;
 ETdist_thresh=40;
 nLags = 10;
 upSampleFactor = 1;
+onlineSortingOnly = false;
 %% Load kofiko data
 g_strcts = loadKofikoStructs(mainKofiko_fname);
 trial = loadKofikoTrialData(kofiko_subfolder,mainKofiko_fname,filenameP);
@@ -59,15 +60,12 @@ stimTiming = getStimTiming(trial, B);
 
 %% %%%%%%%%%%%%% Load and organize spike data %%%%%%%%%%%%%
 % if using kilosort
-onlineSortingOnly = false;
+
 spkData = organizeSpikeDataByTrial(stimTiming.stimIntervals,plexon_fname, minSpikes, ks_path, onlineSortingOnly);
 
 %% %%%%%%%%%%%%% Extract fixinfo %%%%%%%%%%%%%
-calibrationTasks = {'Fivedot','FiveDot', 'Dotgrid'};
-isCalibrationTrial = cellfun(@(x) any(strcmpi(x, calibrationTasks)), {trial.m_strTrialType});
 
-ETdata.fixloc = vertcat(trial(isCalibrationTrial).m_pt2iFixationSpot);
-ETdata.plxonset = stimTiming.stimStartTimes(isCalibrationTrial);
+ETdata = extractFixInfo(trial, stimTiming);
 
 %% Bin Kofiko eye signal timestamps by stimulus intervals (i.e., by trial)
 
