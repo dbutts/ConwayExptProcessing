@@ -61,8 +61,10 @@ end
 
 % resize if necessary, I think Psychtoolbox uses bilinear interpolation
 if scalar ~= 1
+    try
     H = imresize(H, scalar, 'bilinear');
-else
+    catch
+
     sz = size(H);
     newRows = ceil(scalar * sz(1));
     newCols = ceil(scalar * sz(2));
@@ -79,5 +81,6 @@ else
     end
     
     H = reshape(out, [newRows, newCols, sz(3:end)]);
+    end
 end
 end

@@ -155,7 +155,6 @@ end
 %% Saving
 
 % LFPs
-
 if saving
     disp('Saving')
     if ~isdir(savepath)
