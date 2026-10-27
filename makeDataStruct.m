@@ -9,50 +9,60 @@ function data = makeDataStruct(filenameP, isTrialOfInterest,g_strcts, trial, ...
 
 if any(strcmpi(trialLabel, {'ccloud'}))
 
-TrialIDPerFrame = cellfun(@(x, y) repelem(x, y), {trial.TrialID}', num2cell(stimTiming.numFrames), 'UniformOutput', false);
+    %TrialIDPerFrame = cellfun(@(x, y) repelem(x, y), {trial.TrialID}', num2cell(stimTiming.numFrames), 'UniformOutput', false);
+    %useBinaryPerFrame = cellfun(@(x, y) repelem(x, y), {trial.usebinary}', num2cell(stimTiming.numFrames), 'UniformOutput', false);
 
-useBinaryPerFrame = cellfun(@(x, y) repelem(x, y), {trial.usebinary}', num2cell(stimTiming.numFrames), 'UniformOutput', false);
+    trialID = repelem([trial(isTrialOfInterest).TrialID], stimTiming.numFrames(isTrialOfInterest));
+    cloud_binary = repelem([trial(isTrialOfInterest).usebinary], stimTiming.numFrames(isTrialOfInterest));
 
-try
-    spatialscale = [trial.spatialscale]';
+    try
+        cloud_scale = repelem([trial(isTrialOfInterest).spatialscale], stimTiming.numFrames(isTrialOfInterest));
+    catch
+        spatialscale_buffer = g_strcts.g_astrctAllParadigms{1}.DualstimScale.Buffer;
+        spatialscale_TS = g_strcts.g_astrctAllParadigms{1}.DualstimScale.TimeStamp;
+        spatialscale = nan(size(trial));
+        for i = 1:numel(spatialscale_buffer)
+            spatialscale([trial.m_fImageFlipON_TS_Kofiko]' >= spatialscale_TS(i)) = spatialscale_buffer(i);
+        end
 
-catch
-    spatialscale_buffer = g_strcts.g_astrctAllParadigms{1}.DualstimScale.Buffer;
-    spatialscale_TS = g_strcts.g_astrctAllParadigms{1}.DualstimScale.TimeStamp;
-    spatialscale = nan(size(trial));
-    for i = 1:numel(spatialscale_buffer)
-        spatialscale(ImageFlipON_TS_Kofiko >= spatialscale_TS(i)) = spatialscale_buffer(i);
+        cloud_scale = repelem(spatialscale, stimTiming.numFrames(isTrialOfInterest));
+
     end
 
-end
+    %BlockIDPerFrame =  cellfun(@(x, y) repelem(x, y), {trial.BlockID}', num2cell(stimTiming.numFrames), 'UniformOutput', false);
+    %StimulusAreaPerFrame =  cellfun(@(x, y) repelem(x, y), {trial.m_aiStimulusArea}', num2cell(stimTiming.numFrames), 'UniformOutput', false);
+    %DualstimPrimaryuseRGBCloudPerFrame = cellfun(@(x, y) repelem(x, y),{trial.DualstimPrimaryuseRGBCloud}', num2cell(stimTiming.numFrames), 'UniformOutput', false);
 
-BlockIDPerFrame =  cellfun(@(x, y) repelem(x, y), {trial.BlockID}', num2cell(stimTiming.numFrames), 'UniformOutput', false);
-StimulusAreaPerFrame =  cellfun(@(x, y) repelem(x, y), {trial.m_aiStimulusArea}', num2cell(stimTiming.numFrames), 'UniformOutput', false);
-DualstimPrimaryuseRGBCloudPerFrame = cellfun(@(x, y) repelem(x, y),{trial.DualstimPrimaryuseRGBCloud}', num2cell(stimTiming.numFrames), 'UniformOutput', false);
+    blockID = repelem([trial(isTrialOfInterest).BlockID], stimTiming.numFrames(isTrialOfInterest));
+    cloud_area = repelem([trial(isTrialOfInterest).m_aiStimulusArea], stimTiming.numFrames(isTrialOfInterest));
+    stimtype = repelem([trial(isTrialOfInterest).DualstimPrimaryuseRGBCloud], stimTiming.numFrames(isTrialOfInterest));
 
 else
-    TrialIDPerFrame = num2cell(nan(1, sum(stimTiming.numFrames(isTrialOfInterest))));
-    useBinaryPerFrame = num2cell(nan(1, sum(stimTiming.numFrames(isTrialOfInterest))));
-    spatialscale = num2cell(nan(1, sum(stimTiming.numFrames(isTrialOfInterest))));
-    BlockIDPerFrame = num2cell(nan(1, sum(stimTiming.numFrames(isTrialOfInterest))));
-    StimulusAreaPerFrame = num2cell(nan(1, sum(stimTiming.numFrames(isTrialOfInterest))));
-    DualstimPrimaryuseRGBCloudPerFrame = num2cell(nan(1, sum(stimTiming.numFrames(isTrialOfInterest))));
+    trialID = nan(1, sum(stimTiming.numFrames(isTrialOfInterest)));
+    cloud_binary = nan(1, sum(stimTiming.numFrames(isTrialOfInterest)));
+    cloud_scale = nan(1, sum(stimTiming.numFrames(isTrialOfInterest)));
+    blockID = nan(1, sum(stimTiming.numFrames(isTrialOfInterest)));
+    cloud_area = nan(1, sum(stimTiming.numFrames(isTrialOfInterest)));
+    stimtype = nan(1, sum(stimTiming.numFrames(isTrialOfInterest)));
 
 end
 
 % Disc probe specific
 if strcmpi(trialLabel, 'discProbe')
-DiscDiameterPerFrame =  cellfun(@(x, y) repelem(x, y), {trial.m_iDiscDiameter}', num2cell(stimTiming.numFrames), 'UniformOutput', false);
+    %DiscDiameterPerFrame =  cellfun(@(x, y) repelem(x, y), {trial.m_iDiscDiameter}', num2cell(stimTiming.numFrames), 'UniformOutput', false);
+    disc_diameter = repelem([trial(isTrialOfInterest).m_iDiscDiameter], stimTiming.numFrames(isTrialOfInterest));
 else
-    DiscDiameterPerFrame =num2cell(nan(1, sum(stimTiming.numFrames(isTrialOfInterest))));
+    disc_diameter =nan(1, sum(stimTiming.numFrames(isTrialOfInterest)));
 end
 
 X_fixationSpot = cellfun(@(x) x(1), {trial.m_pt2iFixationSpot}', 'UniformOutput',false);
 Y_fixationSpot = cellfun(@(x) x(2), {trial.m_pt2iFixationSpot}', 'UniformOutput',false);
 
-UseLeyePerFrame = cellfun(@(x, y) repelem(x, y), {trial.UseLeye}', num2cell(stimTiming.numFrames), 'UniformOutput', false);
-UseReyePerFrame = cellfun(@(x, y) repelem(x, y), {trial.UseReye}', num2cell(stimTiming.numFrames), 'UniformOutput', false);
+% UseLeyePerFrame = cellfun(@(x, y) repelem(x, y), {trial.UseLeye}', num2cell(stimTiming.numFrames), 'UniformOutput', false);
+% UseReyePerFrame = cellfun(@(x, y) repelem(x, y), {trial.UseReye}', num2cell(stimTiming.numFrames), 'UniformOutput', false);
 
+useLeye = repelem([trial(isTrialOfInterest).UseLeye], stimTiming.numFrames(isTrialOfInterest));
+useReye = repelem([trial(isTrialOfInterest).UseReye], stimTiming.numFrames(isTrialOfInterest));
 
 Kofiko_Xpix_frameRate_cellArray = ...
     cellfun(@(t,x, start, stop, fixspot, n) interp1(t, x - fixspot, linspace(start, stop, n), 'linear'),...
@@ -103,32 +113,32 @@ RobsSU = Robs_strct.Robs(1:nSU,:);
 RobsMU = Robs_strct.Robs(nSU+1:end,:);
 
 %RobsMU_probe_ID
-RobsMU_probe_ID = Robs_strct.MU_chans;
+RobsMU_probe_ID = transpose(Robs_strct.MU_chans);
 
 %RobsMU_rating
 RobsMU_rating = [];
 %blockID
 
 % Robs_probe_ID
-Robs_probe_ID = Robs_strct.SU_chans;
+Robs_probe_ID = transpose(Robs_strct.SU_chans);
 
 %Robs rating
 Robs_rating =[];
-blockID = [BlockIDPerFrame{isTrialOfInterest}];
+%blockID = [BlockIDPerFrame{isTrialOfInterest}];
 
 %block_inds
 block_inds = [cumsum(stimTiming.numFrames(isTrialOfInterest))' - (stimTiming.numFrames(find(isTrialOfInterest,1,'first'))-1); cumsum(stimTiming.numFrames(isTrialOfInterest))'];
 
-%cloud_area
-cloud_area = [StimulusAreaPerFrame{isTrialOfInterest}];
-
-disc_diameter = [DiscDiameterPerFrame{isTrialOfInterest}];
-
-%cloud_binary
-cloud_binary = [useBinaryPerFrame{isTrialOfInterest}];
+% %cloud_area
+% cloud_area = [StimulusAreaPerFrame{isTrialOfInterest}];
+%
+% disc_diameter = [DiscDiameterPerFrame{isTrialOfInterest}];
+%
+% %cloud_binary
+% cloud_binary = [useBinaryPerFrame{isTrialOfInterest}];
 
 %cloud_scale
-cloud_scale = transpose(repelem(spatialscale(isTrialOfInterest), stimTiming.numFrames(isTrialOfInterest)));
+% cloud_scale = transpose(repelem(spatialscale(isTrialOfInterest), stimTiming.numFrames(isTrialOfInterest)));
 % spatialScalePerFrame(isTrialOfInterest);
 
 %datafilts
@@ -196,7 +206,7 @@ spike_ts     = spike_ts_raw - trialStart(trialIdx) + (trialIdx - 1) * trlsecs;
 %stim
 
 stimW = 60;
-stimH =60;
+stimH = 60;
 
 stim = stim_mats.stim1_matrix;
 stim2 = stim_mats.stim2_matrix;
@@ -208,26 +218,43 @@ if any(strcmpi(trialLabel, {'ccloud'}))
 end
 
 %stim_area
-stim_area = [trial(isTrialOfInterest).m_aiStimulusArea]';
+if any(strcmpi(trialLabel, {'ccloud', 'hartley'}))
+    stim_area = repelem([trial(isTrialOfInterest).m_aiStimulusArea], stimTiming.numFrames(isTrialOfInterest));
+else
+    stim_area = repelem([trial(isTrialOfInterest).m_iDiscDiameter], stimTiming.numFrames(isTrialOfInterest));
+end
 
 %stim_location
 modal_stim_area = mode([trial(isTrialOfInterest).m_aiStimulusArea]');
 
-if computerLocation < 10
-    % this line does not work in Dan lab
-    medianTiledStimulusRect = median(cat(3, trial.m_aiTiledStimulusRect),3, 'omitnan');
-else
-    % previous code that worked
-    if isfield(trial{1}, 'm_aiTiledStimulusRect')
-        TiledStimulusRect = cellfun(@(x) x.m_aiTiledStimulusRect, trial, 'UniformOutput', false);
+if any(strcmpi(trialLabel, {'ccloud'}))
+    if computerLocation < 10
+        % this line does not work in Dan lab
+        medianTiledStimulusRect = median(cat(3, trial(isTrialOfInterest).m_aiTiledStimulusRect),3, 'omitnan');
     else
-        StimulusRect = cellfun(@(x) x.m_aiStimulusRect, trial, 'UniformOutput', false);
-        TiledStimulusRect = StimulusRect; %%%%% Only for old datasets before tiling (e.g., 7/07/22)
+        % previous code that worked
+        if isfield(trial{1}, 'm_aiTiledStimulusRect')
+            TiledStimulusRect = cellfun(@(x) x.m_aiTiledStimulusRect, trial(isTrialOfInterest), 'UniformOutput', false);
+        else
+            StimulusRect = cellfun(@(x) x.m_aiStimulusRect, trial(isTrialOfInterest), 'UniformOutput', false);
+            TiledStimulusRect = StimulusRect; %%%%% Only for old datasets before tiling (e.g., 7/07/22)
+        end
+        medianTiledStimulusRect = median(cat(3, TiledStimulusRect{:}),3);
     end
-    medianTiledStimulusRect = median(cat(3, TiledStimulusRect{:}),3);
-end
 
-stim_location = [medianTiledStimulusRect(:,1:2) medianTiledStimulusRect(:,1:2)+60];
+    % stim_location is [x, y, width, height] where x and y are coordinates
+    % of bottom left corner
+    stim_location = [medianTiledStimulusRect(:,1:2) medianTiledStimulusRect(:,1:2)+modal_stim_area];
+elseif any(strcmpi(trialLabel, {'discProbe'}))
+
+    medianStimRect = median(vertcat(trial(isTrialOfInterest).m_aiStimulusRect),1);
+    medianStimCenter = [mean(medianStimRect([1,3])), mean(medianStimRect([2,4]))];
+    stim_location = medianStimCenter;
+elseif any(strcmpi(trialLabel, {'hartley'}))
+    medianStimRect = median(vertcat(trial(isTrialOfInterest).m_aiStimulusRect),1);
+    medianStimCenter = [mean(medianStimRect([1,3])), mean(medianStimRect([2,4]))];
+    stim_location = [medianStimCenter - modal_stim_area/2, repmat(modal_stim_area,1,2)];
+end
 
 %stim_location_deltas: first two elements of first row of TiledStimulusRect
 %minus median stim_location x and y
@@ -239,23 +266,23 @@ else
 end
 stim_location_deltas = vertcat(stim_location_deltas{:});
 
-%stimscale
-stimscale = (stim_location(3)-stim_location(1))/60;
+% stimscale
+% stimscale = (stim_location(3)-stim_location(1))/60;
 
-%stimtype
-stimtype = [DualstimPrimaryuseRGBCloudPerFrame{isTrialOfInterest}];
-
-%trialID
-trialID = [TrialIDPerFrame{isTrialOfInterest}];
-
+% %stimtype
+% stimtype = [DualstimPrimaryuseRGBCloudPerFrame{isTrialOfInterest}];
+%
+% %trialID
+% trialID = [TrialIDPerFrame{isTrialOfInterest}];
+%
 %trial_start_ts
 trial_start_ts = [stimTiming.stimStartTimes(isTrialOfInterest)]';
-
-%useLeye
-useLeye = [UseLeyePerFrame{isTrialOfInterest}];
-
-%useReye
-useReye = [UseReyePerFrame{isTrialOfInterest}];
+%
+% %useLeye
+% useLeye = [UseLeyePerFrame{isTrialOfInterest}];
+%
+% %useReye
+% useReye = [UseReyePerFrame{isTrialOfInterest}];
 
 %valid_data
 totalFrames = sum(stimTiming.numFrames(isTrialOfInterest));
@@ -281,9 +308,9 @@ valid_data = use_inds_fix;
 
 uniqueClusterIDs = [Robs_strct.SU_clusters; Robs_strct.MU_clusters];
 
-spikeIDs_unsorted = accumarray(transpose(1:numel(clusterIDs)), clusterIDs', [], @(x) find(uniqueClusterIDs==x));
+spikeIDs_unsorted = transpose(accumarray(transpose(1:numel(clusterIDs)), clusterIDs', [], @(x) find(uniqueClusterIDs==x)));
 [spikeIDs, sortBySpikeID] = sort(spikeIDs_unsorted);
-spike_ts_sorted = spike_ts(sortBySpikeID);
+spike_ts_sorted = transpose(spike_ts(sortBySpikeID));
 
 
 %% Make list of reward times on each trial
@@ -365,7 +392,7 @@ data.stim3 = stim3;
 data.stim_area = stim_area;
 data.stim_location = stim_location;
 data.stim_location_deltas = stim_location_deltas;
-data.stimscale = stimscale;
+%data.stimscale = stimscale;
 data.stimtype = stimtype;
 data.trialID = trialID;
 data.trial_start_ts = trial_start_ts;
@@ -375,11 +402,11 @@ data.reward_on_ts = reward_on_ts;
 data.reward_off_ts = reward_off_ts;
 data.valid_data = valid_data;
 data.primaryStimType = trialLabel;
-data.SU_clusters = Robs_strct.SU_clusters;
-data.MU_clusters = Robs_strct.MU_clusters;
-data.SU_chans = Robs_strct.SU_chans;
-data.MU_chans = Robs_strct.MU_chans;
-data.SU_arrays= Robs_strct.SU_arrays;
-data.MU_arrays = Robs_strct.MU_arrays;
+data.SU_clusters = Robs_strct.SU_clusters';
+data.MU_clusters = Robs_strct.MU_clusters';
+data.SU_chans = Robs_strct.SU_chans';
+data.MU_chans = Robs_strct.MU_chans';
+data.SU_arrays= Robs_strct.SU_arrays';
+data.MU_arrays = Robs_strct.MU_arrays';
 
 end

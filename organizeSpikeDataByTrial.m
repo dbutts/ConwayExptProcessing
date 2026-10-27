@@ -6,7 +6,6 @@ pl2 = PL2ReadFileIndex(plexon_fname);
 fs = pl2.SpikeChannels{1}.SamplesPerSecond;
 nBins = numel(stimIntervals) - 1;
 
-
 if nargin < 5
     onlineSortingOnly = 1;
 end
